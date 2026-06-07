@@ -6,8 +6,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { apiGames, apiGameProviders, apiLaunchGame, apiSyncBalance } from "@/lib/localApi";
-import { getDemoUrl, getDemoThumb, hasFreeDemo } from "@/lib/freeDemos";
-import { openEscrow, closeEscrow } from "@/lib/escrowWallet";
 
 
 
@@ -88,18 +86,11 @@ export default function Lobby() {
   const [launchingGame, setLaunchingGame] = useState<string | null>(null);
   const [gameUrl, setGameUrl] = useState<string | null>(null);
   const [activeGame, setActiveGame] = useState<AesGame | null>(null);
-  const [sessionAmt, setSessionAmt] = useState<number>(0);
-  const [pendingGame, setPendingGame] = useState<AesGame | null>(null);
-  const [stakeInput, setStakeInput] = useState("10");
-  const [closeInput, setCloseInput] = useState("");
-  const [showCloseModal, setShowCloseModal] = useState(false);
   const [closingGame, setClosingGame] = useState(false);
-  const [amaticUrl, setAmaticUrl] = useState<string | null>(null);
-  const [oroReady, setOroReady] = useState(false);
-  
-  // Auto-detect OroPlay API availability
+
+  // (OroPlay reserved for future, no UI hooks needed in lobby)
   useEffect(() => {
-    isOroAvailable().then(ok => { setOroReady(ok); if(ok) console.log("🎰 AMATIC REAL MONEY MODE!"); });
+    isOroAvailable().then(() => {});
   }, []);
   const [showAuth, setShowAuth] = useState(false);
   const [launchError, setLaunchError] = useState("");
@@ -206,64 +197,41 @@ export default function Lobby() {
   // Top picks (first 8 from scored popular)
   const topPicks = useMemo(() => games.slice(0, 8), [games]);
 
+  // Launch game via AES API (real money — uses TND balance from Supabase moved into AES wallet)
   const launchGame = async (game: AesGame) => {
     if (!user) { setShowAuth(true); return; }
-    // If provider has a free public demo → open directly (no session, demo credits only)
-    const directUrl = (game as any)._amaticUrl || getDemoUrl(game.provider_id, game.game_code);
-    if (directUrl) {
-      setActiveGame(game);
-      setSessionAmt(0); // no escrow - browsing only
-      setGameUrl(directUrl);
-      return;
+    if (parseFloat(user.balance) <= 0) {
+      setLaunchError(t("insufficientBalance") + " — تواصل مع الإدارة لشحن رصيدك");
+      setTimeout(() => setLaunchError(""), 4500); return;
     }
-    // Show "TND only available in Originals" notice for non-demo providers
-    setLaunchError("هذه اللعبة تجريبية فقط. للرهان الحقيقي بـ TND، جرّب Originals (Crash, Mines, Dice, Plinko, Limbo) ←");
-    setTimeout(() => setLaunchError(""), 5500);
-  };
-
-  const confirmLaunchWithSession = async () => {
-    if (!user || !pendingGame) return;
-    const amt = parseFloat(stakeInput);
-    if (!amt || amt <= 0) { setLaunchError("أدخل مبلغاً صالحاً"); return; }
-    setLaunchingGame(pendingGame.game_code); setLaunchError("");
-    const res = await openEscrow(user.id, amt, pendingGame.game_name, "Free Demo");
-    if (!res.ok) { setLaunchError(res.error || "خطأ"); setLaunchingGame(null); return; }
-    await refreshBalance();
-    // Support: 1) Amatic direct URL (via _amaticUrl), 2) Pragmatic free demo via mapping
-    const amaticUrl = (pendingGame as any)._amaticUrl;
-    const url = amaticUrl || getDemoUrl(pendingGame.provider_id, pendingGame.game_code);
-    if (url) {
-      setGameUrl(url);
-      setActiveGame(pendingGame);
-      setSessionAmt(amt);
+    setLaunchingGame(game.game_code); setLaunchError("");
+    try {
+      const result = await apiLaunchGame(token!, game.game_code, game.provider_id);
+      if (result.url) {
+        setGameUrl(result.url);
+        setActiveGame(game);
+      } else {
+        setLaunchError(result.error ?? t("noGames"));
+        setTimeout(() => setLaunchError(""), 5000);
+      }
+    } catch {
+      setLaunchError("خطأ في الاتصال");
+      setTimeout(() => setLaunchError(""), 4000);
     }
-    setPendingGame(null);
     setLaunchingGame(null);
   };
 
   const closeGame = async () => {
-    setGameUrl(null);
-    setActiveGame(null);
-    setSessionAmt(0);
-    if (user) await refreshBalance();
-  };
-
-  const confirmCloseSession = async () => {
-    if (!user) return;
-    const amt = parseFloat(closeInput);
-    if (isNaN(amt) || amt < 0) { setLaunchError("أدخل المبلغ المتبقي"); return; }
+    if (!user || !token) { setGameUrl(null); setActiveGame(null); return; }
     setClosingGame(true);
-    const res = await closeEscrow(user.id, amt);
-    if (!res.ok) { setLaunchError(res.error || "خطأ"); setClosingGame(false); return; }
-    await refreshBalance();
-    const pnl = res.pnl || 0;
-    setLaunchError(pnl >= 0 ? `🎉 ربحت ${pnl.toFixed(2)} TND` : `💸 خسرت ${Math.abs(pnl).toFixed(2)} TND`);
-    setGameUrl(null);
-    setActiveGame(null);
-    setSessionAmt(0);
-    setShowCloseModal(false);
+    setGameUrl(null); setActiveGame(null);
+    try {
+      // Wait briefly so AES finalizes round, then sync wallet → Supabase
+      await new Promise(r => setTimeout(r, 1000));
+      await apiSyncBalance(token);
+      await refreshBalance();
+    } catch {}
     setClosingGame(false);
-    setTimeout(() => setLaunchError(""), 4500);
   };
 
   const GameCard = ({ game, i, size = "normal" }: { game: AesGame; i: number; size?: "normal" | "large" | "wide" }) => (
@@ -433,33 +401,40 @@ export default function Lobby() {
         </div>
       </div>
 
-      {/* Game iframe (DEMO mode for browsing 3rd party games) */}
+      {/* Game iframe (AES real-money launch) */}
       {gameUrl && (
         <div className="fixed inset-0 bg-black flex flex-col" style={{ zIndex: 9999 }}>
           <div className="flex items-center justify-between p-2 flex-shrink-0 gap-2"
-            style={{ background: "#020408", borderBottom: "1px solid rgba(255,165,0,0.25)" }}>
+            style={{ background: "#020408", borderBottom: "1px solid rgba(0,209,255,0.2)" }}>
             <div className="flex items-center gap-2 min-w-0">
               <span className="font-black text-xs tracking-wider flex-shrink-0" style={{ color: "#00D1FF" }}>MEBET</span>
-              <span className="px-2 py-0.5 rounded text-[9px] font-black"
-                style={{ background: "rgba(255,165,0,0.85)", color: "#000" }}>🎮 DEMO</span>
               {activeGame && (
                 <span className="text-[10px] text-white/60 font-bold truncate">{activeGame.game_name}</span>
               )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <a href="/originals" onClick={(e) => { e.preventDefault(); window.location.hash="#/originals"; window.location.pathname="/originals"; }}
-                className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold"
-                style={{ background: "linear-gradient(135deg,#a855f7,#FF2D55)", color: "#fff" }}>
-                💰 Real TND → Originals
-              </a>
-              <button onClick={closeGame} className="px-3 py-1.5 rounded-lg text-xs font-bold"
+              {user && (
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg"
+                  style={{ background: "rgba(0,200,83,0.1)", border: "1px solid rgba(0,200,83,0.25)" }}>
+                  <span className="text-[10px] text-green-400 font-bold">{user.balance} TND</span>
+                </div>
+              )}
+              <button onClick={closeGame} disabled={closingGame} className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50"
                 style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55", border: "1px solid rgba(255,45,85,0.3)" }}>
-                ✕ Close
+                {closingGame ? "..." : t("closeGame") + " ✕"}
               </button>
             </div>
           </div>
           <div className="flex-1 relative">
             <iframe ref={iframeRef} src={gameUrl} className="w-full h-full border-none absolute inset-0" title="Game" allow="fullscreen autoplay" />
+            {closingGame && (
+              <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.85)", zIndex: 10 }}>
+                <div className="text-center space-y-3">
+                  <div className="w-10 h-10 mx-auto rounded-full animate-spin" style={{ borderWidth: 3, borderStyle: "solid", borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00D1FF" }} />
+                  <p className="text-sm font-bold" style={{ color: "#00D1FF" }}>{t("savingBalance")}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
