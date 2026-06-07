@@ -7,6 +7,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { apiGames, apiGameProviders, apiLaunchGame, apiSyncBalance } from "@/lib/localApi";
+import { getDemoUrl, getDemoThumb, hasFreeDemo } from "@/lib/freeDemos";
+import { openEscrow, closeEscrow } from "@/lib/escrowWallet";
 
 
 
@@ -86,6 +88,12 @@ export default function Lobby() {
   const [loadingGames, setLoadingGames] = useState(true);
   const [launchingGame, setLaunchingGame] = useState<string | null>(null);
   const [gameUrl, setGameUrl] = useState<string | null>(null);
+  const [activeGame, setActiveGame] = useState<AesGame | null>(null);
+  const [sessionAmt, setSessionAmt] = useState<number>(0);
+  const [pendingGame, setPendingGame] = useState<AesGame | null>(null);
+  const [stakeInput, setStakeInput] = useState("10");
+  const [closeInput, setCloseInput] = useState("");
+  const [showCloseModal, setShowCloseModal] = useState(false);
   const [closingGame, setClosingGame] = useState(false);
   const [amaticUrl, setAmaticUrl] = useState<string | null>(null);
   const [oroReady, setOroReady] = useState(false);
@@ -202,30 +210,78 @@ export default function Lobby() {
   const launchGame = async (game: AesGame) => {
     if (!user) { setShowAuth(true); return; }
     if (parseFloat(user.balance) <= 0) {
-      setLaunchError(t("insufficientBalance"));
-      setTimeout(() => setLaunchError(""), 4000); return;
+      setLaunchError(t("insufficientBalance") + " — تواصل مع الإدارة لشحن رصيدك");
+      setTimeout(() => setLaunchError(""), 4500); return;
     }
+    // If provider has a free public demo → open Session dialog (Escrow wallet)
+    if (hasFreeDemo(game.provider_id)) {
+      setPendingGame(game);
+      setStakeInput("10");
+      return;
+    }
+    // Fallback: AES API launch (requires real funds in AES wallet)
     setLaunchingGame(game.game_code); setLaunchError("");
     try {
       const result = await apiLaunchGame(token!, game.game_code, game.provider_id);
-      if (result.url) setGameUrl(result.url);
+      if (result.url) { setGameUrl(result.url); setActiveGame(game); }
       else { setLaunchError(result.error ?? t("noGames")); setTimeout(() => setLaunchError(""), 5000); }
     } catch { setLaunchError("Error"); setTimeout(() => setLaunchError(""), 4000); }
     finally { setLaunchingGame(null); }
   };
 
+  const confirmLaunchWithSession = async () => {
+    if (!user || !pendingGame) return;
+    const amt = parseFloat(stakeInput);
+    if (!amt || amt <= 0) { setLaunchError("أدخل مبلغاً صالحاً"); return; }
+    setLaunchingGame(pendingGame.game_code); setLaunchError("");
+    const res = await openEscrow(user.id, amt, pendingGame.game_name, "Free Demo");
+    if (!res.ok) { setLaunchError(res.error || "خطأ"); setLaunchingGame(null); return; }
+    await refreshBalance();
+    const url = getDemoUrl(pendingGame.provider_id, pendingGame.game_code);
+    if (url) {
+      setGameUrl(url);
+      setActiveGame(pendingGame);
+      setSessionAmt(amt);
+    }
+    setPendingGame(null);
+    setLaunchingGame(null);
+  };
+
   const closeGame = async () => {
-    if (!user || !token) { setGameUrl(null); return; }
+    if (!user || !token) { setGameUrl(null); setActiveGame(null); return; }
+    // If escrow session active → require cash out
+    if (sessionAmt > 0 && activeGame && hasFreeDemo(activeGame.provider_id)) {
+      setCloseInput(sessionAmt.toFixed(2));
+      setShowCloseModal(true);
+      return;
+    }
+    // AES game close (legacy)
     setClosingGame(true);
-    // Close iframe first so AES finalizes the game session
-    setGameUrl(null);
+    setGameUrl(null); setActiveGame(null);
     try {
-      // Wait for AES to settle the game round
       await new Promise(r => setTimeout(r, 1000));
       await apiSyncBalance(token);
       await refreshBalance();
     } catch {}
     setClosingGame(false);
+  };
+
+  const confirmCloseSession = async () => {
+    if (!user) return;
+    const amt = parseFloat(closeInput);
+    if (isNaN(amt) || amt < 0) { setLaunchError("أدخل المبلغ المتبقي"); return; }
+    setClosingGame(true);
+    const res = await closeEscrow(user.id, amt);
+    if (!res.ok) { setLaunchError(res.error || "خطأ"); setClosingGame(false); return; }
+    await refreshBalance();
+    const pnl = res.pnl || 0;
+    setLaunchError(pnl >= 0 ? `🎉 ربحت ${pnl.toFixed(2)} TND` : `💸 خسرت ${Math.abs(pnl).toFixed(2)} TND`);
+    setGameUrl(null);
+    setActiveGame(null);
+    setSessionAmt(0);
+    setShowCloseModal(false);
+    setClosingGame(false);
+    setTimeout(() => setLaunchError(""), 4500);
   };
 
   const GameCard = ({ game, i, size = "normal" }: { game: AesGame; i: number; size?: "normal" | "large" | "wide" }) => (
@@ -459,12 +515,36 @@ export default function Lobby() {
       {/* Game iframe */}
       {gameUrl && (
         <div className="fixed inset-0 bg-black flex flex-col" style={{ zIndex: 9999 }}>
-          <div className="flex items-center justify-between p-2 flex-shrink-0" style={{ background: "#020408", borderBottom: "1px solid rgba(0,209,255,0.15)" }}>
-            <span className="font-black text-xs tracking-wider" style={{ color: "#00D1FF" }}>TUNBET</span>
-            <button onClick={closeGame} disabled={closingGame} className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50"
-              style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55", border: "1px solid rgba(255,45,85,0.3)" }}>
-              {closingGame ? t("savingBalance") : t("closeGame") + " ✕"}
-            </button>
+          <div className="flex items-center justify-between p-2 flex-shrink-0 gap-2"
+            style={{ background: "#020408", borderBottom: "1px solid rgba(0,209,255,0.15)" }}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-black text-xs tracking-wider flex-shrink-0" style={{ color: "#00D1FF" }}>TUNBET</span>
+              {activeGame && (
+                <span className="text-[10px] text-white/60 font-bold truncate">{activeGame.game_name}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {sessionAmt > 0 && (
+                <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg"
+                  style={{ background: "rgba(255,215,0,0.1)", border: "1px solid rgba(255,215,0,0.25)" }}>
+                  <span className="text-[9px] text-white/40">Session:</span>
+                  <span className="text-[10px] text-yellow-400 font-bold">{sessionAmt.toFixed(2)} TND</span>
+                </div>
+              )}
+              {user && (
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg"
+                  style={{ background: "rgba(0,200,83,0.1)", border: "1px solid rgba(0,200,83,0.25)" }}>
+                  <span className="text-[9px] text-white/40">💰</span>
+                  <span className="text-[10px] text-green-400 font-bold">{user.balance} TND</span>
+                </div>
+              )}
+              <button onClick={closeGame} disabled={closingGame} className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50"
+                style={{ background: sessionAmt > 0 ? "linear-gradient(135deg,#00C853,#00E676)" : "rgba(255,45,85,0.15)",
+                         color: sessionAmt > 0 ? "#000" : "#FF2D55",
+                         border: sessionAmt > 0 ? "none" : "1px solid rgba(255,45,85,0.3)" }}>
+                {closingGame ? "..." : sessionAmt > 0 ? "💰 Cash Out" : t("closeGame") + " ✕"}
+              </button>
+            </div>
           </div>
           <div className="flex-1 relative">
             <iframe ref={iframeRef} src={gameUrl} className="w-full h-full border-none absolute inset-0" title="Game" allow="fullscreen autoplay" />
@@ -472,10 +552,114 @@ export default function Lobby() {
               <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.85)", zIndex: 10 }}>
                 <div className="text-center space-y-3">
                   <div className="w-10 h-10 mx-auto rounded-full animate-spin" style={{ borderWidth: 3, borderStyle: "solid", borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00D1FF" }} />
-                  <p className="text-sm font-bold" style={{ color: "#00D1FF" }}>${t("savingBalance")}</p>
+                  <p className="text-sm font-bold" style={{ color: "#00D1FF" }}>{t("savingBalance")}</p>
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Pre-launch Session dialog (Free Demo with Escrow) */}
+      {pendingGame && user && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.88)", backdropFilter: "blur(12px)" }}
+          onClick={() => setPendingGame(null)}>
+          <div onClick={e => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl overflow-hidden"
+            style={{ background: "rgba(15,18,28,0.98)", border: "1px solid rgba(0,209,255,0.3)" }}>
+            <div className="relative h-32 overflow-hidden">
+              <img src={pendingGame.game_image_narrow || pendingGame.game_image} alt={pendingGame.game_name}
+                className="w-full h-full object-cover" />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(15,18,28,0.98), transparent 50%)" }} />
+              <button onClick={() => setPendingGame(null)}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(0,0,0,0.7)", color: "#fff" }}>✕</button>
+              <div className="absolute bottom-2 left-3 right-3">
+                <h3 className="text-lg font-black text-white">{pendingGame.game_name}</h3>
+                <p className="text-[10px] text-white/60">{getProviderName(pendingGame.provider_id)}</p>
+              </div>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="rounded-lg p-2.5" style={{ background: "rgba(0,209,255,0.06)" }}>
+                <p className="text-[10px] text-white/60 leading-tight">
+                  💡 يُخصم مبلغ الجلسة من رصيدك ويُعاد عند الإنهاء حسب نتيجتك<br/>
+                  رصيدك الحالي: <b className="text-white">{user.balance} TND</b>
+                </p>
+              </div>
+              <div>
+                <label className="text-[10px] text-white/40 mb-1 block">مبلغ الجلسة (TND)</label>
+                <input type="number" value={stakeInput} onChange={e => setStakeInput(e.target.value)}
+                  min="1" max={parseFloat(user.balance)} step="0.5"
+                  className="w-full px-3 py-2.5 rounded-xl text-lg font-black text-white text-center"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,209,255,0.25)" }} />
+                <div className="flex gap-1.5 mt-2">
+                  {[5, 10, 20, 50, 100].map(v => (
+                    <button key={v} onClick={() => setStakeInput(String(v))}
+                      className="flex-1 py-1 rounded-md text-[10px] font-bold text-white/60"
+                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {launchError && <p className="text-[11px] text-center font-bold text-pink-400">{launchError}</p>}
+              <button onClick={confirmLaunchWithSession} disabled={launchingGame === pendingGame.game_code}
+                className="w-full py-3 rounded-xl text-sm font-black text-black disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #00D1FF, #0066FF)" }}>
+                {launchingGame === pendingGame.game_code ? "..." : `🎰 Open • ${parseFloat(stakeInput || "0").toFixed(2)} TND`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cash Out modal */}
+      {showCloseModal && user && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.9)", backdropFilter: "blur(12px)" }}>
+          <div className="w-full max-w-sm rounded-2xl overflow-hidden"
+            style={{ background: "rgba(15,18,28,0.98)", border: "1px solid rgba(0,200,83,0.3)" }}>
+            <div className="p-4 border-b" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+              <h3 className="text-lg font-black text-white mb-1">💰 Cash Out</h3>
+              <p className="text-[11px] text-white/40">أدخل رصيدك المتبقي لإعادته لمحفظتك</p>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="rounded-xl p-3 text-center" style={{ background: "rgba(0,209,255,0.08)" }}>
+                <p className="text-[10px] text-white/40 mb-1">Session opened with</p>
+                <p className="text-2xl font-black text-white">{sessionAmt.toFixed(2)} <span className="text-sm text-white/40">TND</span></p>
+              </div>
+              <div>
+                <label className="text-[10px] text-white/40 mb-1 block">رصيدك الحالي في اللعبة (TND)</label>
+                <input type="number" value={closeInput} onChange={e => setCloseInput(e.target.value)}
+                  step="0.01" min="0"
+                  className="w-full px-3 py-2.5 rounded-xl text-lg font-black text-white text-center"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }} />
+              </div>
+              {closeInput && !isNaN(parseFloat(closeInput)) && (
+                <div className="rounded-lg p-2.5 text-center"
+                  style={{ background: parseFloat(closeInput) >= sessionAmt ? "rgba(0,200,83,0.1)" : "rgba(255,45,85,0.1)" }}>
+                  <p className="text-[10px] text-white/40">Net Result</p>
+                  <p className="text-lg font-black"
+                    style={{ color: parseFloat(closeInput) >= sessionAmt ? "#00C853" : "#FF2D55" }}>
+                    {parseFloat(closeInput) >= sessionAmt ? "+" : ""}{(parseFloat(closeInput) - sessionAmt).toFixed(2)} TND
+                  </p>
+                </div>
+              )}
+              {launchError && <p className="text-[11px] text-center font-bold text-pink-400">{launchError}</p>}
+              <div className="flex gap-2">
+                <button onClick={() => { setShowCloseModal(false); setLaunchError(""); }}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white/60"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  إلغاء
+                </button>
+                <button onClick={confirmCloseSession} disabled={closingGame || !closeInput}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-black text-black disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg,#00C853,#00E676)" }}>
+                  {closingGame ? "..." : "تأكيد"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
