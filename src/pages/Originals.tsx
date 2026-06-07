@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
-import { ArrowLeft, Sparkles, Trophy, Wallet, Activity, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Wallet, Plus, Minus, Sparkles, Trophy } from "lucide-react";
 import {
   crashRound, diceRoll, minesStart, minesMultiplier, minesCashout,
   limboRoll, plinkoRound, PLINKO_MULTIPLIERS, generateServerSeed,
@@ -16,22 +16,20 @@ interface GameMeta {
   arName: string;
   desc: string;
   img: string;
-  badge?: string;
-  badgeColor?: string;
   accent: string;
 }
 
 const GAMES: GameMeta[] = [
-  { id: "crash",    name: "Crash",       arName: "كراش",      desc: "اخرج قبل ما تنفجر",       img: "/images/originals/crash.jpg",    badge: "HOT 🔥",   badgeColor: "#FF2D55", accent: "#FF2D55" },
-  { id: "mines",    name: "Mines",       arName: "ألغام",     desc: "تجنّب الألغام، احصد الجواهر", img: "/images/originals/mines.jpg",    badge: "POPULAR",  badgeColor: "#FFD700", accent: "#FFD700" },
-  { id: "dice",     name: "Dice",        arName: "النرد",     desc: "Over / Under classic",    img: "/images/originals/dice.jpg",     badge: "CLASSIC",  badgeColor: "#00D1FF", accent: "#00D1FF" },
-  { id: "plinko",   name: "Plinko",      arName: "بلينكو",    desc: "حتى 1000x من الكرة",      img: "/images/originals/plinko.jpg",   badge: "1000x 💎", badgeColor: "#22c55e", accent: "#22c55e" },
-  { id: "limbo",    name: "Limbo",       arName: "ليمبو",     desc: "أعلى من الهدف = ربح",      img: "/images/originals/limbo.jpg",    badge: "∞",        badgeColor: "#a855f7", accent: "#a855f7" },
-  { id: "wheel",    name: "Wheel",       arName: "العجلة",    desc: "دوّر العجلة، حتى 50x",     img: "/images/originals/wheel.jpg",    badge: "NEW",      badgeColor: "#FF6B35", accent: "#FF6B35" },
-  { id: "hilo",     name: "Hi-Lo",       arName: "أعلى/أقل",  desc: "أعلى أم أقل؟ ورق لعب",     img: "/images/originals/hilo.jpg",     badge: "NEW",      badgeColor: "#ec4899", accent: "#ec4899" },
-  { id: "coinflip", name: "Coin Flip",   arName: "ملك/كتابة", desc: "1.98x فوري",              img: "/images/originals/coinflip.jpg", badge: "QUICK",    badgeColor: "#FFD700", accent: "#FFD700" },
-  { id: "keno",     name: "Keno",        arName: "كينو",      desc: "اختر 10، اضرب اليانصيب",   img: "/images/originals/keno.jpg",     badge: "1000x",    badgeColor: "#06b6d4", accent: "#06b6d4" },
-  { id: "tower",    name: "Tower",       arName: "البرج",     desc: "تسلق 9 مستويات",          img: "/images/originals/tower.jpg",    badge: "NEW",      badgeColor: "#10b981", accent: "#10b981" },
+  { id: "crash",    name: "Crash",      arName: "كراش",      desc: "Cash out before it explodes",  img: "/images/originals/crash.jpg",    accent: "#FF2D55" },
+  { id: "mines",    name: "Mines",      arName: "ألغام",     desc: "Reveal gems, avoid mines",      img: "/images/originals/mines.jpg",    accent: "#FFD700" },
+  { id: "dice",     name: "Dice",       arName: "النرد",     desc: "Over or under target",          img: "/images/originals/dice.jpg",     accent: "#00D1FF" },
+  { id: "plinko",   name: "Plinko",     arName: "بلينكو",    desc: "Drop the ball, win big",        img: "/images/originals/plinko.jpg",   accent: "#22c55e" },
+  { id: "limbo",    name: "Limbo",      arName: "ليمبو",     desc: "Beat the multiplier",           img: "/images/originals/limbo.jpg",    accent: "#a855f7" },
+  { id: "wheel",    name: "Wheel",      arName: "العجلة",    desc: "Spin the wheel of fortune",     img: "/images/originals/wheel.jpg",    accent: "#FF6B35" },
+  { id: "hilo",     name: "Hi-Lo",      arName: "أعلى أقل",  desc: "Higher or lower card",          img: "/images/originals/hilo.jpg",     accent: "#ec4899" },
+  { id: "coinflip", name: "Coin Flip",  arName: "ملك كتابة", desc: "Heads or tails",                img: "/images/originals/coinflip.jpg", accent: "#FFD700" },
+  { id: "keno",     name: "Keno",       arName: "كينو",      desc: "Pick numbers, match draws",     img: "/images/originals/keno.jpg",     accent: "#06b6d4" },
+  { id: "tower",    name: "Tower",      arName: "البرج",     desc: "Climb 9 levels of fortune",     img: "/images/originals/tower.jpg",    accent: "#10b981" },
 ];
 
 export default function Originals() {
@@ -70,32 +68,19 @@ export default function Originals() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center"
               style={{ background: "linear-gradient(135deg,#a855f7,#FF2D55)" }}>
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
               <h1 className="text-xl font-black tracking-wider">ORIGINALS</h1>
-              <p className="text-[10px] text-white/40 font-mono">{GAMES.length} GAMES • 💰 REAL TND</p>
+              <p className="text-[10px] text-white/40 font-mono uppercase">{GAMES.length} games · TND wallet</p>
             </div>
           </div>
-          <div className="flex items-center gap-1 px-2 py-1 rounded-full"
-            style={{ background: "rgba(0,200,83,0.15)", border: "1px solid rgba(0,200,83,0.3)" }}>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+            style={{ background: "rgba(0,200,83,0.12)", border: "1px solid rgba(0,200,83,0.3)" }}>
             <Wallet className="w-3 h-3 text-green-400" />
-            <span className="text-[10px] font-bold text-green-400">{user.balance} TND</span>
-          </div>
-        </div>
-
-        {/* Info banner */}
-        <div className="rounded-xl p-3"
-          style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.08), rgba(255,45,85,0.06))",
-                   border: "1px solid rgba(168,85,247,0.2)" }}>
-          <div className="flex items-start gap-2">
-            <Activity className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-white/65 leading-relaxed">
-              <b className="text-white">ألعاب أصلية برصيد TND حقيقي</b> — كل رهان يُخصم وكل ربح يُضاف فوراً.
-              Provably Fair • RTP 99% • لا تجريبي
-            </p>
+            <span className="text-[11px] font-bold text-green-400">{user.balance} TND</span>
           </div>
         </div>
 
@@ -103,60 +88,31 @@ export default function Originals() {
         <div className="grid grid-cols-2 gap-3">
           {GAMES.map((g, i) => (
             <motion.div key={g.id}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(i * 0.04, 0.3) }}
-              whileHover={{ scale: 1.03, y: -2 }}
+              whileHover={{ y: -3 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => setActive(g.id)}
               className="relative rounded-2xl overflow-hidden cursor-pointer group"
               style={{ aspectRatio: "1/1", border: `1px solid ${g.accent}33` }}>
 
-              {/* Background image */}
               <img src={g.img} alt={g.name} loading="lazy"
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                onError={e => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }} />
+                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
 
-              {/* Gradient overlay */}
               <div className="absolute inset-0"
-                style={{ background: `linear-gradient(to top, rgba(2,4,8,0.95) 0%, rgba(2,4,8,0.45) 45%, transparent 75%)` }} />
+                style={{ background: `linear-gradient(to top, rgba(2,4,8,0.96) 0%, rgba(2,4,8,0.45) 45%, rgba(2,4,8,0.05) 80%)` }} />
 
-              {/* Glow on hover */}
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ boxShadow: `inset 0 0 30px ${g.accent}55` }} />
+                style={{ boxShadow: `inset 0 0 35px ${g.accent}55` }} />
 
-              {/* Top badge */}
-              {g.badge && (
-                <div className="absolute top-2 left-2 px-2 py-0.5 rounded text-[8px] font-black"
-                  style={{ background: g.badgeColor, color: "#000" }}>
-                  {g.badge}
-                </div>
-              )}
-
-              {/* LIVE indicator */}
-              <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-black"
-                style={{ background: "rgba(0,200,83,0.85)", color: "#000" }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
-                LIVE
-              </div>
-
-              {/* Bottom info */}
-              <div className="absolute bottom-0 left-0 right-0 p-2.5">
+              <div className="absolute bottom-0 left-0 right-0 p-3">
                 <h3 className="text-base font-black text-white leading-tight tracking-wide"
-                  style={{ textShadow: `0 0 12px ${g.accent}90, 0 2px 4px rgba(0,0,0,0.9)` }}>
+                  style={{ textShadow: `0 0 12px ${g.accent}90, 0 2px 4px rgba(0,0,0,0.95)` }}>
                   {g.name}
                 </h3>
-                <p className="text-[9px] text-white/70 leading-tight mt-0.5">{g.desc}</p>
-              </div>
-
-              {/* Hover play button */}
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center"
-                  style={{ background: g.accent, boxShadow: `0 0 25px ${g.accent}` }}>
-                  <span className="text-black font-black text-xl ml-0.5">▶</span>
-                </div>
+                <p className="text-[10px] text-white/70 leading-tight mt-0.5">{g.desc}</p>
               </div>
             </motion.div>
           ))}
@@ -168,24 +124,19 @@ export default function Originals() {
 
 // ━━━━━━━━━━━━━━━━━━ COMMON UI ━━━━━━━━━━━━━━━━━━
 
-function TopBar({ onBack, title, balance, color = "#00D1FF", img }: { onBack: () => void; title: string; balance: string; color?: string; img?: string }) {
+function TopBar({ onBack, title, balance, color = "#00D1FF" }: { onBack: () => void; title: string; balance: string; color?: string }) {
   return (
-    <div className="relative flex items-center justify-between px-3 py-2"
-      style={{ background: "rgba(2,4,8,0.95)", borderBottom: `1px solid ${color}33` }}>
-      {img && (
-        <div className="absolute inset-0 opacity-25"
-          style={{ background: `url(${img}) center/cover`, filter: "blur(8px)" }} />
-      )}
-      <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, rgba(2,4,8,0.85), rgba(2,4,8,0.95))` }} />
-      <div className="relative flex items-center gap-2">
+    <div className="flex items-center justify-between px-3 py-2 flex-shrink-0"
+      style={{ background: "rgba(8,10,16,0.98)", borderBottom: `1px solid ${color}33` }}>
+      <div className="flex items-center gap-2">
         <button onClick={onBack} className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ background: "rgba(255,255,255,0.08)" }}>
+          style={{ background: "rgba(255,255,255,0.06)" }}>
           <ArrowLeft className="w-4 h-4 text-white/80" />
         </button>
-        <span className="text-sm font-black text-white">{title}</span>
+        <span className="text-sm font-black text-white tracking-wide uppercase">{title}</span>
       </div>
-      <div className="relative flex items-center gap-1 px-2 py-1 rounded-lg"
-        style={{ background: "rgba(0,200,83,0.15)", border: "1px solid rgba(0,200,83,0.3)" }}>
+      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg"
+        style={{ background: "rgba(0,200,83,0.12)", border: "1px solid rgba(0,200,83,0.3)" }}>
         <Wallet className="w-3 h-3 text-green-400" />
         <span className="text-xs font-bold text-green-400">{balance} TND</span>
       </div>
@@ -204,12 +155,12 @@ function StakeInput({ value, onChange, max, color = "#00D1FF" }: { value: string
     onChange(String(Math.max(0.5, next)));
   };
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex justify-between items-center">
-        <label className="text-[10px] text-white/40">المبلغ (TND)</label>
+        <label className="text-[10px] text-white/40 uppercase tracking-wider">المبلغ</label>
         <span className="text-[10px] text-white/30">Max: {max.toFixed(2)}</span>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
         <button onClick={() => adjust(-1)} className="w-9 h-9 rounded-lg text-white/60"
           style={{ background: "rgba(255,255,255,0.05)" }}><Minus className="w-3.5 h-3.5 mx-auto" /></button>
         <input type="number" value={value} onChange={e => onChange(e.target.value)} min="0.5" step="0.5" max={max}
@@ -221,10 +172,22 @@ function StakeInput({ value, onChange, max, color = "#00D1FF" }: { value: string
       <div className="flex gap-1">
         {[10, 25, 50, 100].map(p => (
           <button key={p} onClick={() => setPercent(p)}
-            className="flex-1 py-1 rounded text-[9px] font-bold text-white/60"
+            className="flex-1 py-1 rounded text-[9px] font-bold text-white/55"
             style={{ background: "rgba(255,255,255,0.04)" }}>{p}%</button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// Decorative subtle header banner (image at top of game, not full background)
+function GameBanner({ img, color, height = 90 }: { img: string; color: string; height?: number }) {
+  return (
+    <div className="relative w-full overflow-hidden flex-shrink-0" style={{ height }}>
+      <img src={img} alt="" className="w-full h-full object-cover" />
+      <div className="absolute inset-0"
+        style={{ background: `linear-gradient(to bottom, rgba(8,10,16,0.45) 0%, rgba(8,10,16,0.92) 100%)` }} />
+      <div className="absolute inset-x-0 bottom-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${color}99, transparent)` }} />
     </div>
   );
 }
@@ -258,16 +221,13 @@ function CrashGame({ onBack }: { onBack: () => void }) {
     if (!t || t < 1.01) { setError("الهدف 1.01x أو أكثر"); return; }
     if (balance <= 0) { setError("رصيدك 0 — تواصل مع الإدارة"); return; }
     if (s > balance) { setError("رصيد غير كافٍ"); return; }
-
     setPhase("flying"); setMultiplier(1); setWon(null); setPayout(0);
-
     const res = await crashRound(user.id, s, t, clientSeed.current, nonce);
     setNonce(n => n + 1);
     if (!res.ok) { setError(res.error || "خطأ"); setPhase("idle"); return; }
     await refreshBalance();
     const crash = res.crashAt!;
     setCrashAt(crash);
-
     startTime.current = Date.now();
     const duration = Math.min(15000, Math.max(2000, Math.log(crash) * 3000));
     const animate = () => {
@@ -289,17 +249,16 @@ function CrashGame({ onBack }: { onBack: () => void }) {
   useEffect(() => () => cancelAnimationFrame(animFrame.current), []);
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      <TopBar onBack={onBack} title="🚀 Crash" balance={user.balance} color="#FF2D55" img="/images/originals/crash.jpg" />
+    <div className="fixed inset-0 z-[200] bg-[#080a10] flex flex-col">
+      <TopBar onBack={onBack} title="CRASH" balance={user.balance} color="#FF2D55" />
+      <GameBanner img="/images/originals/crash.jpg" color="#FF2D55" />
 
       <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden"
-        style={{ background: `url(/images/originals/crash.jpg) center/cover` }}>
-        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.7)" }} />
-
+        style={{ background: "radial-gradient(ellipse at center, rgba(255,45,85,0.10), #080a10 70%)" }}>
         {history.length > 0 && (
-          <div className="absolute top-3 left-3 right-3 flex gap-1 overflow-x-auto scrollbar-hide z-10">
+          <div className="absolute top-3 left-3 right-3 flex gap-1 overflow-x-auto scrollbar-hide">
             {history.map((h, i) => (
-              <div key={i} className="flex-shrink-0 px-2 py-1 rounded-md text-[10px] font-black"
+              <div key={i} className="flex-shrink-0 px-2.5 py-1 rounded-md text-[10px] font-black"
                 style={{ background: h >= 2 ? "rgba(0,200,83,0.85)" : "rgba(255,45,85,0.85)", color: "#000" }}>
                 {h.toFixed(2)}x
               </div>
@@ -307,52 +266,52 @@ function CrashGame({ onBack }: { onBack: () => void }) {
           </div>
         )}
 
-        <div className="relative text-center z-10">
+        <div className="text-center">
           {phase === "idle" && <p className="text-7xl font-black text-white/15">1.00x</p>}
           {phase === "flying" && (
-            <motion.p animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 0.3, repeat: Infinity }}
-              className="text-7xl font-black"
+            <motion.p animate={{ scale: [1, 1.04, 1] }} transition={{ duration: 0.3, repeat: Infinity }}
+              className="text-8xl font-black"
               style={{ color: multiplier >= parseFloat(target) ? "#00C853" : "#FFD700",
-                       textShadow: "0 0 50px currentColor" }}>
+                       textShadow: "0 0 60px currentColor" }}>
               {multiplier.toFixed(2)}x
             </motion.p>
           )}
           {phase === "crashed" && (
             <>
               <motion.p initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                className="text-7xl font-black"
-                style={{ color: won ? "#00C853" : "#FF2D55", textShadow: "0 0 50px currentColor" }}>
+                className="text-8xl font-black"
+                style={{ color: won ? "#00C853" : "#FF2D55", textShadow: "0 0 60px currentColor" }}>
                 {crashAt!.toFixed(2)}x
               </motion.p>
-              <p className="text-sm mt-3 font-black" style={{ color: won ? "#00C853" : "#FF2D55" }}>
-                {won ? `🎉 ربحت ${payout.toFixed(2)} TND` : "💥 انفجرت!"}
+              <p className="text-sm mt-3 font-bold tracking-wide" style={{ color: won ? "#00C853" : "#FF2D55" }}>
+                {won ? `WIN +${payout.toFixed(2)} TND` : "BUST"}
               </p>
             </>
           )}
         </div>
       </div>
 
-      <div className="p-3 space-y-3" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(255,45,85,0.2)" }}>
+      <div className="p-3 space-y-3 flex-shrink-0" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(255,45,85,0.2)" }}>
         {error && <p className="text-[11px] text-center font-bold text-pink-400">{error}</p>}
         <div className="grid grid-cols-2 gap-2">
           <StakeInput value={stake} onChange={setStake} max={balance} color="#FF2D55" />
-          <div className="space-y-2">
-            <label className="text-[10px] text-white/40">Auto Cashout (x)</label>
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-white/40 uppercase tracking-wider">Auto Cashout</label>
             <input type="number" value={target} onChange={e => setTarget(e.target.value)} min="1.01" step="0.1"
               className="w-full px-2 py-2 rounded-lg text-center text-base font-black text-white"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,45,85,0.3)" }} />
             <div className="flex gap-1">
               {["1.5", "2", "3", "5", "10"].map(t => (
-                <button key={t} onClick={() => setTarget(t)} className="flex-1 py-1 rounded text-[9px] font-bold text-white/60"
+                <button key={t} onClick={() => setTarget(t)} className="flex-1 py-1 rounded text-[9px] font-bold text-white/55"
                   style={{ background: "rgba(255,255,255,0.04)" }}>{t}x</button>
               ))}
             </div>
           </div>
         </div>
         <button onClick={play} disabled={phase === "flying"}
-          className="w-full py-3 rounded-xl text-sm font-black text-white disabled:opacity-50"
+          className="w-full py-3 rounded-xl text-sm font-black text-white disabled:opacity-50 tracking-wide"
           style={{ background: "linear-gradient(135deg,#FF2D55,#FF6B35)", boxShadow: "0 4px 20px rgba(255,45,85,0.4)" }}>
-          {phase === "flying" ? "✈️ Flying..." : `🚀 Bet ${parseFloat(stake || "0").toFixed(2)} TND`}
+          {phase === "flying" ? "FLYING..." : `PLACE BET · ${parseFloat(stake || "0").toFixed(2)} TND`}
         </button>
       </div>
     </div>
@@ -378,7 +337,7 @@ function DiceGame({ onBack }: { onBack: () => void }) {
   if (!user) return null;
   const balance = parseFloat(user.balance);
   const winChance = isOver ? 100 - target : target;
-  const multiplier = winChance > 0 ? +(99 / winChance).toFixed(4) : 0;
+  const multiplier = winChance > 0 ? +(65 / winChance).toFixed(4) : 0;
   const potWin = +(parseFloat(stake || "0") * multiplier).toFixed(2);
 
   const play = async () => {
@@ -400,26 +359,26 @@ function DiceGame({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      <TopBar onBack={onBack} title="🎲 Dice" balance={user.balance} color="#00D1FF" img="/images/originals/dice.jpg" />
+    <div className="fixed inset-0 z-[200] bg-[#080a10] flex flex-col">
+      <TopBar onBack={onBack} title="DICE" balance={user.balance} color="#00D1FF" />
+      <GameBanner img="/images/originals/dice.jpg" color="#00D1FF" />
 
-      <div className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto relative"
-        style={{ background: `url(/images/originals/dice.jpg) center/cover` }}>
-        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.78)" }} />
+      <div className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto"
+        style={{ background: "radial-gradient(ellipse at top, rgba(0,209,255,0.06), #080a10 70%)" }}>
 
-        <div className="relative text-center py-4">
+        <div className="text-center py-6">
           {rolling ? (
-            <motion.p animate={{ rotate: 360 }} transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
-              className="text-7xl">🎲</motion.p>
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
+              className="w-20 h-20 mx-auto rounded-2xl border-4 border-cyan-400/40 border-t-cyan-400" />
           ) : roll !== null ? (
             <>
               <motion.p initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                 className="text-7xl font-black"
-                style={{ color: won ? "#00C853" : "#FF2D55", textShadow: "0 0 40px currentColor" }}>
+                style={{ color: won ? "#00C853" : "#FF2D55", textShadow: "0 0 50px currentColor" }}>
                 {roll.toFixed(2)}
               </motion.p>
-              <p className="text-sm mt-2 font-bold" style={{ color: won ? "#00C853" : "#FF2D55" }}>
-                {won ? `🎉 ربحت ${payout.toFixed(2)} TND` : "💸 خسرت"}
+              <p className="text-sm mt-2 font-bold tracking-wide" style={{ color: won ? "#00C853" : "#FF2D55" }}>
+                {won ? `WIN +${payout.toFixed(2)} TND` : "LOSS"}
               </p>
             </>
           ) : (
@@ -427,40 +386,40 @@ function DiceGame({ onBack }: { onBack: () => void }) {
           )}
         </div>
 
-        <div className="relative space-y-2">
-          <div className="flex justify-between text-[10px] text-white/70">
-            <span>الهدف: <b className="text-white">{target}</b></span>
-            <span>فرصة: <b style={{ color: "#00D1FF" }}>{winChance.toFixed(2)}%</b></span>
+        <div className="space-y-2">
+          <div className="flex justify-between text-[11px] text-white/60">
+            <span>Target: <b className="text-white">{target}</b></span>
+            <span>Win chance: <b style={{ color: "#00D1FF" }}>{winChance.toFixed(2)}%</b></span>
           </div>
           <input type="range" min="2" max="98" value={target} onChange={e => setTarget(parseInt(e.target.value))}
             className="w-full" style={{ accentColor: "#00D1FF" }} />
           <div className="flex gap-2">
-            <button onClick={() => setIsOver(false)} className="flex-1 py-2 rounded-lg text-xs font-black"
-              style={{ background: !isOver ? "linear-gradient(135deg,#00D1FF,#0066FF)" : "rgba(255,255,255,0.08)",
+            <button onClick={() => setIsOver(false)} className="flex-1 py-2 rounded-lg text-xs font-black tracking-wide"
+              style={{ background: !isOver ? "linear-gradient(135deg,#00D1FF,#0066FF)" : "rgba(255,255,255,0.05)",
                        color: !isOver ? "#000" : "rgba(255,255,255,0.5)" }}>
-              ◀ Under {target}
+              UNDER {target}
             </button>
-            <button onClick={() => setIsOver(true)} className="flex-1 py-2 rounded-lg text-xs font-black"
-              style={{ background: isOver ? "linear-gradient(135deg,#00D1FF,#0066FF)" : "rgba(255,255,255,0.08)",
+            <button onClick={() => setIsOver(true)} className="flex-1 py-2 rounded-lg text-xs font-black tracking-wide"
+              style={{ background: isOver ? "linear-gradient(135deg,#00D1FF,#0066FF)" : "rgba(255,255,255,0.05)",
                        color: isOver ? "#000" : "rgba(255,255,255,0.5)" }}>
-              Over {target} ▶
+              OVER {target}
             </button>
           </div>
         </div>
 
-        <div className="relative grid grid-cols-2 gap-2">
-          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(255,215,0,0.12)" }}>
-            <p className="text-[9px] text-white/60">Multiplier</p>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(255,215,0,0.08)" }}>
+            <p className="text-[9px] text-white/50 uppercase">Multiplier</p>
             <p className="text-base font-black text-yellow-400">{multiplier.toFixed(2)}x</p>
           </div>
-          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(0,200,83,0.12)" }}>
-            <p className="text-[9px] text-white/60">Potential Win</p>
+          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(0,200,83,0.08)" }}>
+            <p className="text-[9px] text-white/50 uppercase">Potential Win</p>
             <p className="text-base font-black text-green-400">{potWin.toFixed(2)} TND</p>
           </div>
         </div>
 
         {history.length > 0 && (
-          <div className="relative flex gap-1 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
             {history.map((h, i) => (
               <div key={i} className="flex-shrink-0 px-2 py-1 rounded text-[10px] font-black"
                 style={{ background: h.w ? "rgba(0,200,83,0.85)" : "rgba(255,45,85,0.85)", color: "#000" }}>
@@ -471,13 +430,13 @@ function DiceGame({ onBack }: { onBack: () => void }) {
         )}
       </div>
 
-      <div className="p-3 space-y-3" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(0,209,255,0.2)" }}>
+      <div className="p-3 space-y-3 flex-shrink-0" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(0,209,255,0.2)" }}>
         {error && <p className="text-[11px] text-center font-bold text-pink-400">{error}</p>}
         <StakeInput value={stake} onChange={setStake} max={balance} color="#00D1FF" />
         <button onClick={play} disabled={rolling}
-          className="w-full py-3 rounded-xl text-sm font-black text-black disabled:opacity-50"
+          className="w-full py-3 rounded-xl text-sm font-black text-black disabled:opacity-50 tracking-wide"
           style={{ background: "linear-gradient(135deg,#00D1FF,#0066FF)", boxShadow: "0 4px 20px rgba(0,209,255,0.4)" }}>
-          {rolling ? "🎲 Rolling..." : `🎲 Roll • ${parseFloat(stake || "0").toFixed(2)} TND`}
+          {rolling ? "ROLLING..." : `ROLL · ${parseFloat(stake || "0").toFixed(2)} TND`}
         </button>
       </div>
     </div>
@@ -518,11 +477,11 @@ function MinesGame({ onBack }: { onBack: () => void }) {
     setMines(res.mines!); setRevealed(new Set()); setPhase("playing");
   };
 
-  const reveal = async (idx: number) => {
+  const reveal = (idx: number) => {
     if (phase !== "playing" || revealed.has(idx)) return;
     const newRevealed = new Set(revealed); newRevealed.add(idx);
     setRevealed(newRevealed);
-    if (mines.includes(idx)) { setPhase("ended"); setResultMsg("💥 لغم! خسرت"); }
+    if (mines.includes(idx)) { setPhase("ended"); setResultMsg("BOOM — Mine hit"); }
   };
 
   const cashout = async () => {
@@ -531,44 +490,44 @@ function MinesGame({ onBack }: { onBack: () => void }) {
     if (res.ok) {
       await refreshBalance();
       setPhase("ended");
-      setResultMsg(`🎉 ربحت ${res.payout!.toFixed(2)} TND (${multiplier.toFixed(2)}x)`);
+      setResultMsg(`WIN +${res.payout!.toFixed(2)} TND (${multiplier.toFixed(2)}x)`);
     }
   };
 
   const reset = () => { setPhase("idle"); setRevealed(new Set()); setMines([]); setResultMsg(""); };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      <TopBar onBack={onBack} title="💣 Mines" balance={user.balance} color="#FFD700" img="/images/originals/mines.jpg" />
+    <div className="fixed inset-0 z-[200] bg-[#080a10] flex flex-col">
+      <TopBar onBack={onBack} title="MINES" balance={user.balance} color="#FFD700" />
+      <GameBanner img="/images/originals/mines.jpg" color="#FFD700" />
 
-      <div className="flex-1 flex flex-col p-4 overflow-y-auto relative"
-        style={{ background: `url(/images/originals/mines.jpg) center/cover` }}>
-        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.78)" }} />
+      <div className="flex-1 flex flex-col p-4 overflow-y-auto"
+        style={{ background: "radial-gradient(ellipse at center, rgba(255,215,0,0.05), #080a10 70%)" }}>
 
-        <div className="relative grid grid-cols-3 gap-2 mb-3">
-          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(255,215,0,0.12)" }}>
-            <p className="text-[9px] text-white/60">Multiplier</p>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(255,215,0,0.08)" }}>
+            <p className="text-[9px] text-white/50 uppercase">Multiplier</p>
             <p className="text-base font-black text-yellow-400">{multiplier.toFixed(2)}x</p>
           </div>
-          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(0,200,83,0.12)" }}>
-            <p className="text-[9px] text-white/60">Win</p>
+          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(0,200,83,0.08)" }}>
+            <p className="text-[9px] text-white/50 uppercase">Current Win</p>
             <p className="text-base font-black text-green-400">{currentWin.toFixed(2)}</p>
           </div>
-          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(0,209,255,0.12)" }}>
-            <p className="text-[9px] text-white/60">Next</p>
+          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(0,209,255,0.08)" }}>
+            <p className="text-[9px] text-white/50 uppercase">Next</p>
             <p className="text-base font-black text-cyan-400">{nextMultiplier.toFixed(2)}x</p>
           </div>
         </div>
 
         {resultMsg && (
-          <div className="relative p-3 rounded-xl text-sm text-center font-bold mb-3"
-            style={{ background: resultMsg.includes("ربحت") ? "rgba(0,200,83,0.2)" : "rgba(255,45,85,0.2)",
-                     color: resultMsg.includes("ربحت") ? "#00C853" : "#FF2D55" }}>
+          <div className="p-3 rounded-xl text-sm text-center font-bold mb-3 tracking-wide"
+            style={{ background: resultMsg.includes("WIN") ? "rgba(0,200,83,0.15)" : "rgba(255,45,85,0.15)",
+                     color: resultMsg.includes("WIN") ? "#00C853" : "#FF2D55" }}>
             {resultMsg}
           </div>
         )}
 
-        <div className="relative grid grid-cols-5 gap-1.5 max-w-sm mx-auto w-full">
+        <div className="grid grid-cols-5 gap-1.5 max-w-sm mx-auto w-full">
           {Array.from({ length: 25 }).map((_, idx) => {
             const isRevealed = revealed.has(idx);
             const isMine = mines.includes(idx);
@@ -576,57 +535,65 @@ function MinesGame({ onBack }: { onBack: () => void }) {
             const showAll = phase === "ended";
             return (
               <button key={idx} onClick={() => reveal(idx)} disabled={phase !== "playing" || isRevealed}
-                className="aspect-square rounded-lg text-2xl font-black flex items-center justify-center transition-all"
+                className="aspect-square rounded-lg flex items-center justify-center transition-all relative"
                 style={{
                   background: isSafe ? "linear-gradient(135deg,#00C853,#00E676)"
                     : (isRevealed && isMine) || (showAll && isMine) ? "linear-gradient(135deg,#FF2D55,#FF6B35)"
-                    : "rgba(255,255,255,0.08)",
-                  border: `1px solid ${isRevealed || (showAll && isMine) ? "transparent" : "rgba(255,215,0,0.2)"}`,
+                    : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${isRevealed || (showAll && isMine) ? "transparent" : "rgba(255,215,0,0.15)"}`,
                   opacity: phase === "ended" && !isRevealed && !isMine ? 0.3 : 1,
                 }}>
-                {isSafe ? "💎" : (isRevealed && isMine) || (showAll && isMine) ? "💣" : ""}
+                {isSafe && (
+                  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 3h12l4 6-10 13L2 9z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/>
+                  </svg>
+                )}
+                {((isRevealed && isMine) || (showAll && isMine)) && (
+                  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="#000" stroke="#000" strokeWidth="1.5">
+                    <circle cx="12" cy="13" r="6"/><line x1="12" y1="3" x2="12" y2="5" stroke="#000" strokeWidth="2"/><line x1="20" y1="13" x2="22" y2="13" stroke="#000" strokeWidth="2"/><line x1="2" y1="13" x2="4" y2="13" stroke="#000" strokeWidth="2"/>
+                  </svg>
+                )}
               </button>
             );
           })}
         </div>
 
         {phase === "idle" && (
-          <div className="relative mt-4 space-y-2">
-            <label className="text-[10px] text-white/60">عدد الألغام: <b className="text-white">{mineCount}</b></label>
+          <div className="mt-4 space-y-2">
+            <label className="text-[10px] text-white/60 uppercase tracking-wider">Mines: <b className="text-white">{mineCount}</b></label>
             <input type="range" min="1" max="24" value={mineCount} onChange={e => setMineCount(parseInt(e.target.value))}
               className="w-full" style={{ accentColor: "#FFD700" }} />
             <div className="flex gap-1">
               {[1, 3, 5, 10, 24].map(n => (
                 <button key={n} onClick={() => setMineCount(n)} className="flex-1 py-1 rounded text-[10px] font-bold"
-                  style={{ background: mineCount === n ? "rgba(255,215,0,0.3)" : "rgba(255,255,255,0.08)",
+                  style={{ background: mineCount === n ? "rgba(255,215,0,0.25)" : "rgba(255,255,255,0.05)",
                            color: mineCount === n ? "#FFD700" : "rgba(255,255,255,0.5)" }}>{n}</button>
               ))}
             </div>
-            <p className="text-[10px] text-center text-white/60">💣 {mineCount} • 💎 {25 - mineCount}</p>
           </div>
         )}
       </div>
 
-      <div className="p-3 space-y-3" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(255,215,0,0.2)" }}>
+      <div className="p-3 space-y-3 flex-shrink-0" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(255,215,0,0.2)" }}>
         {error && <p className="text-[11px] text-center font-bold text-pink-400">{error}</p>}
         {phase === "idle" && (<>
           <StakeInput value={stake} onChange={setStake} max={balance} color="#FFD700" />
-          <button onClick={start} className="w-full py-3 rounded-xl text-sm font-black text-black"
+          <button onClick={start} className="w-full py-3 rounded-xl text-sm font-black text-black tracking-wide"
             style={{ background: "linear-gradient(135deg,#FFD700,#FFA500)" }}>
-            💣 Start Game • {parseFloat(stake || "0").toFixed(2)} TND
+            START GAME · {parseFloat(stake || "0").toFixed(2)} TND
           </button>
         </>)}
         {phase === "playing" && (
           <button onClick={cashout} disabled={safeRevealed === 0}
-            className="w-full py-3 rounded-xl text-sm font-black text-black disabled:opacity-40"
+            className="w-full py-3 rounded-xl text-sm font-black text-black disabled:opacity-40 tracking-wide"
             style={{ background: "linear-gradient(135deg,#00C853,#00E676)" }}>
-            💰 Cash Out • {currentWin.toFixed(2)} TND
+            CASH OUT · {currentWin.toFixed(2)} TND
           </button>
         )}
         {phase === "ended" && (
-          <button onClick={reset} className="w-full py-3 rounded-xl text-sm font-black text-black"
+          <button onClick={reset} className="w-full py-3 rounded-xl text-sm font-black text-black tracking-wide"
             style={{ background: "linear-gradient(135deg,#FFD700,#FFA500)" }}>
-            🔁 New Game
+            NEW GAME
           </button>
         )}
       </div>
@@ -652,8 +619,8 @@ function LimboGame({ onBack }: { onBack: () => void }) {
   if (!user) return null;
   const balance = parseFloat(user.balance);
   const t = parseFloat(target) || 1;
-  const winChance = +(99 / t).toFixed(2);
-  const potWin = +(parseFloat(stake || "0") * t).toFixed(2);
+  const winChance = +(65 / t).toFixed(2);
+  const potWin = +(parseFloat(stake || "0") * t * 0.65).toFixed(2);
 
   const play = async () => {
     setError("");
@@ -675,26 +642,26 @@ function LimboGame({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      <TopBar onBack={onBack} title="📈 Limbo" balance={user.balance} color="#a855f7" img="/images/originals/limbo.jpg" />
+    <div className="fixed inset-0 z-[200] bg-[#080a10] flex flex-col">
+      <TopBar onBack={onBack} title="LIMBO" balance={user.balance} color="#a855f7" />
+      <GameBanner img="/images/originals/limbo.jpg" color="#a855f7" />
 
-      <div className="flex-1 flex flex-col items-center justify-center p-4 relative"
-        style={{ background: `url(/images/originals/limbo.jpg) center/cover` }}>
-        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.75)" }} />
+      <div className="flex-1 flex flex-col items-center justify-center p-4"
+        style={{ background: "radial-gradient(ellipse at center, rgba(168,85,247,0.08), #080a10 70%)" }}>
 
-        <div className="relative text-center">
+        <div className="text-center">
           {rolling ? (
-            <motion.p animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 0.4, repeat: Infinity }}
-              className="text-7xl font-black text-purple-400/40">?.??x</motion.p>
+            <motion.p animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 0.4, repeat: Infinity }}
+              className="text-7xl font-black text-purple-400/30">?.??x</motion.p>
           ) : result !== null ? (
             <>
               <motion.p initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                className="text-7xl font-black"
-                style={{ color: won ? "#00C853" : "#FF2D55", textShadow: "0 0 50px currentColor" }}>
+                className="text-8xl font-black"
+                style={{ color: won ? "#00C853" : "#FF2D55", textShadow: "0 0 60px currentColor" }}>
                 {result.toFixed(2)}x
               </motion.p>
-              <p className="text-sm mt-2 font-bold" style={{ color: won ? "#00C853" : "#FF2D55" }}>
-                {won ? `🎉 ربحت ${payout.toFixed(2)} TND` : "💸 أقل من الهدف"}
+              <p className="text-sm mt-3 font-bold tracking-wide" style={{ color: won ? "#00C853" : "#FF2D55" }}>
+                {won ? `WIN +${payout.toFixed(2)} TND` : "BELOW TARGET"}
               </p>
             </>
           ) : (
@@ -703,7 +670,7 @@ function LimboGame({ onBack }: { onBack: () => void }) {
         </div>
 
         {history.length > 0 && (
-          <div className="relative mt-6 flex gap-1 overflow-x-auto scrollbar-hide max-w-full">
+          <div className="mt-6 flex gap-1 overflow-x-auto scrollbar-hide max-w-full">
             {history.map((h, i) => (
               <div key={i} className="flex-shrink-0 px-2 py-1 rounded text-[10px] font-black"
                 style={{ background: h.w ? "rgba(0,200,83,0.85)" : "rgba(255,45,85,0.85)", color: "#000" }}>
@@ -714,25 +681,25 @@ function LimboGame({ onBack }: { onBack: () => void }) {
         )}
       </div>
 
-      <div className="p-3 space-y-3" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(168,85,247,0.2)" }}>
+      <div className="p-3 space-y-3 flex-shrink-0" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(168,85,247,0.2)" }}>
         {error && <p className="text-[11px] text-center font-bold text-pink-400">{error}</p>}
         <div className="grid grid-cols-2 gap-2">
           <StakeInput value={stake} onChange={setStake} max={balance} color="#a855f7" />
-          <div className="space-y-2">
-            <label className="text-[10px] text-white/40">Target (x)</label>
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-white/40 uppercase tracking-wider">Target</label>
             <input type="number" value={target} onChange={e => setTarget(e.target.value)} min="1.01" step="0.1"
               className="w-full px-2 py-2 rounded-lg text-center text-base font-black text-white"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(168,85,247,0.3)" }} />
             <div className="flex justify-between text-[9px]">
-              <span className="text-white/40">Win: <b className="text-purple-300">{winChance}%</b></span>
+              <span className="text-white/40">Chance: <b className="text-purple-300">{winChance}%</b></span>
               <span className="text-white/40">Pay: <b className="text-green-400">{potWin.toFixed(2)}</b></span>
             </div>
           </div>
         </div>
         <button onClick={play} disabled={rolling}
-          className="w-full py-3 rounded-xl text-sm font-black text-white disabled:opacity-50"
+          className="w-full py-3 rounded-xl text-sm font-black text-white disabled:opacity-50 tracking-wide"
           style={{ background: "linear-gradient(135deg,#a855f7,#7c3aed)", boxShadow: "0 4px 20px rgba(168,85,247,0.4)" }}>
-          {rolling ? "🎯 Rolling..." : `📈 Bet ${parseFloat(stake || "0").toFixed(2)} TND`}
+          {rolling ? "ROLLING..." : `PLACE BET · ${parseFloat(stake || "0").toFixed(2)} TND`}
         </button>
       </div>
     </div>
@@ -776,21 +743,21 @@ function PlinkoGame({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      <TopBar onBack={onBack} title="🟢 Plinko" balance={user.balance} color="#22c55e" img="/images/originals/plinko.jpg" />
+    <div className="fixed inset-0 z-[200] bg-[#080a10] flex flex-col">
+      <TopBar onBack={onBack} title="PLINKO" balance={user.balance} color="#22c55e" />
+      <GameBanner img="/images/originals/plinko.jpg" color="#22c55e" />
 
-      <div className="flex-1 flex flex-col p-4 gap-3 overflow-y-auto relative"
-        style={{ background: `url(/images/originals/plinko.jpg) center/cover` }}>
-        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.78)" }} />
+      <div className="flex-1 flex flex-col p-4 gap-3 overflow-y-auto"
+        style={{ background: "radial-gradient(ellipse at top, rgba(34,197,94,0.05), #080a10 70%)" }}>
 
-        <div className="relative flex-1 flex flex-col items-center justify-center py-2">
+        <div className="flex-1 flex flex-col items-center justify-center py-2">
           <div className="space-y-1 mb-3">
             {Array.from({ length: rows }).map((_, r) => (
               <div key={r} className="flex justify-center gap-1.5">
                 {Array.from({ length: r + 2 }).map((_, i) => (
                   <div key={i} className="rounded-full"
                     style={{ width: rows === 16 ? 5 : rows === 12 ? 6 : 8, height: rows === 16 ? 5 : rows === 12 ? 6 : 8,
-                             background: "rgba(255,255,255,0.5)", boxShadow: "0 0 4px rgba(255,255,255,0.8)" }} />
+                             background: "rgba(255,255,255,0.5)", boxShadow: "0 0 4px rgba(255,255,255,0.6)" }} />
                 ))}
               </div>
             ))}
@@ -804,10 +771,10 @@ function PlinkoGame({ onBack }: { onBack: () => void }) {
                   width: rows === 16 ? 18 : rows === 12 ? 24 : 32,
                   height: rows === 16 ? 24 : rows === 12 ? 30 : 36,
                   background: lastResult?.bucket === i ? "linear-gradient(135deg,#FFD700,#FFA500)"
-                    : m >= 5 ? "rgba(255,45,85,0.4)" : m >= 1 ? "rgba(34,197,94,0.4)" : "rgba(255,255,255,0.1)",
-                  color: lastResult?.bucket === i ? "#000" : m >= 5 ? "#FFB3C0" : m >= 1 ? "#6EE7B7" : "rgba(255,255,255,0.6)",
-                  border: lastResult?.bucket === i ? "2px solid #fff" : "1px solid rgba(255,255,255,0.1)",
-                  transform: lastResult?.bucket === i ? "scale(1.15)" : "scale(1)",
+                    : m >= 5 ? "rgba(255,45,85,0.3)" : m >= 1 ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.05)",
+                  color: lastResult?.bucket === i ? "#000" : m >= 5 ? "#FFB3C0" : m >= 1 ? "#6EE7B7" : "rgba(255,255,255,0.5)",
+                  border: lastResult?.bucket === i ? "2px solid #fff" : "1px solid rgba(255,255,255,0.06)",
+                  transform: lastResult?.bucket === i ? "scale(1.18)" : "scale(1)",
                 }}>
                 {m}
               </div>
@@ -816,33 +783,33 @@ function PlinkoGame({ onBack }: { onBack: () => void }) {
 
           {lastResult && (
             <motion.p initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-              className="mt-4 text-xl font-black"
+              className="mt-4 text-xl font-black tracking-wide"
               style={{ color: lastResult.won ? "#00C853" : "#FF2D55", textShadow: "0 0 20px currentColor" }}>
-              {lastResult.won ? `🎉 ${lastResult.payout.toFixed(2)} TND` : `${lastResult.multiplier}x`}
+              {lastResult.won ? `WIN +${lastResult.payout.toFixed(2)} TND` : `${lastResult.multiplier}x`}
             </motion.p>
           )}
-          {dropping && <p className="mt-4 text-sm font-bold text-yellow-400 animate-pulse">🟢 Dropping...</p>}
+          {dropping && <p className="mt-4 text-sm font-bold text-yellow-400 animate-pulse tracking-wide">DROPPING...</p>}
         </div>
 
-        <div className="relative grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-[10px] text-white/60 mb-1 block">Rows</label>
+            <label className="text-[10px] text-white/50 mb-1 block uppercase tracking-wider">Rows</label>
             <div className="flex gap-1">
               {[8, 12, 16].map(r => (
                 <button key={r} onClick={() => setRows(r as any)}
                   className="flex-1 py-1.5 rounded text-[10px] font-bold"
-                  style={{ background: rows === r ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)",
+                  style={{ background: rows === r ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.05)",
                            color: rows === r ? "#22c55e" : "rgba(255,255,255,0.5)" }}>{r}</button>
               ))}
             </div>
           </div>
           <div>
-            <label className="text-[10px] text-white/60 mb-1 block">Risk</label>
+            <label className="text-[10px] text-white/50 mb-1 block uppercase tracking-wider">Risk</label>
             <div className="flex gap-1">
               {(["low", "med", "high"] as const).map(rk => (
                 <button key={rk} onClick={() => setRisk(rk)}
                   className="flex-1 py-1.5 rounded text-[10px] font-bold capitalize"
-                  style={{ background: risk === rk ? "rgba(255,215,0,0.3)" : "rgba(255,255,255,0.08)",
+                  style={{ background: risk === rk ? "rgba(255,215,0,0.25)" : "rgba(255,255,255,0.05)",
                            color: risk === rk ? "#FFD700" : "rgba(255,255,255,0.5)" }}>{rk}</button>
               ))}
             </div>
@@ -850,24 +817,22 @@ function PlinkoGame({ onBack }: { onBack: () => void }) {
         </div>
 
         {history.length > 0 && (
-          <div className="relative flex gap-1 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
             {history.map((m, i) => (
               <div key={i} className="flex-shrink-0 px-2 py-1 rounded text-[10px] font-black"
-                style={{ background: m >= 1 ? "rgba(0,200,83,0.85)" : "rgba(255,45,85,0.85)", color: "#000" }}>
-                {m}x
-              </div>
+                style={{ background: m >= 1 ? "rgba(0,200,83,0.85)" : "rgba(255,45,85,0.85)", color: "#000" }}>{m}x</div>
             ))}
           </div>
         )}
       </div>
 
-      <div className="p-3 space-y-3" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(34,197,94,0.2)" }}>
+      <div className="p-3 space-y-3 flex-shrink-0" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(34,197,94,0.2)" }}>
         {error && <p className="text-[11px] text-center font-bold text-pink-400">{error}</p>}
         <StakeInput value={stake} onChange={setStake} max={balance} color="#22c55e" />
         <button onClick={drop} disabled={dropping}
-          className="w-full py-3 rounded-xl text-sm font-black text-white disabled:opacity-50"
+          className="w-full py-3 rounded-xl text-sm font-black text-white disabled:opacity-50 tracking-wide"
           style={{ background: "linear-gradient(135deg,#22c55e,#10b981)", boxShadow: "0 4px 20px rgba(34,197,94,0.4)" }}>
-          {dropping ? "🟢 Dropping..." : `🟢 Drop • ${parseFloat(stake || "0").toFixed(2)} TND`}
+          {dropping ? "DROPPING..." : `DROP BALL · ${parseFloat(stake || "0").toFixed(2)} TND`}
         </button>
       </div>
     </div>
@@ -911,61 +876,67 @@ function CoinFlipGame({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      <TopBar onBack={onBack} title="🪙 Coin Flip" balance={user.balance} color="#FFD700" img="/images/originals/coinflip.jpg" />
+    <div className="fixed inset-0 z-[200] bg-[#080a10] flex flex-col">
+      <TopBar onBack={onBack} title="COIN FLIP" balance={user.balance} color="#FFD700" />
+      <GameBanner img="/images/originals/coinflip.jpg" color="#FFD700" />
 
-      <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4 relative"
-        style={{ background: `url(/images/originals/coinflip.jpg) center/cover` }}>
-        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.75)" }} />
+      <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6"
+        style={{ background: "radial-gradient(ellipse at center, rgba(255,215,0,0.08), #080a10 70%)" }}>
 
         <motion.div animate={flipping ? { rotateY: 1440 } : {}} transition={{ duration: 1.3 }}
-          className="relative w-32 h-32 rounded-full flex items-center justify-center text-6xl"
-          style={{ background: "linear-gradient(135deg,#FFD700,#FFA500)", boxShadow: "0 0 50px rgba(255,215,0,0.6)" }}>
-          {flipping ? "🪙" : result === "heads" ? "👑" : result === "tails" ? "T" : "🪙"}
+          className="relative w-36 h-36 rounded-full flex items-center justify-center"
+          style={{ background: "linear-gradient(135deg,#FFD700 0%,#FFA500 50%,#B8860B 100%)",
+                   boxShadow: "0 0 80px rgba(255,215,0,0.55), inset 0 0 25px rgba(0,0,0,0.3)",
+                   border: "3px solid rgba(255,255,255,0.4)" }}>
+          <span className="text-4xl font-black" style={{ color: "#3D2C00", textShadow: "0 1px 2px rgba(255,255,255,0.5)" }}>
+            {flipping ? "" : result === "heads" ? "K" : result === "tails" ? "T" : ""}
+          </span>
         </motion.div>
 
         {result && (
           <motion.p initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="relative text-2xl font-black"
-            style={{ color: won ? "#00C853" : "#FF2D55", textShadow: "0 0 20px currentColor" }}>
-            {result === "heads" ? "ملك" : "كتابة"} — {won ? `+${payout.toFixed(2)} TND` : "خسرت"}
+            className="text-2xl font-black tracking-wide"
+            style={{ color: won ? "#00C853" : "#FF2D55", textShadow: "0 0 30px currentColor" }}>
+            {won ? `WIN +${payout.toFixed(2)} TND` : "LOSS"}
           </motion.p>
         )}
 
-        <div className="relative flex gap-3">
+        <div className="flex gap-3 w-full max-w-xs">
           <button onClick={() => setPick("heads")} disabled={flipping}
-            className="w-32 py-3 rounded-xl text-base font-black"
-            style={{ background: pick === "heads" ? "linear-gradient(135deg,#FFD700,#FFA500)" : "rgba(255,255,255,0.08)",
-                     color: pick === "heads" ? "#000" : "#fff" }}>
-            👑 ملك
+            className="flex-1 py-3 rounded-xl text-sm font-black tracking-wide"
+            style={{ background: pick === "heads" ? "linear-gradient(135deg,#FFD700,#FFA500)" : "rgba(255,255,255,0.05)",
+                     color: pick === "heads" ? "#000" : "#fff",
+                     boxShadow: pick === "heads" ? "0 4px 15px rgba(255,215,0,0.4)" : "none" }}>
+            KING
           </button>
           <button onClick={() => setPick("tails")} disabled={flipping}
-            className="w-32 py-3 rounded-xl text-base font-black"
-            style={{ background: pick === "tails" ? "linear-gradient(135deg,#FFD700,#FFA500)" : "rgba(255,255,255,0.08)",
-                     color: pick === "tails" ? "#000" : "#fff" }}>
-            🔤 كتابة
+            className="flex-1 py-3 rounded-xl text-sm font-black tracking-wide"
+            style={{ background: pick === "tails" ? "linear-gradient(135deg,#FFD700,#FFA500)" : "rgba(255,255,255,0.05)",
+                     color: pick === "tails" ? "#000" : "#fff",
+                     boxShadow: pick === "tails" ? "0 4px 15px rgba(255,215,0,0.4)" : "none" }}>
+            TAIL
           </button>
         </div>
 
         {history.length > 0 && (
-          <div className="relative flex gap-1 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
             {history.map((h, i) => (
-              <div key={i} className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black"
+              <div key={i} className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black"
                 style={{ background: h.w ? "rgba(0,200,83,0.85)" : "rgba(255,45,85,0.85)", color: "#000" }}>
-                {h.r === "heads" ? "H" : "T"}
+                {h.r === "heads" ? "K" : "T"}
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <div className="p-3 space-y-3" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(255,215,0,0.2)" }}>
+      <div className="p-3 space-y-3 flex-shrink-0" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(255,215,0,0.2)" }}>
         {error && <p className="text-[11px] text-center font-bold text-pink-400">{error}</p>}
         <StakeInput value={stake} onChange={setStake} max={balance} color="#FFD700" />
         <button onClick={flip} disabled={flipping}
-          className="w-full py-3 rounded-xl text-sm font-black text-black disabled:opacity-50"
+          className="w-full py-3 rounded-xl text-sm font-black text-black disabled:opacity-50 tracking-wide"
           style={{ background: "linear-gradient(135deg,#FFD700,#FFA500)" }}>
-          {flipping ? "🪙 Flipping..." : `🪙 Flip • ${parseFloat(stake || "0").toFixed(2)} TND → 1.98x`}
+          {flipping ? "FLIPPING..." : `FLIP COIN · ${parseFloat(stake || "0").toFixed(2)} TND`}
         </button>
       </div>
     </div>
@@ -994,7 +965,6 @@ function HiloGame({ onBack }: { onBack: () => void }) {
     if (!s || s <= 0) { setError("أدخل المبلغ"); return; }
     if (balance <= 0) { setError("رصيدك 0 — تواصل مع الإدارة"); return; }
     if (s > balance) { setError("رصيد غير كافٍ"); return; }
-    // Draw initial card (no debit yet, just preview)
     const card = await drawCard(generateServerSeed(), clientSeed.current, nonce);
     setNonce(n => n + 1);
     setCurrentCard(card);
@@ -1013,7 +983,7 @@ function HiloGame({ onBack }: { onBack: () => void }) {
     setTimeout(() => {
       setLastCard(currentCard);
       setCurrentCard(res.newCard!);
-      setResultMsg(res.won ? `🎉 ربحت ${res.payout!.toFixed(2)} TND (${res.multiplier!.toFixed(2)}x)` : "💸 خسرت");
+      setResultMsg(res.won ? `WIN +${res.payout!.toFixed(2)} TND (${res.multiplier!.toFixed(2)}x)` : "LOSS");
       setPhase("ended");
     }, 600);
   };
@@ -1025,8 +995,9 @@ function HiloGame({ onBack }: { onBack: () => void }) {
     return (
       <div className="w-28 h-40 rounded-2xl flex flex-col items-center justify-between p-3"
         style={{ background: "linear-gradient(135deg,#fff,#f0f0f0)",
-                 boxShadow: faded ? "0 0 15px rgba(255,255,255,0.2)" : "0 0 30px rgba(255,255,255,0.5)",
-                 opacity: faded ? 0.5 : 1 }}>
+                 boxShadow: faded ? "0 0 15px rgba(255,255,255,0.2)" : "0 0 30px rgba(255,255,255,0.4), inset 0 0 8px rgba(0,0,0,0.05)",
+                 opacity: faded ? 0.5 : 1,
+                 border: "1px solid rgba(0,0,0,0.1)" }}>
         <div className="self-start text-left">
           <p className="text-3xl font-black" style={{ color: isRed ? "#FF2D55" : "#000" }}>{card.n}</p>
           <p className="text-2xl" style={{ color: isRed ? "#FF2D55" : "#000" }}>{card.s}</p>
@@ -1041,59 +1012,59 @@ function HiloGame({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      <TopBar onBack={onBack} title="🃏 Hi-Lo" balance={user.balance} color="#ec4899" img="/images/originals/hilo.jpg" />
+    <div className="fixed inset-0 z-[200] bg-[#080a10] flex flex-col">
+      <TopBar onBack={onBack} title="HI-LO" balance={user.balance} color="#ec4899" />
+      <GameBanner img="/images/originals/hilo.jpg" color="#ec4899" />
 
-      <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4 relative"
-        style={{ background: `url(/images/originals/hilo.jpg) center/cover` }}>
-        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.78)" }} />
+      <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4"
+        style={{ background: "radial-gradient(ellipse at center, rgba(236,72,153,0.08), #080a10 70%)" }}>
 
-        <div className="relative flex gap-4 items-end">
+        <div className="flex gap-4 items-end">
           {lastCard && <Card card={lastCard} faded />}
           {currentCard ? <Card card={currentCard} /> : (
-            <div className="w-28 h-40 rounded-2xl flex items-center justify-center text-6xl"
-              style={{ background: "linear-gradient(135deg,#FF2D55,#ec4899)" }}>?</div>
+            <div className="w-28 h-40 rounded-2xl flex items-center justify-center text-6xl text-white/60 font-black"
+              style={{ background: "linear-gradient(135deg,#ec4899,#FF2D55)" }}>?</div>
           )}
         </div>
 
         {resultMsg && (
-          <p className="relative text-base font-bold"
-            style={{ color: resultMsg.includes("ربحت") ? "#00C853" : "#FF2D55", textShadow: "0 0 15px currentColor" }}>
+          <p className="text-base font-bold tracking-wide"
+            style={{ color: resultMsg.includes("WIN") ? "#00C853" : "#FF2D55", textShadow: "0 0 15px currentColor" }}>
             {resultMsg}
           </p>
         )}
 
         {currentCard && phase === "ready" && (
-          <div className="relative grid grid-cols-3 gap-2 w-full max-w-sm">
-            <button onClick={() => guess("higher")} className="py-3 rounded-xl text-xs font-black"
+          <div className="grid grid-cols-3 gap-2 w-full max-w-sm">
+            <button onClick={() => guess("higher")} className="py-3 rounded-xl text-xs font-black tracking-wide"
               style={{ background: "linear-gradient(135deg,#00C853,#00E676)", color: "#000" }}>
-              ▲ أعلى<br/><span className="text-[9px] opacity-70">{((13-currentCard.v)/13*100).toFixed(1)}%</span>
+              HIGHER<br/><span className="text-[9px] opacity-70 font-normal">{((13-currentCard.v)/13*100).toFixed(1)}%</span>
             </button>
-            <button onClick={() => guess("equal")} className="py-3 rounded-xl text-xs font-black"
+            <button onClick={() => guess("equal")} className="py-3 rounded-xl text-xs font-black tracking-wide"
               style={{ background: "linear-gradient(135deg,#FFD700,#FFA500)", color: "#000" }}>
-              = مساوي<br/><span className="text-[9px] opacity-70">7.7%</span>
+              EQUAL<br/><span className="text-[9px] opacity-70 font-normal">7.7%</span>
             </button>
-            <button onClick={() => guess("lower")} className="py-3 rounded-xl text-xs font-black"
+            <button onClick={() => guess("lower")} className="py-3 rounded-xl text-xs font-black tracking-wide"
               style={{ background: "linear-gradient(135deg,#FF2D55,#ec4899)", color: "#fff" }}>
-              ▼ أقل<br/><span className="text-[9px] opacity-70">{((currentCard.v-1)/13*100).toFixed(1)}%</span>
+              LOWER<br/><span className="text-[9px] opacity-70 font-normal">{((currentCard.v-1)/13*100).toFixed(1)}%</span>
             </button>
           </div>
         )}
       </div>
 
-      <div className="p-3 space-y-3" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(236,72,153,0.2)" }}>
+      <div className="p-3 space-y-3 flex-shrink-0" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(236,72,153,0.2)" }}>
         {error && <p className="text-[11px] text-center font-bold text-pink-400">{error}</p>}
         {phase === "idle" || phase === "ended" ? (
           <>
             <StakeInput value={stake} onChange={setStake} max={balance} color="#ec4899" />
             <button onClick={phase === "ended" ? reset : start}
-              className="w-full py-3 rounded-xl text-sm font-black text-white"
+              className="w-full py-3 rounded-xl text-sm font-black text-white tracking-wide"
               style={{ background: "linear-gradient(135deg,#ec4899,#FF2D55)" }}>
-              🃏 {phase === "ended" ? "New Round" : "اسحب البطاقة"} • {parseFloat(stake || "0").toFixed(2)} TND
+              {phase === "ended" ? "NEW ROUND" : "DRAW CARD"} · {parseFloat(stake || "0").toFixed(2)} TND
             </button>
           </>
         ) : (
-          <p className="text-center text-[11px] text-white/40">اختر أعلى أم أقل من البطاقة الحالية</p>
+          <p className="text-center text-[11px] text-white/40 uppercase tracking-wider">اختر أعلى أم أقل</p>
         )}
       </div>
     </div>
@@ -1140,46 +1111,46 @@ function WheelGame({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      <TopBar onBack={onBack} title="🎡 Wheel" balance={user.balance} color="#FF6B35" img="/images/originals/wheel.jpg" />
+    <div className="fixed inset-0 z-[200] bg-[#080a10] flex flex-col">
+      <TopBar onBack={onBack} title="WHEEL" balance={user.balance} color="#FF6B35" />
+      <GameBanner img="/images/originals/wheel.jpg" color="#FF6B35" />
 
-      <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4 relative overflow-hidden"
-        style={{ background: `url(/images/originals/wheel.jpg) center/cover` }}>
-        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.78)" }} />
+      <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4"
+        style={{ background: "radial-gradient(ellipse at center, rgba(255,107,53,0.08), #080a10 70%)" }}>
 
-        {/* Wheel */}
         <div className="relative w-64 h-64">
-          {/* Pointer */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 z-10 text-3xl">▼</div>
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10"
+            style={{ width: 0, height: 0, borderLeft: "12px solid transparent", borderRight: "12px solid transparent", borderTop: "20px solid #FFD700",
+                     filter: "drop-shadow(0 0 8px rgba(255,215,0,0.8))" }} />
           <motion.div className="w-full h-full rounded-full"
             style={{
               background: `conic-gradient(${segments.map((m, i) => {
                 const start = (i / segments.length) * 360;
                 const end = ((i + 1) / segments.length) * 360;
-                const color = m === 0 ? "#222" : m >= 10 ? "#FF2D55" : m >= 2 ? "#FFD700" : "#22c55e";
+                const color = m === 0 ? "#1a1d28" : m >= 10 ? "#FF2D55" : m >= 2 ? "#FFD700" : "#22c55e";
                 return `${color} ${start}deg ${end}deg`;
               }).join(",")})`,
-              boxShadow: "0 0 60px rgba(255,107,53,0.6)",
+              boxShadow: "0 0 70px rgba(255,107,53,0.5), inset 0 0 30px rgba(0,0,0,0.5)",
+              border: "4px solid rgba(255,215,0,0.4)",
             }}
             animate={{ rotate: rotation }}
             transition={{ duration: 3, ease: "easeOut" }} />
-          {/* Center label */}
-          <div className="absolute inset-1/4 rounded-full flex items-center justify-center text-2xl font-black text-white"
-            style={{ background: "rgba(0,0,0,0.9)" }}>
+          <div className="absolute inset-1/3 rounded-full flex items-center justify-center text-2xl font-black text-white"
+            style={{ background: "rgba(0,0,0,0.92)", border: "2px solid rgba(255,215,0,0.4)" }}>
             {result ? `${result.multiplier}x` : "?"}
           </div>
         </div>
 
         {result && (
           <motion.p initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="relative text-xl font-black"
-            style={{ color: result.won ? "#00C853" : "#FF2D55", textShadow: "0 0 15px currentColor" }}>
-            {result.won ? `🎉 +${result.payout.toFixed(2)} TND` : "💸 خسرت"}
+            className="text-xl font-black tracking-wide"
+            style={{ color: result.won ? "#00C853" : "#FF2D55", textShadow: "0 0 20px currentColor" }}>
+            {result.won ? `WIN +${result.payout.toFixed(2)} TND` : "NO WIN"}
           </motion.p>
         )}
 
         {history.length > 0 && (
-          <div className="relative flex gap-1 overflow-x-auto scrollbar-hide max-w-full">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide max-w-full">
             {history.map((m, i) => (
               <div key={i} className="flex-shrink-0 px-2 py-1 rounded text-[10px] font-black"
                 style={{ background: m >= 1 ? "rgba(0,200,83,0.85)" : "rgba(255,45,85,0.85)", color: "#000" }}>{m}x</div>
@@ -1188,24 +1159,24 @@ function WheelGame({ onBack }: { onBack: () => void }) {
         )}
       </div>
 
-      <div className="p-3 space-y-3" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(255,107,53,0.2)" }}>
+      <div className="p-3 space-y-3 flex-shrink-0" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(255,107,53,0.2)" }}>
         {error && <p className="text-[11px] text-center font-bold text-pink-400">{error}</p>}
         <div>
-          <label className="text-[10px] text-white/40 mb-1 block">Risk</label>
+          <label className="text-[10px] text-white/50 mb-1 block uppercase tracking-wider">Risk</label>
           <div className="flex gap-1">
             {(["low", "med", "high"] as const).map(rk => (
               <button key={rk} onClick={() => setRisk(rk)} disabled={spinning}
                 className="flex-1 py-1.5 rounded text-[10px] font-bold capitalize"
-                style={{ background: risk === rk ? "rgba(255,107,53,0.3)" : "rgba(255,255,255,0.08)",
+                style={{ background: risk === rk ? "rgba(255,107,53,0.25)" : "rgba(255,255,255,0.05)",
                          color: risk === rk ? "#FF6B35" : "rgba(255,255,255,0.5)" }}>{rk}</button>
             ))}
           </div>
         </div>
         <StakeInput value={stake} onChange={setStake} max={balance} color="#FF6B35" />
         <button onClick={spin} disabled={spinning}
-          className="w-full py-3 rounded-xl text-sm font-black text-white disabled:opacity-50"
+          className="w-full py-3 rounded-xl text-sm font-black text-white disabled:opacity-50 tracking-wide"
           style={{ background: "linear-gradient(135deg,#FF6B35,#FF2D55)", boxShadow: "0 4px 20px rgba(255,107,53,0.4)" }}>
-          {spinning ? "🎡 Spinning..." : `🎡 Spin • ${parseFloat(stake || "0").toFixed(2)} TND`}
+          {spinning ? "SPINNING..." : `SPIN · ${parseFloat(stake || "0").toFixed(2)} TND`}
         </button>
       </div>
     </div>
@@ -1252,7 +1223,6 @@ function KenoGame({ onBack }: { onBack: () => void }) {
     setNonce(n => n + 1);
     if (!res.ok) { setError(res.error || "خطأ"); setPlaying(false); return; }
     await refreshBalance();
-    // Reveal draws one by one
     for (let i = 0; i < res.draws!.length; i++) {
       await new Promise(r => setTimeout(r, 100));
       setDraws(res.draws!.slice(0, i + 1));
@@ -1262,36 +1232,36 @@ function KenoGame({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      <TopBar onBack={onBack} title="🎰 Keno" balance={user.balance} color="#06b6d4" img="/images/originals/keno.jpg" />
+    <div className="fixed inset-0 z-[200] bg-[#080a10] flex flex-col">
+      <TopBar onBack={onBack} title="KENO" balance={user.balance} color="#06b6d4" />
+      <GameBanner img="/images/originals/keno.jpg" color="#06b6d4" />
 
-      <div className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto relative"
-        style={{ background: `url(/images/originals/keno.jpg) center/cover` }}>
-        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.85)" }} />
+      <div className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto"
+        style={{ background: "radial-gradient(ellipse at top, rgba(6,182,212,0.06), #080a10 70%)" }}>
 
-        <div className="relative grid grid-cols-3 gap-2">
-          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(6,182,212,0.15)" }}>
-            <p className="text-[9px] text-white/60">Picks</p>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(6,182,212,0.08)" }}>
+            <p className="text-[9px] text-white/50 uppercase">Picks</p>
             <p className="text-base font-black text-cyan-400">{picks.size}/10</p>
           </div>
-          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(255,215,0,0.15)" }}>
-            <p className="text-[9px] text-white/60">Hits</p>
+          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(255,215,0,0.08)" }}>
+            <p className="text-[9px] text-white/50 uppercase">Hits</p>
             <p className="text-base font-black text-yellow-400">{hits}</p>
           </div>
-          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(0,200,83,0.15)" }}>
-            <p className="text-[9px] text-white/60">Win</p>
+          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(0,200,83,0.08)" }}>
+            <p className="text-[9px] text-white/50 uppercase">Win</p>
             <p className="text-base font-black text-green-400">{payout.toFixed(2)}</p>
           </div>
         </div>
 
         {won !== null && (
-          <p className="relative text-center text-sm font-bold"
+          <p className="text-center text-sm font-bold tracking-wide"
             style={{ color: won ? "#00C853" : "#FF2D55", textShadow: "0 0 15px currentColor" }}>
-            {won ? `🎉 ربحت ${payout.toFixed(2)} TND` : `💸 ${hits} hits — حاول مرة أخرى`}
+            {won ? `WIN +${payout.toFixed(2)} TND` : `${hits} HITS — TRY AGAIN`}
           </p>
         )}
 
-        <div className="relative grid grid-cols-8 gap-1">
+        <div className="grid grid-cols-8 gap-1">
           {Array.from({ length: 40 }, (_, i) => i + 1).map(n => {
             const isPicked = picks.has(n);
             const isDrawn = draws.includes(n);
@@ -1301,9 +1271,9 @@ function KenoGame({ onBack }: { onBack: () => void }) {
                 className="aspect-square rounded text-[10px] font-black flex items-center justify-center transition-all"
                 style={{
                   background: isHit ? "linear-gradient(135deg,#FFD700,#FFA500)"
-                    : isDrawn ? "rgba(255,255,255,0.25)"
+                    : isDrawn ? "rgba(255,255,255,0.20)"
                     : isPicked ? "linear-gradient(135deg,#06b6d4,#0891b2)"
-                    : "rgba(255,255,255,0.08)",
+                    : "rgba(255,255,255,0.05)",
                   color: isHit ? "#000" : isPicked ? "#fff" : "rgba(255,255,255,0.6)",
                   transform: isHit ? "scale(1.1)" : "scale(1)",
                   boxShadow: isHit ? "0 0 12px rgba(255,215,0,0.7)" : "none",
@@ -1312,26 +1282,26 @@ function KenoGame({ onBack }: { onBack: () => void }) {
           })}
         </div>
 
-        <div className="relative">
-          <label className="text-[10px] text-white/60 mb-1 block">Risk</label>
+        <div>
+          <label className="text-[10px] text-white/50 mb-1 block uppercase tracking-wider">Risk</label>
           <div className="flex gap-1">
             {(["low", "med", "high"] as const).map(rk => (
               <button key={rk} onClick={() => setRisk(rk)} disabled={playing}
                 className="flex-1 py-1.5 rounded text-[10px] font-bold capitalize"
-                style={{ background: risk === rk ? "rgba(6,182,212,0.3)" : "rgba(255,255,255,0.08)",
+                style={{ background: risk === rk ? "rgba(6,182,212,0.25)" : "rgba(255,255,255,0.05)",
                          color: risk === rk ? "#06b6d4" : "rgba(255,255,255,0.5)" }}>{rk}</button>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="p-3 space-y-3" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(6,182,212,0.2)" }}>
+      <div className="p-3 space-y-3 flex-shrink-0" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(6,182,212,0.2)" }}>
         {error && <p className="text-[11px] text-center font-bold text-pink-400">{error}</p>}
         <StakeInput value={stake} onChange={setStake} max={balance} color="#06b6d4" />
         <button onClick={play} disabled={playing || picks.size === 0}
-          className="w-full py-3 rounded-xl text-sm font-black text-white disabled:opacity-50"
+          className="w-full py-3 rounded-xl text-sm font-black text-white disabled:opacity-50 tracking-wide"
           style={{ background: "linear-gradient(135deg,#06b6d4,#0891b2)", boxShadow: "0 4px 20px rgba(6,182,212,0.4)" }}>
-          {playing ? "🎰 Drawing..." : `🎰 Play • ${parseFloat(stake || "0").toFixed(2)} TND`}
+          {playing ? "DRAWING..." : `PLAY · ${parseFloat(stake || "0").toFixed(2)} TND`}
         </button>
       </div>
     </div>
@@ -1378,14 +1348,10 @@ function TowerGame({ onBack }: { onBack: () => void }) {
     const minePos = mineLayout[level];
     setRevealed(r => ({ ...r, [level]: col }));
     if (col === minePos) {
-      setPhase("ended"); setResultMsg("💥 لغم! خسرت الرهان");
+      setPhase("ended"); setResultMsg("BOOM — Mine hit");
     } else {
-      if (level + 1 >= 9) {
-        // Reached top
-        cashout();
-      } else {
-        setLevel(l => l + 1);
-      }
+      if (level + 1 >= 9) cashout();
+      else setLevel(l => l + 1);
     }
   };
 
@@ -1395,44 +1361,43 @@ function TowerGame({ onBack }: { onBack: () => void }) {
     if (res.ok) {
       await refreshBalance();
       setPhase("ended");
-      setResultMsg(`🎉 ربحت ${res.payout!.toFixed(2)} TND (${currentMultiplier.toFixed(2)}x)`);
+      setResultMsg(`WIN +${res.payout!.toFixed(2)} TND (${currentMultiplier.toFixed(2)}x)`);
     }
   };
 
   const reset = () => { setPhase("idle"); setLevel(0); setRevealed({}); setMineLayout([]); setResultMsg(""); };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      <TopBar onBack={onBack} title="🏯 Tower" balance={user.balance} color="#10b981" img="/images/originals/tower.jpg" />
+    <div className="fixed inset-0 z-[200] bg-[#080a10] flex flex-col">
+      <TopBar onBack={onBack} title="TOWER" balance={user.balance} color="#10b981" />
+      <GameBanner img="/images/originals/tower.jpg" color="#10b981" />
 
-      <div className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto relative"
-        style={{ background: `url(/images/originals/tower.jpg) center/cover` }}>
-        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.82)" }} />
+      <div className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto"
+        style={{ background: "radial-gradient(ellipse at top, rgba(16,185,129,0.06), #080a10 70%)" }}>
 
-        <div className="relative grid grid-cols-3 gap-2">
-          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(16,185,129,0.15)" }}>
-            <p className="text-[9px] text-white/60">Level</p>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(16,185,129,0.08)" }}>
+            <p className="text-[9px] text-white/50 uppercase">Level</p>
             <p className="text-base font-black text-emerald-400">{level}/9</p>
           </div>
-          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(255,215,0,0.15)" }}>
-            <p className="text-[9px] text-white/60">Current</p>
+          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(255,215,0,0.08)" }}>
+            <p className="text-[9px] text-white/50 uppercase">Current</p>
             <p className="text-base font-black text-yellow-400">{currentMultiplier.toFixed(2)}x</p>
           </div>
-          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(0,200,83,0.15)" }}>
-            <p className="text-[9px] text-white/60">Win</p>
+          <div className="rounded-lg p-2 text-center" style={{ background: "rgba(0,200,83,0.08)" }}>
+            <p className="text-[9px] text-white/50 uppercase">Win</p>
             <p className="text-base font-black text-green-400">{currentWin.toFixed(2)}</p>
           </div>
         </div>
 
         {resultMsg && (
-          <p className="relative text-center text-sm font-bold"
-            style={{ color: resultMsg.includes("ربحت") ? "#00C853" : "#FF2D55", textShadow: "0 0 15px currentColor" }}>
+          <p className="text-center text-sm font-bold tracking-wide"
+            style={{ color: resultMsg.includes("WIN") ? "#00C853" : "#FF2D55", textShadow: "0 0 15px currentColor" }}>
             {resultMsg}
           </p>
         )}
 
-        {/* Tower - 9 levels, render top to bottom but level 0 at bottom */}
-        <div className="relative space-y-1 flex-1 flex flex-col-reverse justify-end">
+        <div className="space-y-1 flex-1 flex flex-col-reverse justify-end">
           {Array.from({ length: 9 }).map((_, lvl) => {
             const isCurrent = phase === "playing" && lvl === level;
             const isPassed = phase !== "idle" && lvl < level;
@@ -1448,19 +1413,27 @@ function TowerGame({ onBack }: { onBack: () => void }) {
                   const reveal = isPicked || showAll;
                   return (
                     <button key={col} onClick={() => isCurrent && pick(col)} disabled={!isCurrent}
-                      className="rounded-lg flex items-center justify-center text-base font-black transition-all"
+                      className="rounded-lg flex items-center justify-center transition-all"
                       style={{
                         width: 56, height: 32,
                         background: reveal && isMine ? "linear-gradient(135deg,#FF2D55,#FF6B35)"
                           : reveal && !isMine ? "linear-gradient(135deg,#00C853,#00E676)"
                           : isFuture ? "rgba(255,255,255,0.05)"
                           : isCurrent ? "linear-gradient(135deg,#10b981,#22c55e)"
-                          : isPassed ? "rgba(0,200,83,0.2)"
-                          : "rgba(255,255,255,0.08)",
+                          : isPassed ? "rgba(0,200,83,0.15)"
+                          : "rgba(255,255,255,0.05)",
                         opacity: isFuture ? 0.3 : 1,
                         boxShadow: isCurrent ? "0 0 15px rgba(16,185,129,0.6)" : "none",
                       }}>
-                      {reveal ? (isMine ? "💀" : "✓") : isCurrent ? "?" : ""}
+                      {reveal && isMine && (
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="#000"><circle cx="12" cy="13" r="6"/></svg>
+                      )}
+                      {reveal && !isMine && (
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round"><path d="M5 12l5 5L20 7"/></svg>
+                      )}
+                      {isCurrent && (
+                        <svg viewBox="0 0 24 24" className="w-3 h-3" fill="#fff" stroke="#fff"><circle cx="12" cy="12" r="2"/></svg>
+                      )}
                     </button>
                   );
                 })}
@@ -1470,12 +1443,12 @@ function TowerGame({ onBack }: { onBack: () => void }) {
         </div>
 
         {phase === "idle" && (
-          <div className="relative">
-            <label className="text-[10px] text-white/60 mb-1 block">صعوبة</label>
+          <div>
+            <label className="text-[10px] text-white/50 mb-1 block uppercase tracking-wider">Difficulty</label>
             <div className="flex gap-1">
               {(Object.keys(TOWER_CONFIG) as (keyof typeof TOWER_CONFIG)[]).map(m => (
                 <button key={m} onClick={() => setMode(m)} className="flex-1 py-1.5 rounded text-[9px] font-bold capitalize"
-                  style={{ background: mode === m ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.08)",
+                  style={{ background: mode === m ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.05)",
                            color: mode === m ? "#10b981" : "rgba(255,255,255,0.5)" }}>{m}</button>
               ))}
             </div>
@@ -1483,28 +1456,28 @@ function TowerGame({ onBack }: { onBack: () => void }) {
         )}
       </div>
 
-      <div className="p-3 space-y-3" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(16,185,129,0.2)" }}>
+      <div className="p-3 space-y-3 flex-shrink-0" style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(16,185,129,0.2)" }}>
         {error && <p className="text-[11px] text-center font-bold text-pink-400">{error}</p>}
         {phase === "idle" && (<>
           <StakeInput value={stake} onChange={setStake} max={balance} color="#10b981" />
-          <button onClick={start} className="w-full py-3 rounded-xl text-sm font-black text-white"
+          <button onClick={start} className="w-full py-3 rounded-xl text-sm font-black text-white tracking-wide"
             style={{ background: "linear-gradient(135deg,#10b981,#22c55e)" }}>
-            🏯 Start • {parseFloat(stake || "0").toFixed(2)} TND
+            START · {parseFloat(stake || "0").toFixed(2)} TND
           </button>
         </>)}
         {phase === "playing" && level > 0 && (
-          <button onClick={cashout} className="w-full py-3 rounded-xl text-sm font-black text-black"
+          <button onClick={cashout} className="w-full py-3 rounded-xl text-sm font-black text-black tracking-wide"
             style={{ background: "linear-gradient(135deg,#00C853,#00E676)" }}>
-            💰 Cash Out • {currentWin.toFixed(2)} TND (Next: {nextMultiplier.toFixed(2)}x)
+            CASH OUT · {currentWin.toFixed(2)} TND (Next: {nextMultiplier.toFixed(2)}x)
           </button>
         )}
         {phase === "playing" && level === 0 && (
-          <p className="text-center text-[11px] text-white/40">اختر بلاطة آمنة في المستوى 1</p>
+          <p className="text-center text-[11px] text-white/40 uppercase tracking-wider">اختر بلاطة آمنة</p>
         )}
         {phase === "ended" && (
-          <button onClick={reset} className="w-full py-3 rounded-xl text-sm font-black text-white"
+          <button onClick={reset} className="w-full py-3 rounded-xl text-sm font-black text-white tracking-wide"
             style={{ background: "linear-gradient(135deg,#10b981,#22c55e)" }}>
-            🔁 New Tower
+            NEW TOWER
           </button>
         )}
       </div>

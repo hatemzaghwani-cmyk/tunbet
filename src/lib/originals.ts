@@ -99,7 +99,8 @@ export function generateServerSeed(): string {
 
 // ─────────────────────────────────────────────────────────────────────
 // GAME 1: CRASH (Aviator-style)
-// House edge: 1% → multiplier distribution = 0.99 / (1 - R) where R ∈ [0,1)
+// ⚠️ HOUSE-FAVORED: aggressive distribution — most rounds crash <2x
+// House edge ~40%
 // ─────────────────────────────────────────────────────────────────────
 
 export async function crashRound(
@@ -114,9 +115,10 @@ export async function crashRound(
 
   const serverSeed = generateServerSeed();
   const r = await fairRandom(serverSeed, clientSeed, nonce);
-  // 1% house edge: crash multiplier = (1 - 0.01) / (1 - r)
-  // Min crash = 1.00x (instant crash), max effectively unlimited
-  const crashAt = Math.max(1, Math.floor((0.99 / (1 - r)) * 100) / 100);
+  // House-favored distribution: most crashes happen <2x
+  // formula: 0.60 / (1 - r)^1.3 — much faster crashes than fair (0.99/(1-r))
+  const raw = 0.60 / Math.pow(Math.max(0.001, 1 - r), 1.3);
+  const crashAt = Math.max(1, Math.floor(Math.min(1000, raw) * 100) / 100);
 
   const won = cashoutTarget <= crashAt;
   let balance = dr.balance!;
@@ -130,9 +132,8 @@ export async function crashRound(
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// GAME 2: DICE
-// Player picks number 0-100, bets over/under
-// Payout = (99 / win_chance) — 1% house edge
+// GAME 2: DICE — house edge ~35%
+// Payout = 65 / win_chance (vs fair 99/win_chance)
 // ─────────────────────────────────────────────────────────────────────
 
 export async function diceRoll(
@@ -152,7 +153,7 @@ export async function diceRoll(
 
   const won = isOver ? roll > target : roll < target;
   const winChance = isOver ? 100 - target : target;
-  const multiplier = winChance > 0 ? +(99 / winChance).toFixed(4) : 0;
+  const multiplier = winChance > 0 ? +(65 / winChance).toFixed(4) : 0;
 
   let balance = dr.balance!;
   let payout = 0;
@@ -165,8 +166,7 @@ export async function diceRoll(
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// GAME 3: MINES (5x5 grid, pick safe cells, avoid mines)
-// Multiplier = 25 / (25 - mines) ^ revealed (compounded) * (1 - house_edge)
+// GAME 3: MINES — house edge ~45% (was 1%)
 // ─────────────────────────────────────────────────────────────────────
 
 export async function minesGenerateBoard(
@@ -175,26 +175,24 @@ export async function minesGenerateBoard(
   nonce: number,
   mineCount: number
 ): Promise<number[]> {
-  // Generate 25 random numbers using Fisher-Yates shuffle
   const positions = Array.from({ length: 25 }, (_, i) => i);
   for (let i = 24; i > 0; i--) {
     const r = await fairRandom(serverSeed, clientSeed, nonce + i);
     const j = Math.floor(r * (i + 1));
     [positions[i], positions[j]] = [positions[j], positions[i]];
   }
-  return positions.slice(0, mineCount); // first mineCount positions are mines
+  return positions.slice(0, mineCount);
 }
 
 export function minesMultiplier(mineCount: number, revealed: number): number {
-  // House edge 1%
-  // Multiplier after revealing N safe cells from (25 - mineCount) safe cells
   if (revealed === 0) return 1;
   const safeCount = 25 - mineCount;
   let m = 1;
   for (let i = 0; i < revealed; i++) {
     m *= (25 - i) / (safeCount - i);
   }
-  return +(m * 0.99).toFixed(4);
+  // House-favored: 0.55 instead of 0.99
+  return +(m * 0.55).toFixed(4);
 }
 
 export async function minesStart(userId: number, stake: number, mineCount: number, clientSeed: string, nonce: number): Promise<{ ok: boolean; serverSeed?: string; mines?: number[]; balance?: number; error?: string }> {
@@ -214,8 +212,7 @@ export async function minesCashout(userId: number, stake: number, mineCount: num
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// GAME 4: LIMBO (target multiplier, win if random multiplier ≥ target)
-// Win chance = 99 / target, payout = stake × target
+// GAME 4: LIMBO — house edge ~35% (was 1%)
 // ─────────────────────────────────────────────────────────────────────
 
 export async function limboRoll(
@@ -231,13 +228,15 @@ export async function limboRoll(
 
   const serverSeed = generateServerSeed();
   const r = await fairRandom(serverSeed, clientSeed, nonce);
-  const result = Math.max(1, +(0.99 / (1 - r)).toFixed(2));
+  // House-favored distribution (similar to Crash)
+  const result = Math.max(1, +Math.min(1000, 0.65 / Math.pow(Math.max(0.001, 1 - r), 1.25)).toFixed(2));
 
   const won = result >= target;
   let balance = dr.balance!;
   let payout = 0;
   if (won) {
-    payout = +(stake * target).toFixed(2);
+    // Reduced payout multiplier (was full target)
+    payout = +(stake * target * 0.65).toFixed(2);
     const cr = await credit(userId, payout, "Limbo", true);
     if (cr.ok) balance = cr.balance!;
   }
@@ -249,20 +248,20 @@ export async function limboRoll(
 // Path = binary tree of left/right choices, ending in a bucket
 // ─────────────────────────────────────────────────────────────────────
 
-// Multipliers per row count (low/medium/high risk = different curves)
+// House-favored multipliers — most center buckets pay 0 or <1x
 export const PLINKO_MULTIPLIERS: Record<string, number[]> = {
-  // 8 rows, 9 buckets, low risk
-  "8-low":  [5.6, 2.1, 1.1, 1.0, 0.5, 1.0, 1.1, 2.1, 5.6],
-  "8-med":  [13, 3, 1.3, 0.7, 0.4, 0.7, 1.3, 3, 13],
-  "8-high": [29, 4, 1.5, 0.3, 0.2, 0.3, 1.5, 4, 29],
-  // 12 rows, 13 buckets
-  "12-low":  [10, 3, 1.6, 1.4, 1.1, 1.0, 0.5, 1.0, 1.1, 1.4, 1.6, 3, 10],
-  "12-med":  [33, 11, 4, 2, 1.1, 0.6, 0.3, 0.6, 1.1, 2, 4, 11, 33],
-  "12-high": [76, 18, 5, 2, 0.5, 0.3, 0.2, 0.3, 0.5, 2, 5, 18, 76],
-  // 16 rows, 17 buckets
-  "16-low":  [16, 9, 2, 1.4, 1.4, 1.2, 1.1, 1.0, 0.5, 1.0, 1.1, 1.2, 1.4, 1.4, 2, 9, 16],
-  "16-med":  [110, 41, 10, 5, 3, 1.5, 1, 0.5, 0.3, 0.5, 1, 1.5, 3, 5, 10, 41, 110],
-  "16-high": [1000, 130, 26, 9, 4, 2, 0.2, 0.2, 0.2, 0.2, 0.2, 2, 4, 9, 26, 130, 1000],
+  // 8 rows
+  "8-low":  [2.0, 1.1, 0.7, 0.3, 0, 0.3, 0.7, 1.1, 2.0],
+  "8-med":  [4.0, 1.5, 0.5, 0.2, 0, 0.2, 0.5, 1.5, 4.0],
+  "8-high": [9.0, 1.8, 0.4, 0, 0, 0, 0.4, 1.8, 9.0],
+  // 12 rows
+  "12-low":  [3.5, 1.5, 0.9, 0.6, 0.4, 0.3, 0, 0.3, 0.4, 0.6, 0.9, 1.5, 3.5],
+  "12-med":  [11, 3, 1.2, 0.6, 0.3, 0, 0, 0, 0.3, 0.6, 1.2, 3, 11],
+  "12-high": [25, 5, 1.5, 0.4, 0, 0, 0, 0, 0, 0.4, 1.5, 5, 25],
+  // 16 rows
+  "16-low":  [5, 2.5, 1.4, 1.0, 0.8, 0.6, 0.5, 0.3, 0, 0.3, 0.5, 0.6, 0.8, 1.0, 1.4, 2.5, 5],
+  "16-med":  [35, 12, 3, 1.4, 0.8, 0.5, 0.3, 0, 0, 0, 0.3, 0.5, 0.8, 1.4, 3, 12, 35],
+  "16-high": [300, 40, 8, 2, 0.8, 0.2, 0, 0, 0, 0, 0, 0.2, 0.8, 2, 8, 40, 300],
 };
 
 export async function plinkoRound(
@@ -277,13 +276,35 @@ export async function plinkoRound(
   if (!dr.ok) return { ok: false, error: dr.error };
 
   const serverSeed = generateServerSeed();
-  const path: number[] = []; // 0 = left, 1 = right
-  for (let i = 0; i < rows; i++) {
-    const r = await fairRandom(serverSeed, clientSeed, nonce * 100 + i);
-    path.push(r < 0.5 ? 0 : 1);
-  }
-  const bucket = path.reduce((s, v) => s + v, 0); // sum of right moves
+  // House-biased: target a low-payout bucket first, then craft a path to it
   const multipliers = PLINKO_MULTIPLIERS[`${rows}-${risk}`];
+  const targetR = await fairRandom(serverSeed, clientSeed, nonce);
+  // 75% chance to target a center (low/zero) bucket
+  const centerBuckets = multipliers.map((m, i) => m < 1 ? i : -1).filter(i => i >= 0);
+  const outerBuckets = multipliers.map((m, i) => m >= 1 ? i : -1).filter(i => i >= 0);
+  let targetBucket: number;
+  if (targetR < 0.75 && centerBuckets.length > 0) {
+    const idx = Math.floor((targetR / 0.75) * centerBuckets.length);
+    targetBucket = centerBuckets[Math.min(idx, centerBuckets.length - 1)];
+  } else if (outerBuckets.length > 0) {
+    const idx = Math.floor(((targetR - 0.75) / 0.25) * outerBuckets.length);
+    targetBucket = outerBuckets[Math.min(idx, outerBuckets.length - 1)];
+  } else {
+    targetBucket = Math.floor(targetR * multipliers.length);
+  }
+  // Build a path that lands on targetBucket: path = targetBucket rights, (rows - targetBucket) lefts
+  const path: number[] = [];
+  const rights = Math.min(rows, Math.max(0, targetBucket));
+  const lefts = rows - rights;
+  // Interleave randomly using server seed to make path look organic
+  const sequence: number[] = [...Array(rights).fill(1), ...Array(lefts).fill(0)];
+  for (let i = sequence.length - 1; i > 0; i--) {
+    const r = await fairRandom(serverSeed, clientSeed, nonce * 100 + i);
+    const j = Math.floor(r * (i + 1));
+    [sequence[i], sequence[j]] = [sequence[j], sequence[i]];
+  }
+  path.push(...sequence);
+  const bucket = path.reduce((s, v) => s + v, 0);
   const multiplier = multipliers[bucket];
 
   let balance = dr.balance!;
@@ -298,7 +319,7 @@ export async function plinkoRound(
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// GAME 6: COIN FLIP — bet on heads/tails, 1.98x payout (1% edge)
+// GAME 6: COIN FLIP — house-biased (35% player wins, payout 1.4x)
 // ─────────────────────────────────────────────────────────────────────
 
 export async function coinFlip(
@@ -312,12 +333,15 @@ export async function coinFlip(
   if (!dr.ok) return { ok: false, error: dr.error };
   const serverSeed = generateServerSeed();
   const r = await fairRandom(serverSeed, clientSeed, nonce);
-  const result: "heads" | "tails" = r < 0.5 ? "heads" : "tails";
-  const won = result === pick;
+  // House-biased: player wins only 35% of the time (vs fair 50%)
+  // Treat r < 0.35 as "player wins their pick", else opposite
+  const playerWins = r < 0.35;
+  const result: "heads" | "tails" = playerWins ? pick : (pick === "heads" ? "tails" : "heads");
+  const won = playerWins;
   let balance = dr.balance!;
   let payout = 0;
   if (won) {
-    payout = +(stake * 1.98).toFixed(2);
+    payout = +(stake * 1.4).toFixed(2);
     const cr = await credit(userId, payout, "CoinFlip", true);
     if (cr.ok) balance = cr.balance!;
   }
@@ -356,17 +380,40 @@ export async function hiloPlay(
   const dr = await debit(userId, stake, "HiLo");
   if (!dr.ok) return { ok: false, error: dr.error };
   const serverSeed = generateServerSeed();
-  const newCard = await drawCard(serverSeed, clientSeed, nonce);
-  // Calculate multiplier based on probability
+  // House-biased card draw: bias card AWAY from player's guess
+  const r = await fairRandom(serverSeed, clientSeed, nonce);
+  // 65% chance card is drawn against player's prediction
+  let cardVal: number;
+  if (guess === "higher") {
+    // Player wants higher → bias toward lower/equal cards
+    if (r < 0.65) cardVal = Math.max(1, Math.floor(r / 0.65 * currentCardValue));
+    else cardVal = Math.min(13, currentCardValue + 1 + Math.floor((r - 0.65) / 0.35 * (13 - currentCardValue)));
+  } else if (guess === "lower") {
+    // Player wants lower → bias toward higher/equal cards
+    if (r < 0.65) cardVal = Math.min(13, currentCardValue + Math.ceil(r / 0.65 * (14 - currentCardValue)));
+    else cardVal = Math.max(1, Math.floor((r - 0.65) / 0.35 * (currentCardValue - 1)) + 1);
+  } else {
+    // equal — keep ultra rare (~5%)
+    cardVal = r < 0.05 ? currentCardValue : Math.max(1, Math.min(13, currentCardValue + (r < 0.5 ? -2 : 2)));
+  }
+  cardVal = Math.max(1, Math.min(13, Math.round(cardVal)));
+  const names = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+  const suits = ["♠","♥","♦","♣"];
+  const r2 = await fairRandom(serverSeed, clientSeed, nonce + 99999);
+  const newCard = { v: cardVal, n: names[cardVal - 1], s: suits[Math.floor(r2 * 4)] };
+
   let winChance: number;
   if (guess === "higher") winChance = (13 - currentCardValue) / 13 * 100;
   else if (guess === "lower") winChance = (currentCardValue - 1) / 13 * 100;
-  else winChance = 1 / 13 * 100; // equal
-  const multiplier = winChance > 0 ? +(99 / winChance).toFixed(4) : 0;
+  else winChance = 1 / 13 * 100;
+  // House-biased multiplier (65 instead of 99)
+  const multiplier = winChance > 0 ? +(65 / winChance).toFixed(4) : 0;
+
   let won = false;
   if (guess === "higher") won = newCard.v > currentCardValue;
   else if (guess === "lower") won = newCard.v < currentCardValue;
   else won = newCard.v === currentCardValue;
+
   let balance = dr.balance!;
   let payout = 0;
   if (won && multiplier > 0) {
@@ -381,11 +428,11 @@ export async function hiloPlay(
 // GAME 8: WHEEL of Fortune — 50 segments with various multipliers
 // ─────────────────────────────────────────────────────────────────────
 
+// House-biased: more zeros + lower payouts on hits
 export const WHEEL_SEGMENTS: Record<string, number[]> = {
-  // Low risk: small but more frequent wins
-  "low":  [1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.2, 1.2, 0, 1.2, 1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.5, 1.2, 1.2, 1.2],
-  "med":  [3.0, 1.5, 0, 1.5, 0, 1.5, 2.0, 0, 1.5, 0, 2.0, 1.5, 0, 1.5, 0, 1.5, 3.0, 1.5, 2.0, 0],
-  "high": [10, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 50, 0, 0, 0, 0],
+  "low":  [1.2, 0, 0.8, 0, 1.0, 0, 0.8, 0, 1.0, 0, 1.5, 0, 0.8, 0, 1.0, 0, 0.8, 0, 1.0, 0],
+  "med":  [2.0, 0, 0, 0, 1.2, 0, 0, 0, 0, 0, 2.0, 0, 0, 0, 1.2, 0, 0, 0, 0, 0],
+  "high": [6, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 30, 0, 0, 0, 0],
 };
 
 export async function wheelSpin(
@@ -400,7 +447,19 @@ export async function wheelSpin(
   const serverSeed = generateServerSeed();
   const r = await fairRandom(serverSeed, clientSeed, nonce);
   const segments = WHEEL_SEGMENTS[risk];
-  const segment = Math.floor(r * segments.length);
+  // House-biased: 70% chance to land on a zero segment
+  const zeroIdxs = segments.map((m, i) => m === 0 ? i : -1).filter(i => i >= 0);
+  const nonZeroIdxs = segments.map((m, i) => m > 0 ? i : -1).filter(i => i >= 0);
+  let segment: number;
+  if (r < 0.70 && zeroIdxs.length > 0) {
+    const idx = Math.floor((r / 0.70) * zeroIdxs.length);
+    segment = zeroIdxs[Math.min(idx, zeroIdxs.length - 1)];
+  } else if (nonZeroIdxs.length > 0) {
+    const idx = Math.floor(((r - 0.70) / 0.30) * nonZeroIdxs.length);
+    segment = nonZeroIdxs[Math.min(idx, nonZeroIdxs.length - 1)];
+  } else {
+    segment = Math.floor(r * segments.length);
+  }
   const multiplier = segments[segment];
   let balance = dr.balance!;
   let payout = 0;
@@ -419,45 +478,46 @@ export async function wheelSpin(
 // ─────────────────────────────────────────────────────────────────────
 
 // Payout table per risk: rows = picks, cols = hits 0-10
+// House-biased payouts (reduced by ~55% across the board)
 export const KENO_PAYOUTS: Record<string, number[][]> = {
   low: [
-    [], //0 picks
-    [0.7, 1.85], //1
-    [0, 2, 3.8],
-    [0, 1, 1.4, 10],
-    [0, 0, 1.4, 3, 22],
-    [0, 0, 1.4, 1.5, 4, 14],
-    [0, 0, 0.5, 1.4, 2.5, 6, 30],
-    [0, 0, 0.5, 1.5, 1.5, 3, 7, 35],
-    [0, 0, 0.5, 1.4, 1.5, 2, 4, 16, 60],
-    [0, 0, 0.5, 1.4, 1.5, 2, 3.5, 5, 20, 70],
-    [0, 0, 0.5, 1, 1.5, 2, 3, 5, 12, 30, 100],
+    [],
+    [0.3, 1.3],
+    [0, 1.0, 2.0],
+    [0, 0.5, 0.8, 5],
+    [0, 0, 0.8, 1.5, 12],
+    [0, 0, 0.7, 0.9, 2.2, 7],
+    [0, 0, 0.3, 0.8, 1.4, 3, 16],
+    [0, 0, 0.3, 0.8, 0.9, 1.7, 4, 18],
+    [0, 0, 0.3, 0.8, 0.9, 1.2, 2.2, 8, 30],
+    [0, 0, 0.3, 0.7, 0.8, 1.1, 2.0, 3, 11, 38],
+    [0, 0, 0.3, 0.6, 0.8, 1.1, 1.7, 3, 7, 16, 55],
   ],
   med: [
     [],
-    [0.4, 2.75],
-    [0, 1.8, 5.1],
-    [0, 0, 2.8, 50],
-    [0, 0, 1.7, 10, 100],
-    [0, 0, 1.4, 4, 14, 390],
-    [0, 0, 0, 3, 9, 180, 710],
-    [0, 0, 0, 2, 7, 30, 400, 800],
-    [0, 0, 0, 2, 4, 11, 67, 400, 900],
-    [0, 0, 0, 2, 2.5, 5, 15, 100, 500, 1000],
-    [0, 0, 0, 1.6, 2, 4, 7, 26, 100, 500, 1000],
+    [0.2, 1.8],
+    [0, 1.0, 2.7],
+    [0, 0, 1.5, 25],
+    [0, 0, 0.9, 5, 55],
+    [0, 0, 0.8, 2.2, 7, 210],
+    [0, 0, 0, 1.6, 4.8, 95, 380],
+    [0, 0, 0, 1.0, 3.5, 16, 220, 430],
+    [0, 0, 0, 1.0, 2.2, 6, 35, 220, 480],
+    [0, 0, 0, 1.0, 1.4, 2.7, 8, 55, 270, 540],
+    [0, 0, 0, 0.9, 1.1, 2.2, 3.8, 14, 55, 270, 540],
   ],
   high: [
     [],
-    [0, 3.96],
-    [0, 0, 17.1],
-    [0, 0, 0, 81.5],
-    [0, 0, 0, 10, 259],
-    [0, 0, 0, 4.5, 48, 450],
-    [0, 0, 0, 0, 11, 350, 710],
-    [0, 0, 0, 0, 7, 90, 400, 800],
-    [0, 0, 0, 0, 5, 20, 270, 600, 900],
-    [0, 0, 0, 0, 4, 11, 56, 500, 800, 1000],
-    [0, 0, 0, 0, 3.5, 8, 13, 63, 500, 800, 1000],
+    [0, 2.0],
+    [0, 0, 9],
+    [0, 0, 0, 42],
+    [0, 0, 0, 5, 140],
+    [0, 0, 0, 2.5, 26, 240],
+    [0, 0, 0, 0, 6, 180, 380],
+    [0, 0, 0, 0, 3.8, 48, 220, 430],
+    [0, 0, 0, 0, 2.7, 11, 140, 320, 480],
+    [0, 0, 0, 0, 2.2, 6, 30, 270, 430, 540],
+    [0, 0, 0, 0, 2, 4.5, 7, 33, 270, 430, 540],
   ],
 };
 
@@ -473,14 +533,31 @@ export async function kenoPlay(
   const dr = await debit(userId, stake, "Keno");
   if (!dr.ok) return { ok: false, error: dr.error };
   const serverSeed = generateServerSeed();
-  // Draw 10 unique numbers from 1-40
-  const pool = Array.from({ length: 40 }, (_, i) => i + 1);
-  for (let i = 39; i > 0; i--) {
-    const r = await fairRandom(serverSeed, clientSeed, nonce + i);
-    const j = Math.floor(r * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+  // House-biased: bias draws AWAY from player picks
+  // Build a pool with reduced probability of player's picks being drawn
+  const pickSet = new Set(picks);
+  const allNumbers = Array.from({ length: 40 }, (_, i) => i + 1);
+  const nonPicks = allNumbers.filter(n => !pickSet.has(n));
+  const draws: number[] = [];
+  // Draw 10 with 75% chance to be from non-picks
+  for (let i = 0; i < 10 && draws.length < 10; i++) {
+    const r = await fairRandom(serverSeed, clientSeed, nonce + i * 7);
+    let candidate: number;
+    if (r < 0.75 && nonPicks.length > 0) {
+      const remaining = nonPicks.filter(n => !draws.includes(n));
+      if (remaining.length > 0) candidate = remaining[Math.floor(r / 0.75 * remaining.length)];
+      else candidate = allNumbers.filter(n => !draws.includes(n))[0];
+    } else {
+      const remaining = allNumbers.filter(n => !draws.includes(n));
+      candidate = remaining[Math.floor(((r - 0.75) / 0.25) * remaining.length)];
+    }
+    if (candidate !== undefined && !draws.includes(candidate)) draws.push(candidate);
   }
-  const draws = pool.slice(0, 10);
+  // Fill if short
+  while (draws.length < 10) {
+    const remaining = allNumbers.filter(n => !draws.includes(n));
+    draws.push(remaining[0]);
+  }
   const hits = picks.filter(p => draws.includes(p)).length;
   const multiplier = KENO_PAYOUTS[risk][picks.length]?.[hits] || 0;
   let balance = dr.balance!;
@@ -514,7 +591,8 @@ export function towerMultiplier(mode: keyof typeof TOWER_CONFIG, level: number):
   for (let i = 0; i < level; i++) {
     m *= cfg.tilesPerRow / safe;
   }
-  return +(m * 0.97).toFixed(4); // 3% edge
+  // House-biased: 50% edge (was 3%)
+  return +(m * 0.5).toFixed(4);
 }
 
 export async function towerStart(userId: number, stake: number, mode: keyof typeof TOWER_CONFIG, clientSeed: string, nonce: number): Promise<{ ok: boolean; mineLayout?: number[]; balance?: number; serverSeed?: string; error?: string }> {
@@ -522,11 +600,19 @@ export async function towerStart(userId: number, stake: number, mode: keyof type
   if (!dr.ok) return { ok: false, error: dr.error };
   const serverSeed = generateServerSeed();
   const cfg = TOWER_CONFIG[mode];
-  const mineLayout: number[] = []; // mine column per row (0 to tilesPerRow-1)
+  const mineLayout: number[] = [];
+  // House-biased: use weighted random that favors columns the player is likely to pick
+  // Player tends to pick middle/extreme columns → place mines there more often
+  const preferredColumns = cfg.tilesPerRow === 4 ? [1, 2] : cfg.tilesPerRow === 3 ? [1] : [0, 1];
   for (let i = 0; i < 9; i++) {
     const r = await fairRandom(serverSeed, clientSeed, nonce + i);
-    // For simplicity, pick first mine column. If minesPerRow > 1, we'd need set
-    mineLayout.push(Math.floor(r * cfg.tilesPerRow));
+    // 60% chance mine is in a "popular" column
+    if (r < 0.6) {
+      const idx = Math.floor(r / 0.6 * preferredColumns.length);
+      mineLayout.push(preferredColumns[Math.min(idx, preferredColumns.length - 1)]);
+    } else {
+      mineLayout.push(Math.floor((r - 0.6) / 0.4 * cfg.tilesPerRow));
+    }
   }
   return { ok: true, mineLayout, balance: dr.balance, serverSeed };
 }
