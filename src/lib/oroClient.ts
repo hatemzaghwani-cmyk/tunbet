@@ -2,8 +2,8 @@
 // When OroPlay activates IP whitelist, games switch to real money automatically
 
 const ORO_API = "https://api.pgf-asu2nd.com/api/v2";
-const CLIENT_ID = "Hatem1_TND";
-const CLIENT_SECRET = "JdYysA2TS7K3xzIYJoOlRn2z9i9XWk57";
+const CLIENT_ID = "Hatem_TND";
+const CLIENT_SECRET = "ByCD4m1LNgAlNJo917XbreFMuuHJWrgs";
 
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
