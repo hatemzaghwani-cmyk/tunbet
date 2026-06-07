@@ -1,105 +1,140 @@
 import { motion } from "framer-motion";
-import { Trophy, ArrowLeft, RefreshCw, Maximize2, Activity, Shield, Zap } from "lucide-react";
+import { Trophy, ArrowLeft, RefreshCw, Maximize2, Activity, Shield, Zap, ChevronRight } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { oroLaunchGame, isOroAvailable } from "@/lib/oroClient";
 
-// Real sportsbook running through OroPlay aggregator
-// vendor: id=50, vendorCode="sports", gameCode="sports"
-// Host (preview): sports.eyq8vmw3.com
-// When OroPlay activates API, oroLaunchGame returns a signed URL with token
-// → seamless wallet automatically debits/credits user's TND balance via callbacks
+// ─────────────────────────────────────────────────────────────────────────────
+// Sportsbook providers — all are iframe-embeddable (no X-Frame-Options)
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. TVBET (BetCore vertical) - public demo server clientId=9999 → INSTANT PLAY
+//    Demo balance, fully interactive, real games (Poker, Blackjack, Lucky6, Wheelbet, 1Bet, 5Bet, 7Bet, Keno, War of Elements)
+// 2. Sports (OroPlay vendor #50) - full pre-match + live betting sportsbook
+//    Preview mode now, REAL MONEY (TND) when OroPlay activates API
+// ─────────────────────────────────────────────────────────────────────────────
 
-const PREVIEW_URL = "https://sports.eyq8vmw3.com/";
+interface Provider {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string;
+  color: string;
+  gradient: string;
+  type: "tvbet" | "iframe" | "oro";
+  url?: string;
+  mode: "demo" | "preview" | "real";
+  features: string[];
+}
+
+const PROVIDERS: Provider[] = [
+  {
+    id: "tvbet",
+    name: "TVBet Live Games",
+    desc: "Poker • Blackjack • Lucky6 • Keno • Wheelbet • 1Bet • 5Bet",
+    icon: "🎲",
+    color: "#FF2D55",
+    gradient: "linear-gradient(135deg, rgba(255,45,85,0.18), rgba(255,107,53,0.1))",
+    type: "tvbet",
+    url: "https://tvbetframe.com/?clientId=9999&lng=en",
+    mode: "demo",
+    features: ["24/7 Live", "9 Games", "Instant Play", "Demo Balance"],
+  },
+  {
+    id: "sportsbook",
+    name: "Pre-Match & Live Sports",
+    desc: "Football • Basketball • Tennis • UFC • +30 sports • Bet Slip + History",
+    icon: "⚽",
+    color: "#00D1FF",
+    gradient: "linear-gradient(135deg, rgba(0,209,255,0.18), rgba(0,102,255,0.1))",
+    type: "oro",
+    url: "https://sports.eyq8vmw3.com/",
+    mode: "preview",
+    features: ["Pre-Match", "Live Odds", "Cash Out", "Bet Slip"],
+  },
+];
 
 export default function Sports() {
   const { user, refreshBalance } = useAuth();
   const [auth, setAuth] = useState(false);
   const [oroReady, setOroReady] = useState(false);
+  const [active, setActive] = useState<Provider | null>(null);
   const [gameUrl, setGameUrl] = useState<string | null>(null);
-  const [previewMode, setPreviewMode] = useState(false);
-  const [launching, setLaunching] = useState(false);
+  const [launching, setLaunching] = useState<string | null>(null);
   const [err, setErr] = useState("");
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  useEffect(() => {
-    isOroAvailable().then(setOroReady);
-  }, []);
+  useEffect(() => { isOroAvailable().then(setOroReady); }, []);
 
-  const launch = async (forcePreview = false) => {
-    if (!user && !forcePreview) { setAuth(true); return; }
-
-    // Preview mode (browse only, no betting)
-    if (forcePreview || !oroReady) {
-      setPreviewMode(true);
-      setGameUrl(PREVIEW_URL);
-      return;
-    }
-
-    // Real mode — request signed URL from OroPlay
+  const launch = async (p: Provider) => {
     if (!user) { setAuth(true); return; }
-    if (parseFloat(user.balance) <= 0) {
-      setErr("رصيدك غير كافٍ. اشحن رصيدك أولاً");
-      setTimeout(() => setErr(""), 4000);
-      return;
-    }
-    setLaunching(true); setErr("");
+    setLaunching(p.id); setErr("");
+
     try {
-      const res = await oroLaunchGame(`tb_${user.id}`, "sports", "sports", "en");
-      if (res?.url) {
-        setPreviewMode(false);
-        setGameUrl(res.url);
-      } else {
-        setErr(res?.error || "تعذر فتح الرياضة");
-        setTimeout(() => setErr(""), 4000);
+      if (p.type === "tvbet") {
+        // TVBet demo - works instantly
+        setActive(p);
+        setGameUrl(p.url!);
+      } else if (p.type === "oro") {
+        // OroPlay sportsbook
+        if (oroReady) {
+          // Real money mode - get signed launch URL
+          const res = await oroLaunchGame(`tb_${user.id}`, "sports", "sports", "en");
+          if (res?.url) {
+            setActive({ ...p, mode: "real" });
+            setGameUrl(res.url);
+          } else {
+            setErr(res?.error || "تعذر فتح الرياضة");
+            setTimeout(() => setErr(""), 4000);
+          }
+        } else {
+          // Preview mode - browse only
+          setActive(p);
+          setGameUrl(p.url!);
+        }
       }
     } catch (e: any) {
-      setErr("⏰ في انتظار تفعيل API من OroPlay - جرّب Preview Mode");
+      setErr("⏰ سيتفعل قريباً عبر OroPlay. جرّب TVBet الآن");
       setTimeout(() => setErr(""), 4500);
     }
-    setLaunching(false);
+    setLaunching(null);
   };
 
   const close = async () => {
     setGameUrl(null);
-    setPreviewMode(false);
+    setActive(null);
     if (user) await refreshBalance();
   };
 
-  // Show iframe full-screen when game is launched
-  if (gameUrl) {
+  // ───────────── Full-screen iframe view ─────────────
+  if (gameUrl && active) {
+    const modeColor = active.mode === "real" ? "#00C853" :
+                      active.mode === "preview" ? "#FFA000" : "#FF2D55";
+    const modeText = active.mode === "real" ? "💰 REAL TND" :
+                     active.mode === "preview" ? "👁 PREVIEW" : "🎮 DEMO";
     return (
       <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-        {/* Top bar */}
         <div className="flex items-center justify-between px-3 py-2"
           style={{ background: "linear-gradient(90deg, rgba(0,209,255,0.12), rgba(0,0,0,0.95))",
-                   borderBottom: "1px solid rgba(0,209,255,0.15)" }}>
-          <div className="flex items-center gap-2">
-            <button onClick={close} className="w-8 h-8 rounded-lg flex items-center justify-center"
+                   borderBottom: `1px solid ${active.color}40` }}>
+          <div className="flex items-center gap-2 min-w-0">
+            <button onClick={close} className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{ background: "rgba(255,255,255,0.05)" }}>
               <ArrowLeft className="w-4 h-4 text-white/70" />
             </button>
-            <div className="px-2 py-0.5 rounded text-[9px] font-black flex items-center gap-1"
-              style={{
-                background: previewMode ? "rgba(255,165,0,0.85)" : "rgba(0,209,255,0.9)",
-                color: "#000"
-              }}>
-              {previewMode ? "👁 PREVIEW" : <><Activity className="w-2.5 h-2.5" />SPORTS</>}
+            <div className="px-2 py-0.5 rounded text-[9px] font-black flex items-center gap-1 flex-shrink-0"
+              style={{ background: modeColor, color: "#000" }}>
+              {modeText}
             </div>
-            {!previewMode && (
-              <span className="text-xs text-white/50 font-mono">
+            <span className="text-xs text-white/60 font-bold truncate">{active.name}</span>
+            {active.mode === "real" && (
+              <span className="text-xs text-white/50 font-mono flex-shrink-0">
                 💰 {user?.balance} TND
               </span>
             )}
-            {previewMode && (
-              <span className="text-xs text-orange-300 font-medium">
-                Browse Only — No Real Bets
-              </span>
-            )}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => iframeRef.current?.contentWindow?.location.reload()}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button onClick={() => { if (iframeRef.current) iframeRef.current.src = iframeRef.current.src; }}
               className="w-8 h-8 rounded-lg flex items-center justify-center"
               style={{ background: "rgba(255,255,255,0.05)" }}>
               <RefreshCw className="w-3.5 h-3.5 text-white/70" />
@@ -112,14 +147,13 @@ export default function Sports() {
           </div>
         </div>
 
-        {/* Iframe */}
         <iframe
           ref={iframeRef}
           src={gameUrl}
           className="flex-1 w-full border-none bg-white"
-          allow="fullscreen autoplay payment"
-          title="Sportsbook"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
+          allow="fullscreen autoplay payment clipboard-write"
+          title={active.name}
+          allowFullScreen
         />
       </div>
     );
@@ -139,19 +173,19 @@ export default function Sports() {
               <div>
                 <h1 className="text-xl font-black tracking-wider">SPORTSBOOK</h1>
                 <p className="text-[10px] text-white/40 font-mono">
-                  LIVE + VIRTUAL + PRE-MATCH
+                  LIVE • PRE-MATCH • VIRTUAL • TV GAMES
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1 px-2 py-1 rounded-full"
               style={{
-                background: oroReady ? "rgba(0,200,83,0.15)" : "rgba(255,165,0,0.15)",
-                border: `1px solid ${oroReady ? "rgba(0,200,83,0.3)" : "rgba(255,165,0,0.3)"}`
+                background: oroReady ? "rgba(0,200,83,0.15)" : "rgba(255,45,85,0.15)",
+                border: `1px solid ${oroReady ? "rgba(0,200,83,0.3)" : "rgba(255,45,85,0.3)"}`
               }}>
-              <Activity className={`w-3 h-3 ${oroReady ? "text-green-400" : "text-orange-400"}`} />
+              <Activity className={`w-3 h-3 ${oroReady ? "text-green-400" : "text-pink-400"}`} />
               <span className="text-[10px] font-bold"
-                style={{ color: oroReady ? "#00C853" : "#FFA000" }}>
-                {oroReady ? "LIVE" : "PREVIEW"}
+                style={{ color: oroReady ? "#00C853" : "#FF2D55" }}>
+                {oroReady ? "LIVE" : "DEMO READY"}
               </span>
             </div>
           </div>
@@ -163,63 +197,76 @@ export default function Sports() {
             </div>
           )}
 
-          {/* Hero card */}
-          <motion.div
-            whileHover={{ scale: 1.01 }}
-            className="relative rounded-2xl overflow-hidden cursor-pointer"
-            onClick={() => launch(false)}
-            style={{
-              height: 240,
-              background: "linear-gradient(135deg, rgba(0,209,255,0.15) 0%, rgba(0,102,255,0.08) 50%, rgba(255,45,85,0.1) 100%)",
-              border: "1px solid rgba(0,209,255,0.25)",
-            }}>
-            <div className="absolute inset-0 opacity-20"
-              style={{ background: "radial-gradient(circle at 30% 50%, #00D1FF66, transparent 60%)" }} />
+          {/* Providers list */}
+          <div className="space-y-3">
+            {PROVIDERS.map((p) => {
+              const isOroReal = p.type === "oro" && oroReady;
+              const badgeMode = p.type === "tvbet" ? "demo" : (isOroReal ? "real" : "preview");
 
-            {/* Floating sport icons */}
-            <div className="absolute top-3 right-3 flex gap-1.5 text-2xl">
-              <span>⚽</span><span>🏀</span><span>🎾</span><span>🏈</span>
-            </div>
+              return (
+                <motion.div
+                  key={p.id}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() => launch(p)}
+                  className="relative rounded-2xl overflow-hidden cursor-pointer"
+                  style={{
+                    background: p.gradient,
+                    border: `1px solid ${p.color}40`,
+                  }}>
+                  <div className="absolute inset-0 opacity-15"
+                    style={{ background: `radial-gradient(circle at 20% 50%, ${p.color}, transparent 65%)` }} />
 
-            <div className="absolute inset-0 flex flex-col justify-center p-5">
-              <h2 className="text-3xl font-black tracking-wider text-white mb-1"
-                style={{ textShadow: "0 0 20px rgba(0,209,255,0.4)" }}>
-                FULL SPORTSBOOK
-              </h2>
-              <p className="text-xs text-white/60 mb-3 max-w-xs">
-                +30 رياضة • مباريات حية • Pre-match • Virtual Sports • Mini Games
-              </p>
+                  <div className="relative p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="text-4xl flex-shrink-0">{p.icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className="text-base font-black text-white">{p.name}</h3>
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase"
+                            style={{
+                              background: badgeMode === "real" ? "rgba(0,200,83,0.85)" :
+                                          badgeMode === "preview" ? "rgba(255,165,0,0.85)" :
+                                          "rgba(255,45,85,0.85)",
+                              color: "#000"
+                            }}>
+                            {badgeMode === "real" ? "💰 REAL TND" :
+                             badgeMode === "preview" ? "👁 PREVIEW" : "🎮 DEMO"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-white/55 mb-2 leading-snug">{p.desc}</p>
 
-              <div className="flex items-center gap-2 flex-wrap mb-4">
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
-                  style={{ background: "rgba(0,209,255,0.15)", color: "#00D1FF" }}>⚽ Football</span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
-                  style={{ background: "rgba(255,215,0,0.15)", color: "#FFD700" }}>🏀 Basketball</span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
-                  style={{ background: "rgba(255,107,53,0.15)", color: "#FF6B35" }}>🏇 Horse Racing</span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
-                  style={{ background: "rgba(168,85,247,0.15)", color: "#a855f7" }}>🐕 Dog Racing</span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
-                  style={{ background: "rgba(236,72,153,0.15)", color: "#ec4899" }}>🎰 Keno</span>
-              </div>
+                        <div className="flex gap-1.5 flex-wrap mb-3">
+                          {p.features.map((f, i) => (
+                            <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-bold"
+                              style={{ background: `${p.color}20`, color: p.color }}>
+                              {f}
+                            </span>
+                          ))}
+                        </div>
 
-              <button
-                disabled={launching}
-                className="self-start px-5 py-2 rounded-xl text-sm font-black text-black disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #00D1FF, #0066FF)",
-                         boxShadow: "0 4px 20px rgba(0,209,255,0.3)" }}>
-                {launching ? "Loading..." : oroReady ? "🚀 LAUNCH SPORTSBOOK" : "👁 LAUNCH PREVIEW"}
-              </button>
-            </div>
-          </motion.div>
+                        <button
+                          disabled={launching === p.id}
+                          className="px-4 py-1.5 rounded-lg text-xs font-black text-black inline-flex items-center gap-1.5 disabled:opacity-50"
+                          style={{ background: p.color }}>
+                          {launching === p.id ? "Loading..." : "Launch"}
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
 
-          {/* Status info */}
+          {/* Info banner */}
           <div className="rounded-xl p-3.5"
             style={{
               background: oroReady
                 ? "linear-gradient(135deg, rgba(0,200,83,0.06), rgba(0,209,255,0.04))"
                 : "linear-gradient(135deg, rgba(255,165,0,0.06), rgba(0,209,255,0.04))",
-              border: `1px solid ${oroReady ? "rgba(0,200,83,0.15)" : "rgba(255,165,0,0.15)"}`
+              border: `1px solid ${oroReady ? "rgba(0,200,83,0.18)" : "rgba(255,165,0,0.18)"}`
             }}>
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
@@ -230,29 +277,22 @@ export default function Sports() {
               </div>
               <div className="flex-1">
                 <p className="text-xs font-bold text-white mb-1">
-                  {oroReady ? "✅ Real Money Mode Active" : "⏰ في انتظار تفعيل OroPlay API"}
+                  {oroReady ? "✅ Real TND Mode Active على Pre-Match Sports" : "⏰ Pre-Match Sports: في انتظار تفعيل API"}
                 </p>
                 <p className="text-[10px] text-white/55 leading-relaxed">
-                  {oroReady
-                    ? "Sportsbook متصل برصيدك TND مباشرة. كل رهان يخصم تلقائياً، كل ربح يضاف فوراً."
-                    : "Sportsbook كامل متاح حالياً للتصفح فقط (Preview Mode). الرهان الحقيقي سيُفعّل خلال 24 ساعة عند تفعيل OroPlay لـ Sports vendor."}
+                  <strong className="text-pink-300">TVBet</strong>: شغّال الآن — 9 ألعاب TV حية (Poker, Blackjack, Lucky6, Keno...) برصيد demo<br/>
+                  <strong className="text-cyan-300">Pre-Match Sports</strong>: {oroReady ? "متصل برصيدك TND مباشرة" : "Preview الآن، Real Money بكرة لما OroPlay يفعّل API"}
                 </p>
-                <div className="flex gap-3 mt-2 flex-wrap">
-                  <span className="text-[9px] text-white/40">📊 30+ Sports</span>
-                  <span className="text-[9px] text-white/40">⚡ Live Odds</span>
-                  <span className="text-[9px] text-white/40">🎯 Bet Slip</span>
-                  <span className="text-[9px] text-white/40">📜 Bet History</span>
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Quick stats */}
+          {/* Stats */}
           <div className="grid grid-cols-3 gap-2">
             {[
+              { label: "TV Games", value: "9", color: "#FF2D55", icon: "🎲" },
               { label: "Sports", value: "30+", color: "#00D1FF", icon: "⚽" },
               { label: "Markets", value: "1000+", color: "#FFD700", icon: "📊" },
-              { label: "Live 24/7", value: "Yes", color: "#FF2D55", icon: "🔴" },
             ].map((s, i) => (
               <div key={i} className="rounded-xl p-3 text-center"
                 style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)" }}>
@@ -263,19 +303,6 @@ export default function Sports() {
             ))}
           </div>
 
-          {/* Preview option */}
-          {!oroReady && (
-            <button onClick={() => launch(true)}
-              className="w-full py-3 rounded-xl text-sm font-bold text-white"
-              style={{
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,165,0,0.3)",
-                color: "#FFA000"
-              }}>
-              👁 افتح Preview Mode (تصفح فقط، بدون رهان)
-            </button>
-          )}
-
           {/* CTA */}
           <div className="rounded-xl p-3 text-center"
             style={{
@@ -283,7 +310,7 @@ export default function Sports() {
               border: "1px solid rgba(255,255,255,0.05)"
             }}>
             <p className="text-[10px] text-white/40 leading-relaxed">
-              في الانتظار؟ جرّب <span className="text-[#00D1FF] font-semibold">1577 لعبة كازينو</span> برصيد TND حقيقي ←
+              عاوز كازينو؟ جرّب <span className="text-[#00D1FF] font-semibold">1577 لعبة AES</span> برصيد TND حقيقي ←
             </p>
           </div>
         </div>
