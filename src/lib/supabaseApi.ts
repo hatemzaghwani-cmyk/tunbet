@@ -114,15 +114,45 @@ export async function apiAdminDeleteUser(id: number) {
   await sbDelete("users", `id=eq.${id}`);
 }
 
-export async function apiAdminUserBalance(id: number, action: "add" | "withdraw" | "reset", amount?: number) {
-  if (action !== "reset" && (!amount || amount <= 0)) throw new Error("المبلغ غير صحيح");
+// ─────────────────────────────────────────────────────────────────────
+// STRICT BALANCE SYSTEM
+// All balance changes go through Supabase RPC `update_balance` which is
+// atomic at the database level (transaction + row lock).
+// Never read-then-write from JS — always use RPC.
+// ─────────────────────────────────────────────────────────────────────
+
+async function rpcUpdateBalance(userId: number, action: "add" | "withdraw" | "set", amount: number, description?: string): Promise<number> {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_balance`, {
-    method: "POST", headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ p_user_id: id, p_action: action, p_amount: amount || 0 }),
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_user_id: userId, p_action: action, p_amount: amount, ...(description ? { p_description: description } : {}) }),
   });
   const data = await r.json();
-  if (r.status >= 400) throw new Error(typeof data === "object" ? (data.message || "خطأ") : "خطأ");
-  return { balance: parseFloat(data) };
+  if (r.status >= 400 || (typeof data === "object" && data?.message)) {
+    throw new Error(typeof data === "object" ? (data.message || "خطأ في الرصيد") : "خطأ في الرصيد");
+  }
+  return parseFloat(data);
+}
+
+async function rpcCreditFromAgent(agentId: number, userId: number, amount: number): Promise<number> {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/credit_user_balance`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_agent_id: agentId, p_user_id: userId, p_amount: amount }),
+  });
+  const data = await r.json();
+  if (r.status >= 400 || data?.success === false) {
+    throw new Error(data?.error || "خطأ في تحويل الرصيد من الوكيل");
+  }
+  return parseFloat(data?.balance || data || 0);
+}
+
+export async function apiAdminUserBalance(id: number, action: "add" | "withdraw" | "reset", amount?: number) {
+  if (action !== "reset" && (!amount || amount <= 0)) throw new Error("المبلغ غير صحيح");
+  const rpcAction = action === "reset" ? "set" : action;
+  const rpcAmount = action === "reset" ? 0 : (amount as number);
+  const balance = await rpcUpdateBalance(id, rpcAction, rpcAmount);
+  return { balance };
 }
 
 export async function apiAdminTransactions() {
@@ -135,18 +165,13 @@ export async function apiAdminAgents() {
 }
 
 export async function apiAdminAgentCredit(id: number, action: string, amount: number) {
-  const agents = await sbGet("users", `id=eq.${id}&role=eq.agent&select=*`);
+  if (!amount || amount <= 0) throw new Error("المبلغ غير صحيح");
+  // Verify target IS an agent (RPC works on any user but admin UI should only touch agents here)
+  const agents = await sbGet("users", `id=eq.${id}&role=eq.agent&select=id`);
   if (!agents.length) throw new Error("الوكيل غير موجود");
-  const current = parseFloat(agents[0].balance);
-  let newBal = current;
-  if (action === "add") newBal = Math.round((current + amount) * 100) / 100;
-  else if (action === "withdraw") {
-    if (current < amount) throw new Error("رصيد غير كافي");
-    newBal = Math.round((current - amount) * 100) / 100;
-  }
-  await sbUpdate("users", `id=eq.${id}`, { balance: newBal });
-  await sbPost("transactions", { user_id: id, type: action === "add" ? "deposit" : "withdraw", amount: action === "add" ? amount : -amount, balance_before: current, balance_after: newBal, description: `Agent credit ${action}` });
-  return { balance: newBal };
+  // Use atomic RPC (same one used for players) — guarantees no race condition
+  const balance = await rpcUpdateBalance(id, action === "add" ? "add" : "withdraw", amount);
+  return { balance };
 }
 
 export async function apiAdminBets() {
@@ -154,22 +179,42 @@ export async function apiAdminBets() {
 }
 
 export async function apiAdminSettleBet(id: number, status: "won" | "lost" | "void") {
+  // Critical: mark bet as settled FIRST (with optimistic concurrency) — prevents double-payout
   const bets = await sbGet("sports_bets", `id=eq.${id}&select=*`);
   if (!bets.length) throw new Error("Not found");
-  if (bets[0].status !== "pending") throw new Error("Already settled");
-  let payout = 0;
-  if (status === "won") payout = parseFloat(bets[0].potential_win);
-  else if (status === "void") payout = parseFloat(bets[0].stake);
+  const bet = bets[0];
+  if (bet.status !== "pending") throw new Error("Already settled");
 
-  if (payout > 0) {
-    const users = await sbGet("users", `id=eq.${bets[0].user_id}&select=balance`);
-    const oldBal = parseFloat(users[0].balance);
-    const newBal = Math.round((oldBal + payout) * 100) / 100;
-    await sbUpdate("users", `id=eq.${bets[0].user_id}`, { balance: newBal });
-    await sbPost("transactions", { user_id: bets[0].user_id, type: status === "won" ? "win" : "refund", amount: payout, balance_before: oldBal, balance_after: newBal, description: `Bet ${status}: ${bets[0].event_name}` });
+  const payout = status === "won"
+    ? parseFloat(bet.potential_win)
+    : status === "void"
+    ? parseFloat(bet.stake)
+    : 0;
+
+  // Update bet status FIRST with a where-clause that checks status=pending
+  // (PostgREST PATCH only affects rows matching ALL filters, so if another admin already
+  //  settled this bet, our UPDATE will affect 0 rows.)
+  const upd = await fetch(`${SUPABASE_URL}/rest/v1/sports_bets?id=eq.${id}&status=eq.pending`, {
+    method: "PATCH",
+    headers: { ...headers, "Content-Type": "application/json", "Prefer": "return=representation" },
+    body: JSON.stringify({ status, payout, settled_at: new Date().toISOString() }),
+  });
+  const updated = await upd.json();
+  if (!Array.isArray(updated) || updated.length === 0) {
+    throw new Error("الرهان مُسوّى مسبقاً");  // another admin won the race
   }
-  await sbUpdate("sports_bets", `id=eq.${id}`, { status, payout, settled_at: new Date().toISOString() });
-  return bets[0];
+
+  // Now credit payout atomically
+  if (payout > 0) {
+    try {
+      await rpcUpdateBalance(bet.user_id, "add", payout, `Bet ${status}: ${bet.event_name}`);
+    } catch (e: any) {
+      // Critical: settlement succeeded but credit failed — revert the settlement
+      await sbUpdate("sports_bets", `id=eq.${id}`, { status: "pending", payout: 0, settled_at: null }).catch(() => {});
+      throw new Error("فشل إضافة الجائزة: " + (e.message || ""));
+    }
+  }
+  return bet;
 }
 
 // ── Agent ───────────────────────────────────────────────────────────────────
@@ -191,8 +236,19 @@ export async function apiAgentDeletePlayer(token: string, id: number) {
 }
 export async function apiAgentPlayerBalance(token: string, pid: number, action: "add" | "withdraw", amount: number) {
   const p = verifyToken(token); if (!p) throw new Error("Unauthorized");
-  // Simplified: use admin balance function
-  return apiAdminUserBalance(pid, action, amount);
+  if (!amount || amount <= 0) throw new Error("المبلغ غير صحيح");
+  // Verify the player belongs to this agent
+  const owns = await sbGet("users", `id=eq.${pid}&agent_id=eq.${p.userId}&select=id`);
+  if (!owns.length) throw new Error("اللاعب لا يخصك");
+  if (action === "add") {
+    // Atomic: agent's balance decremented, player's balance incremented in one transaction
+    const balance = await rpcCreditFromAgent(p.userId, pid, amount);
+    return { balance };
+  } else {
+    // Withdraw: simply pull from player (no return to agent — admin reconciliation)
+    const balance = await rpcUpdateBalance(pid, "withdraw", amount);
+    return { balance };
+  }
 }
 export async function apiAgentChangePassword(token: string, pid: number, password: string) {
   const p = verifyToken(token); if (!p) throw new Error("Unauthorized");
@@ -230,24 +286,39 @@ export function apiSportsBet(token: string, d: { eventId: string; eventName: str
   throw new Error("Use apiSportsBetAsync instead");
 }
 
+const betLocks = new Set<number>();
+
 export async function apiSportsBetAsync(token: string, d: { eventId: string; eventName: string; selection: string; selectionName: string; odds: number; stake: number }) {
   const p = verifyToken(token); if (!p) throw new Error("Unauthorized");
-  const users = await sbGet("users", `id=eq.${p.userId}&select=*`);
-  if (!users.length) throw new Error("Not found");
-  const bal = parseFloat(users[0].balance);
-  if (bal < d.stake) throw new Error("رصيد غير كافي");
-  const pw = Math.round(d.stake * d.odds * 100) / 100;
-  
+  if (!d.stake || d.stake <= 0) throw new Error("مبلغ الرهان غير صحيح");
+  if (d.odds < 1.01) throw new Error("الكوتة غير صحيحة");
 
-  // Use atomic balance update
-  const newBalance = await (await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_balance`, {
-    method: "POST", headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ p_user_id: p.userId, p_action: "withdraw", p_amount: d.stake }),
-  })).json();
-  const nb = parseFloat(newBalance);
-  const [bet] = await sbPost("sports_bets", { user_id: p.userId, event_id: d.eventId, event_name: d.eventName, selection: d.selection, selection_name: d.selectionName, odds: d.odds, stake: d.stake, potential_win: pw });
-  await sbPost("transactions", { user_id: p.userId, type: "bet", amount: -d.stake, balance_before: bal, balance_after: nb, description: `Bet: ${d.eventName} - ${d.selectionName} @ ${d.odds}` });
-  return { bet, newBalance: nb };
+  // Prevent double-submission
+  if (betLocks.has(p.userId)) throw new Error("جاري معالجة رهان آخر...");
+  betLocks.add(p.userId);
+
+  try {
+    const pw = Math.round(d.stake * d.odds * 100) / 100;
+
+    // Atomic withdraw — RPC enforces sufficient funds
+    const nb = await rpcUpdateBalance(p.userId, "withdraw", d.stake, `Sports bet: ${d.eventName}`);
+
+    // Record the bet — if this fails, we MUST refund
+    try {
+      const [bet] = await sbPost("sports_bets", {
+        user_id: p.userId, event_id: d.eventId, event_name: d.eventName,
+        selection: d.selection, selection_name: d.selectionName,
+        odds: d.odds, stake: d.stake, potential_win: pw,
+      });
+      return { bet, newBalance: nb };
+    } catch (e: any) {
+      // Refund stake (could be transient — bet record failed but money was taken)
+      await rpcUpdateBalance(p.userId, "add", d.stake, `Refund: bet record failed`).catch(() => {});
+      throw new Error("فشل تسجيل الرهان (تم إرجاع الرصيد)");
+    }
+  } finally {
+    betLocks.delete(p.userId);
+  }
 }
 
 // ── Games (AES - unchanged) ─────────────────────────────────────────────────
@@ -274,76 +345,178 @@ export async function apiGameProviders() {
   try { const r = await fetch(`${AES_API}/v4/game/providers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lang: 1 }) }); const d = await r.json(); _provCache = d; return d; } catch { return { code: -1, data: [] }; }
 }
 
-export async function apiLaunchGame(token: string, gameCode: string, providerId: number): Promise<{ url?: string; error?: string }> {
-  const p = verifyToken(token); if (!p) return { error: "Unauthorized" };
-  const users = await sbGet("users", `id=eq.${p.userId}&select=*`);
-  if (!users.length) return { error: "User not found" };
-  const user = users[0];
-  const bal = parseFloat(user.balance || "0");
-  if (bal <= 0) return { error: "رصيدك 0. تواصل مع وكيلك لإضافة رصيد." };
+// ─────────────────────────────────────────────────────────────────────
+// STRICT AES GAME LAUNCH FLOW (race-condition safe)
+//
+// Invariant: At any moment, balance lives in EXACTLY ONE place:
+//   - Either in Supabase (when not playing)
+//   - Or in AES wallet  (when playing inside a game iframe)
+//
+// Launch order (must succeed in this exact order, otherwise rollback):
+//   1. AES.withdraw-all  → flush any leftover AES funds → ADD back to Supabase
+//   2. Supabase.deduct(bal) atomically  → balance now = 0 in Supabase
+//   3. AES.deposit(bal)  → AES now holds full balance
+//   4. Get game-url
+//
+// Close order:
+//   1. AES.withdraw-all → returns amount X
+//   2. Supabase.set OR add the exact X → balance back in Supabase
+// ─────────────────────────────────────────────────────────────────────
 
+const launchLocks = new Set<number>();  // prevent double-launch per user
+const syncLocks = new Set<number>();    // prevent double-sync per user
+
+async function aesCall(path: string, body: any): Promise<any> {
   const aesToken = getAesToken();
-  if (!aesToken) return { error: "خطأ في النظام" };
-  const aesHeaders = { "Content-Type": "application/json", "Authorization": `Bearer ${aesToken}` };
+  if (!aesToken) throw new Error("AES token missing");
+  const r = await fetch(`${AES_API}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${aesToken}` },
+    body: JSON.stringify(body),
+  });
+  return r.json();
+}
 
-  let userCode = user.aes_player_id ? parseInt(user.aes_player_id) : 0;
-  if (!userCode) {
+async function aesWithdrawAll(userCode: number): Promise<number> {
+  // Retry up to 3 times; return the amount actually withdrawn (0 if AES wallet was empty)
+  for (let i = 0; i < 3; i++) {
     try {
-      const safeName = user.username.replace(/[^a-zA-Z0-9_]/g, "_").substring(0, 50);
-      const cr = await fetch(`${AES_API}/v4/user/create`, { method: "POST", headers: aesHeaders, body: JSON.stringify({ name: safeName }) });
-      const cd = await cr.json() as any;
-      if (cd.code === 0 && cd.data?.user_code) {
-        userCode = cd.data.user_code;
-        await sbUpdate("users", `id=eq.${p.userId}`, { aes_player_id: String(userCode) });
-      } else return { error: "فشل إنشاء حساب اللعب" };
-    } catch { return { error: "خطأ في الاتصال" }; }
+      const r = await aesCall("/v4/wallet/withdraw-all", { user_code: userCode });
+      if (r?.code === 0) return parseFloat(r.data?.amount ?? 0);
+      // code 1 or others: treat as 0 balance (already empty)
+      if (r?.code !== undefined) return 0;
+    } catch {}
+    await new Promise(r => setTimeout(r, 400));
   }
+  throw new Error("AES wallet sync failed");
+}
+
+async function aesDeposit(userCode: number, amount: number): Promise<boolean> {
+  if (amount <= 0) return true;
+  const r = await aesCall("/v4/wallet/deposit", { user_code: userCode, amount });
+  return r?.code === 0;
+}
+
+export async function apiLaunchGame(token: string, gameCode: string, providerId: number): Promise<{ url?: string; error?: string }> {
+  const p = verifyToken(token);
+  if (!p) return { error: "Unauthorized" };
+
+  // Prevent double-launch race
+  if (launchLocks.has(p.userId)) return { error: "اللعبة قيد التحميل، انتظر..." };
+  launchLocks.add(p.userId);
 
   try {
-    await fetch(`${AES_API}/v4/wallet/withdraw-all`, { method: "POST", headers: aesHeaders, body: JSON.stringify({ user_code: userCode }) });
-    await fetch(`${AES_API}/v4/wallet/deposit`, { method: "POST", headers: aesHeaders, body: JSON.stringify({ user_code: userCode, amount: bal }) });
-    
-    // DEDUCT from Supabase so balance isn't in both places
-    await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_balance`, {
-      method: "POST", headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ p_user_id: p.userId, p_action: "set", p_amount: 0 }),
-    });
-  } catch { return { error: "خطأ في تحويل الرصيد" }; }
+    const users = await sbGet("users", `id=eq.${p.userId}&select=*`);
+    if (!users.length) return { error: "User not found" };
+    const user = users[0];
 
-  try {
-    const r = await fetch(`${AES_API}/v4/game/game-url`, { method: "POST", headers: aesHeaders, body: JSON.stringify({ user_code: userCode, provider_id: providerId, game_symbol: gameCode, lang: 1, return_url: window.location.origin }) });
-    const d = await r.json() as any;
-    const gameUrl = d.data?.game_url || d.data?.url;
-    if (d.code === 0 && gameUrl) return { url: gameUrl };
-    return { error: "اللعبة غير متاحة حالياً" };
-  } catch { return { error: "خطأ في تشغيل اللعبة" }; }
+    // Create AES player if first launch
+    let userCode = user.aes_player_id ? parseInt(user.aes_player_id) : 0;
+    if (!userCode) {
+      const safeName = user.username.replace(/[^a-zA-Z0-9_]/g, "_").substring(0, 50);
+      const cr = await aesCall("/v4/user/create", { name: safeName });
+      if (cr?.code === 0 && cr.data?.user_code) {
+        userCode = cr.data.user_code;
+        await sbUpdate("users", `id=eq.${p.userId}`, { aes_player_id: String(userCode) });
+      } else {
+        return { error: "فشل إنشاء حساب اللعب" };
+      }
+    }
+
+    // STEP 1: Flush AES wallet (in case prior session left funds there) → add back to Supabase
+    let leftover = 0;
+    try {
+      leftover = await aesWithdrawAll(userCode);
+    } catch (e: any) {
+      return { error: "خطأ مزامنة المحفظة: " + (e.message || "") };
+    }
+    if (leftover > 0) {
+      // Credit leftover back to Supabase (safe — happens before deduct)
+      try { await rpcUpdateBalance(p.userId, "add", leftover, `AES leftover reclaim`); } catch {}
+    }
+
+    // STEP 2: Read fresh balance from Supabase (after leftover reclaim)
+    const freshUsers = await sbGet("users", `id=eq.${p.userId}&select=balance`);
+    const bal = parseFloat(freshUsers[0]?.balance || "0");
+    if (bal <= 0) return { error: "رصيدك 0. تواصل مع وكيلك لإضافة رصيد." };
+
+    // STEP 3: ATOMIC withdraw from Supabase (RPC enforces sufficient funds)
+    let supabaseBalAfter: number;
+    try {
+      supabaseBalAfter = await rpcUpdateBalance(p.userId, "withdraw", bal, `Game launch: ${gameCode}`);
+    } catch (e: any) {
+      return { error: "فشل خصم الرصيد: " + (e.message || "") };
+    }
+    if (supabaseBalAfter !== 0 && Math.abs(supabaseBalAfter) > 0.01) {
+      // Should be 0 now — if not, race happened. Refund and abort.
+      await rpcUpdateBalance(p.userId, "set", supabaseBalAfter + bal, `Rollback: race detected`).catch(() => {});
+      return { error: "تعارض في الرصيد، حاول مرة أخرى" };
+    }
+
+    // STEP 4: Deposit to AES — if this fails, refund Supabase
+    const depositOk = await aesDeposit(userCode, bal);
+    if (!depositOk) {
+      // Rollback: credit back to Supabase
+      await rpcUpdateBalance(p.userId, "add", bal, `Rollback: AES deposit failed`).catch(() => {});
+      return { error: "فشل تحويل الرصيد إلى اللعبة" };
+    }
+
+    // STEP 5: Get game URL
+    try {
+      const r = await aesCall("/v4/game/game-url", {
+        user_code: userCode, provider_id: providerId, game_symbol: gameCode,
+        lang: 1, return_url: window.location.origin
+      });
+      const gameUrl = r?.data?.game_url || r?.data?.url;
+      if (r?.code === 0 && gameUrl) return { url: gameUrl };
+
+      // Game URL failed — rollback the AES deposit
+      const recovered = await aesWithdrawAll(userCode).catch(() => 0);
+      if (recovered > 0) await rpcUpdateBalance(p.userId, "add", recovered, `Rollback: game-url failed`).catch(() => {});
+      return { error: "اللعبة غير متاحة حالياً" };
+    } catch {
+      const recovered = await aesWithdrawAll(userCode).catch(() => 0);
+      if (recovered > 0) await rpcUpdateBalance(p.userId, "add", recovered, `Rollback: game-url error`).catch(() => {});
+      return { error: "خطأ في تشغيل اللعبة" };
+    }
+  } finally {
+    launchLocks.delete(p.userId);
+  }
 }
 
 export async function apiSyncBalance(token: string) {
-  const p = verifyToken(token); if (!p) return;
-  const aesToken = getAesToken(); if (!aesToken) return;
-  const users = await sbGet("users", `id=eq.${p.userId}&select=aes_player_id,balance`);
-  if (!users.length || !users[0].aes_player_id) return;
-  const userCode = parseInt(users[0].aes_player_id);
-  const oldBal = parseFloat(users[0].balance);
+  const p = verifyToken(token);
+  if (!p) return;
+
+  // Prevent concurrent syncs from doubling money
+  if (syncLocks.has(p.userId)) return;
+  syncLocks.add(p.userId);
+
   try {
-    // Try withdraw-all up to 2 times for reliability
-    let realBal = 0;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const wr = await fetch(`${AES_API}/v4/wallet/withdraw-all`, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${aesToken}` }, body: JSON.stringify({ user_code: userCode }) });
-      const wd = await wr.json() as any;
-      if (wd.code === 0) { realBal = parseFloat(wd.data?.amount ?? 0); break; }
-      await new Promise(r => setTimeout(r, 500));
+    const aesToken = getAesToken();
+    if (!aesToken) return;
+    const users = await sbGet("users", `id=eq.${p.userId}&select=aes_player_id`);
+    if (!users.length || !users[0].aes_player_id) return;
+    const userCode = parseInt(users[0].aes_player_id);
+
+    // Withdraw whatever is in AES → ADD to Supabase (never SET — would overwrite admin actions)
+    let recovered = 0;
+    try {
+      recovered = await aesWithdrawAll(userCode);
+    } catch {
+      return;  // network failure: do nothing, balance remains in AES, retry next time
     }
-    // Set balance to what was withdrawn from AES
-    // Only update if we actually got money back
-    if (realBal > 0) {
-      await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_balance`, {
-        method: "POST", headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ p_user_id: p.userId, p_action: "set", p_amount: realBal }),
-      });
+    if (recovered > 0) {
+      try {
+        await rpcUpdateBalance(p.userId, "add", recovered, `Game session close`);
+      } catch {
+        // If credit fails, log to console — money is in AES still
+        console.error("CRITICAL: AES sync recovered", recovered, "but Supabase credit failed");
+      }
     }
-  } catch {}
+  } finally {
+    syncLocks.delete(p.userId);
+  }
 }
 
 // ── Transactions ────────────────────────────────────────────────────────────

@@ -199,35 +199,44 @@ export default function Lobby() {
 
   // Launch game via AES API (real money — uses TND balance from Supabase moved into AES wallet)
   const launchGame = async (game: AesGame) => {
-    if (!user) { setShowAuth(true); return; }
+    if (!user || !token) { setShowAuth(true); return; }
+    // Strict client-side guards (server-side guard in apiLaunchGame is the source of truth)
+    if (launchingGame) return;                  // prevent double-click on any card
+    if (gameUrl) return;                         // can't launch while another game is open
+    if (closingGame) return;                     // can't launch while closing previous
     if (parseFloat(user.balance) <= 0) {
       setLaunchError(t("insufficientBalance") + " — تواصل مع الإدارة لشحن رصيدك");
       setTimeout(() => setLaunchError(""), 4500); return;
     }
     setLaunchingGame(game.game_code); setLaunchError("");
     try {
-      const result = await apiLaunchGame(token!, game.game_code, game.provider_id);
+      const result = await apiLaunchGame(token, game.game_code, game.provider_id);
       if (result.url) {
         setGameUrl(result.url);
         setActiveGame(game);
+        await refreshBalance();  // reflects 0 balance during play
       } else {
         setLaunchError(result.error ?? t("noGames"));
         setTimeout(() => setLaunchError(""), 5000);
+        await refreshBalance();  // refresh in case rollback happened
       }
-    } catch {
-      setLaunchError("خطأ في الاتصال");
+    } catch (e: any) {
+      setLaunchError(e?.message || "خطأ في الاتصال");
       setTimeout(() => setLaunchError(""), 4000);
+      await refreshBalance();
+    } finally {
+      setLaunchingGame(null);
     }
-    setLaunchingGame(null);
   };
 
   const closeGame = async () => {
     if (!user || !token) { setGameUrl(null); setActiveGame(null); return; }
+    if (closingGame) return;  // prevent double-close
     setClosingGame(true);
     setGameUrl(null); setActiveGame(null);
     try {
-      // Wait briefly so AES finalizes round, then sync wallet → Supabase
-      await new Promise(r => setTimeout(r, 1000));
+      // Wait briefly so AES finalizes round, then sync wallet → Supabase (atomic, locked)
+      await new Promise(r => setTimeout(r, 1500));
       await apiSyncBalance(token);
       await refreshBalance();
     } catch {}

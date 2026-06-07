@@ -411,30 +411,16 @@ function AgentBalanceModal({ player, token, onClose, onDone }: { player: Player;
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) { setError("أدخل مبلغاً صحيحاً"); return; }
     setLoading(true);
     setError("");
     try {
-      const h = { "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqempybmFncHNkbW9sdmJraG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0ODY4NCwiZXhwIjoyMDk1OTI0Njg0fQ.TmowEatc4g2xpD-GT0r-jofX1zCtXjTD-s4LF7JSs6o", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqempybmFncHNkbW9sdmJraG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0ODY4NCwiZXhwIjoyMDk1OTI0Njg0fQ.TmowEatc4g2xpD-GT0r-jofX1zCtXjTD-s4LF7JSs6o", "Content-Type": "application/json" };
-      const p = localApi.verifyToken(token);
-      if (!p) throw new Error("Unauthorized");
-      if (action === "add") {
-        // Use atomic credit_user_balance - deducts from agent, adds to user
-        const result = await (await fetch("https://cjzjrnagpsdmolvbkhnu.supabase.co/rest/v1/rpc/credit_user_balance", {
-          method: "POST", headers: h,
-          body: JSON.stringify({ p_agent_id: p.userId, p_user_id: player.id, p_amount: parseFloat(amount) })
-        })).json();
-        if (!result.success) throw new Error(result.error);
-      } else {
-        // Withdraw uses update_balance (admin-level)
-        const result = await (await fetch("https://cjzjrnagpsdmolvbkhnu.supabase.co/rest/v1/rpc/update_balance", {
-          method: "POST", headers: h,
-          body: JSON.stringify({ p_user_id: player.id, p_action: "withdraw", p_amount: parseFloat(amount) })
-        })).json();
-        if (typeof result === "object" && result.error) throw new Error(result.error);
-      }
+      // Use the strict, race-safe API function (centralized in supabaseApi.ts)
+      await localApi.apiAgentPlayerBalance(token, player.id, action, amt);
       onDone();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "خطأ");
     } finally {
       setLoading(false);
     }
