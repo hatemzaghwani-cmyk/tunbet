@@ -35,7 +35,7 @@ export const DEMO_MAPPINGS: Record<number, DemoMapping> = {
     providerId: 1,
     providerName: "Pragmatic Play",
     buildUrl: (code, lang = "en") =>
-      `https://demogamesfree.pragmaticplay.net/gs2c/openGame.do?gameSymbol=${code}&websiteUrl=https%3A%2F%2Fdemogamesfree.pragmaticplay.net&jurisdiction=99&lobbyUrl=https%3A%2F%2Ftunbet.surge.sh&lang=${lang}`,
+      `https://demogamesfree.pragmaticplay.net/gs2c/openGame.do?gameSymbol=${code}&websiteUrl=https%3A%2F%2Fdemogamesfree.pragmaticplay.net&jurisdiction=99&lobbyUrl=https%3A%2F%2Fmebet.surge.sh&lang=${lang}`,
     buildThumb: (code) => `https://common-static.ppgames.net/game_pic/rec/325/${code}.png`,
     color: "#FF6B35",
     enabled: true,
@@ -46,7 +46,7 @@ export const DEMO_MAPPINGS: Record<number, DemoMapping> = {
     providerId: 15,
     providerName: "Spribe",
     buildUrl: (code, lang = "en") =>
-      `https://aviator-next.spribegaming.com/?game=${code}&lang=${lang}&user=demo&currency=TND&operator=tunbet`,
+      `https://aviator-next.spribegaming.com/?game=${code}&lang=${lang}&user=demo&currency=TND&operator=mebet`,
     color: "#E11D48",
     enabled: true,
   },

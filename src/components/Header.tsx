@@ -34,7 +34,7 @@ export function Header() {
             style={{ border: "1.5px solid #00D1FF", boxShadow: "0 0 12px rgba(0,209,255,0.4)" }}>
             <span className="font-black text-xl leading-none" style={{ color: "#00D1FF" }}>T</span>
           </div>
-          <span className="font-black tracking-[0.18em] text-base text-white">TUNBET</span>
+          <span className="font-black tracking-[0.18em] text-base text-white">MEBET</span>
         </Link>
 
         <div className="flex items-center gap-2">

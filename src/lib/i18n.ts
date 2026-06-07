@@ -142,11 +142,11 @@ const translations: Record<string, Record<string, string>> = {
 export type Lang = "ar" | "en" | "fr";
 
 export function getLang(): Lang {
-  return (localStorage.getItem("tunbet_lang") as Lang) || "ar";
+  return (localStorage.getItem("mebet_lang") as Lang) || "ar";
 }
 
 export function setLang(lang: Lang) {
-  localStorage.setItem("tunbet_lang", lang);
+  localStorage.setItem("mebet_lang", lang);
   window.location.reload();
 }
 

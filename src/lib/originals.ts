@@ -1,5 +1,5 @@
 /**
- * TunBet Originals — Native casino games with REAL TND wallet
+ * Mebet Originals — Native casino games with REAL TND wallet
  *
  * Every bet directly debits Supabase balance via update_balance RPC (atomic).
  * Every win directly credits balance.

@@ -86,7 +86,7 @@ function LoginScreen({ onLogin }: { onLogin: (t: string) => void }) {
           >
             <Shield className="w-10 h-10" style={{ color: "#00D1FF" }} />
           </motion.div>
-          <h1 className="text-2xl font-black text-white tracking-wider">TUNBET</h1>
+          <h1 className="text-2xl font-black text-white tracking-wider">MEBET</h1>
           <p className="text-white/30 text-sm mt-1">لوحة التحكم</p>
         </div>
 
@@ -224,7 +224,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
             <Shield className="w-5 h-5" style={{ color: "#00D1FF" }} />
           </div>
           <div>
-            <div className="font-black text-sm tracking-widest">TUNBET</div>
+            <div className="font-black text-sm tracking-widest">MEBET</div>
             <div className="text-[10px] text-white/30">Admin</div>
           </div>
         </div>

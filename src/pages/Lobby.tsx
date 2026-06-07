@@ -16,7 +16,7 @@ import { openEscrow, closeEscrow } from "@/lib/escrowWallet";
 const PAGE_SIZE = 60;
 
 const BANNERS = [
-  { img: "/images/banner1.jpg", text: "TUNBET CASINO", sub: "1500+ Games • Play & Win" },
+  { img: "/images/banner1.jpg", text: "MEBET CASINO", sub: "1500+ Games • Play & Win" },
   { img: "/images/banner2.jpg", text: "SPORTS BETTING", sub: "Real Odds • Live Matches" },
   { img: "/images/banner3.jpg", text: "LIVE CASINO", sub: "Real Dealers • 24/7" },
 ];
@@ -492,7 +492,7 @@ export default function Lobby() {
           <div className="flex items-center justify-between p-2 flex-shrink-0 gap-2"
             style={{ background: "#020408", borderBottom: "1px solid rgba(255,165,0,0.25)" }}>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="font-black text-xs tracking-wider flex-shrink-0" style={{ color: "#00D1FF" }}>TUNBET</span>
+              <span className="font-black text-xs tracking-wider flex-shrink-0" style={{ color: "#00D1FF" }}>MEBET</span>
               <span className="px-2 py-0.5 rounded text-[9px] font-black"
                 style={{ background: "rgba(255,165,0,0.85)", color: "#000" }}>🎮 DEMO</span>
               {activeGame && (

@@ -1,5 +1,5 @@
 /**
- * TunBet Smart Odds Engine
+ * Mebet Smart Odds Engine
  * - Generates 20+ markets per match from base h2h odds
  * - Simulates realistic odds movement on each load
  * - Computes live scores for ongoing matches

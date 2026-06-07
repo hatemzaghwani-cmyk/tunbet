@@ -41,7 +41,7 @@ export default function Originals() {
     return (
       <div className="p-6 text-center space-y-3">
         <Trophy className="w-12 h-12 mx-auto text-white/20" />
-        <p className="text-white/50">سجل دخول للعب TunBet Originals</p>
+        <p className="text-white/50">سجل دخول للعب Mebet Originals</p>
         <button onClick={() => setAuth(true)} className="px-5 py-2 rounded-xl text-sm font-black text-black"
           style={{ background: "#00D1FF" }}>Sign In</button>
         {auth && <AuthModal onClose={() => setAuth(false)} />}
