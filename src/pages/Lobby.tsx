@@ -6,6 +6,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { apiGames, apiGameProviders, apiLaunchGame, apiSyncBalance } from "@/lib/localApi";
+import { AMATIC_GAMES } from "@/lib/amaticGames";
+import { useLocation } from "wouter";
 
 
 
@@ -78,6 +80,7 @@ const PINNED_CODES = ['vswayslions', 'vs20olympgate', 'bg25plinko'];
 
 export default function Lobby() {
   const { user, token, refreshBalance } = useAuth();
+  const [, navigate] = useLocation();
   const [activeProvider, setActiveProvider] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [allGames, setAllGames] = useState<AesGame[]>([]);
@@ -332,7 +335,82 @@ export default function Lobby() {
                 </div>
               )}
 
+              {/* AMATIC INDUSTRIES — real catalog, native engine with TND wallet */}
+              {!search && activeProvider === null && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-md flex items-center justify-center"
+                        style={{ background: "linear-gradient(135deg,#FFD700,#FF8C00)" }}>
+                        <Crown className="w-3.5 h-3.5 text-black" />
+                      </div>
+                      <h2 className="text-sm font-black tracking-wider text-white uppercase">Amatic Industries</h2>
+                      <span className="px-1.5 py-0.5 rounded text-[8px] font-black"
+                        style={{ background: "rgba(0,200,83,0.18)", color: "#00C853" }}>
+                        REAL TND
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-white/40">{AMATIC_GAMES.length} games</span>
+                  </div>
 
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {AMATIC_GAMES.map((ag, i) => (
+                      <motion.div key={ag.id}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: Math.min(i * 0.012, 0.25) }}
+                        whileHover={{ y: -3 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => {
+                          if (!user) { setShowAuth(true); return; }
+                          navigate(`/slot/${ag.id}`);
+                        }}
+                        className="relative rounded-xl overflow-hidden cursor-pointer group"
+                        style={{ aspectRatio: "3/4", border: "1px solid rgba(255,215,0,0.18)" }}>
+
+                        <img src={ag.thumb} alt={ag.name} loading="lazy"
+                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          onError={e => {
+                            const t = e.target as HTMLImageElement;
+                            if (ag.thumbFallback && t.src !== ag.thumbFallback) { t.src = ag.thumbFallback; return; }
+                            t.style.background = "linear-gradient(135deg,#1a1d28,#3D2400)";
+                            t.style.display = "none";
+                          }} />
+
+                        <div className="absolute inset-0"
+                          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 45%, transparent 80%)" }} />
+
+                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[7px] font-black"
+                          style={{ background: "linear-gradient(135deg,#FFD700,#FF8C00)", color: "#000" }}>
+                          AMATIC
+                        </div>
+
+                        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[7px] font-black"
+                          style={{ background: "rgba(0,0,0,0.7)", color: "#FFD700" }}>
+                          {ag.rtp}%
+                        </div>
+
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-11 h-11 rounded-full flex items-center justify-center"
+                            style={{ background: "rgba(255,215,0,0.95)", boxShadow: "0 0 24px rgba(255,215,0,0.7)" }}>
+                            <span className="text-black font-black text-lg ml-0.5">▶</span>
+                          </div>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 right-0 p-1.5">
+                          <p className="text-[10px] font-black text-white leading-tight tracking-wide line-clamp-2"
+                            style={{ textShadow: "0 0 8px rgba(255,215,0,0.5), 0 2px 4px rgba(0,0,0,0.95)" }}>
+                            {ag.name}
+                          </p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[7px] text-white/50">{ag.reels}×3 · {ag.paylines}L</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Provider filter */}
               <div>
