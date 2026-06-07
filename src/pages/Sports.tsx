@@ -1,324 +1,293 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Search, X, Ticket, CheckCircle, XCircle, Timer, ChevronDown, ChevronUp, RefreshCw, Zap, Clock } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
+import { Trophy, ArrowLeft, RefreshCw, Maximize2, Activity, Shield, Zap } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
-import { fetchAllMatches, MARKET_NAMES, placeBetServer, type Match } from "@/lib/sportsEngine";
+import { oroLaunchGame, isOroAvailable } from "@/lib/oroClient";
 
-const SU = "https://cjzjrnagpsdmolvbkhnu.supabase.co";
-const SK = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqempybmFncHNkbW9sdmJraG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0ODY4NCwiZXhwIjoyMDk1OTI0Njg0fQ.TmowEatc4g2xpD-GT0r-jofX1zCtXjTD-s4LF7JSs6o";
-const SH = { apikey: SK, Authorization: `Bearer ${SK}`, "Content-Type": "application/json" };
+// Real sportsbook running through OroPlay aggregator
+// vendor: id=50, vendorCode="sports", gameCode="sports"
+// Host (preview): sports.eyq8vmw3.com
+// When OroPlay activates API, oroLaunchGame returns a signed URL with token
+// → seamless wallet automatically debits/credits user's TND balance via callbacks
 
-interface Slip { id: string; match: string; mk: string; sel: string; odds: number; }
-interface Bet { id: number; event_name: string; selection_name: string; odds: number; stake: number; potential_win: number; status: string; created_at: string; }
+const PREVIEW_URL = "https://sports.eyq8vmw3.com/";
 
 export default function Sports() {
   const { user, refreshBalance } = useAuth();
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
-  const [league, setLeague] = useState("all");
-  const [filter, setFilter] = useState<"all" | "live" | "upcoming">("all");
   const [auth, setAuth] = useState(false);
-  const [slip, setSlip] = useState<Slip[]>([]);
-  const [stake, setStake] = useState("");
-  const [placing, setPlacing] = useState(false);
-  const [msg, setMsg] = useState("");
-  const [tab, setTab] = useState<"m" | "b">("m");
-  const [bets, setBets] = useState<Bet[]>([]);
-  const [ldb, setLdb] = useState(false);
-  const [exp, setExp] = useState<string | null>(null);
-  const [showSlip, setShowSlip] = useState(false);
+  const [oroReady, setOroReady] = useState(false);
+  const [gameUrl, setGameUrl] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState(false);
+  const [launching, setLaunching] = useState(false);
+  const [err, setErr] = useState("");
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Fetch real matches
   useEffect(() => {
-    fetchAllMatches().then(d => { setMatches(d); setLoading(false); });
-    const iv = setInterval(() => fetchAllMatches().then(setMatches), 30000);
-    return () => clearInterval(iv);
+    isOroAvailable().then(setOroReady);
   }, []);
 
-  // My bets
-  useEffect(() => {
-    if (tab !== "b" || !user) return;
-    setLdb(true);
-    fetch(`${SU}/rest/v1/sports_bets?user_id=eq.${user.id}&select=*&order=id.desc`, { headers: SH })
-      .then(r => r.json()).then(setBets).catch(() => {}).finally(() => setLdb(false));
-  }, [tab, user]);
+  const launch = async (forcePreview = false) => {
+    if (!user && !forcePreview) { setAuth(true); return; }
 
-  const liveCount = matches.filter(m => m.status === "live").length;
-  const upcomingCount = matches.filter(m => m.status === "upcoming").length;
+    // Preview mode (browse only, no betting)
+    if (forcePreview || !oroReady) {
+      setPreviewMode(true);
+      setGameUrl(PREVIEW_URL);
+      return;
+    }
 
-  const leagues = useMemo(() => {
-    const m: Record<string, number> = {};
-    matches.filter(x => x.status !== "finished").forEach(f => { m[f.league] = (m[f.league] || 0) + 1; });
-    return Object.entries(m).sort((a, b) => b[1] - a[1]);
-  }, [matches]);
-
-  const filtered = useMemo(() => {
-    let f = matches.filter(m => m.status !== "finished");
-    if (filter === "live") f = f.filter(x => x.status === "live");
-    if (filter === "upcoming") f = f.filter(x => x.status === "upcoming");
-    if (league !== "all") f = f.filter(x => x.league === league);
-    if (q.trim()) { const s = q.toLowerCase(); f = f.filter(x => x.home.toLowerCase().includes(s) || x.away.toLowerCase().includes(s) || x.league.toLowerCase().includes(s)); }
-    return f;
-  }, [matches, filter, league, q]);
-
-  const grouped = useMemo(() => {
-    const g: Record<string, Match[]> = {};
-    filtered.forEach(f => { (g[f.league] = g[f.league] || []).push(f); });
-    return g;
-  }, [filtered]);
-
-  const addSlip = (m: Match, mk: string, sel: string, odds: number) => {
+    // Real mode — request signed URL from OroPlay
     if (!user) { setAuth(true); return; }
-    const i = slip.findIndex(b => b.id === m.id && b.mk === mk);
-    const it: Slip = { id: m.id, match: `${m.home} vs ${m.away}`, mk, sel, odds };
-    if (i >= 0) setSlip(p => p.map((b, j) => j === i ? it : b)); else setSlip(p => [...p, it]);
-    setShowSlip(true);
-  };
-  const rmSlip = (i: number) => setSlip(p => p.filter((_, j) => j !== i));
-  const totOdds = slip.reduce((a, b) => a * b.odds, 1);
-  const potWin = totOdds * parseFloat(stake || "0");
-
-  const placeBet = async () => {
-    if (!user || !slip.length || !stake || parseFloat(stake) <= 0) return;
-    setPlacing(true); setMsg("");
+    if (parseFloat(user.balance) <= 0) {
+      setErr("رصيدك غير كافٍ. اشحن رصيدك أولاً");
+      setTimeout(() => setErr(""), 4000);
+      return;
+    }
+    setLaunching(true); setErr("");
     try {
-      // Server-side validation: checks odds, match status, balance
-      for (const s of slip) {
-        const result = await placeBetServer(user.id, s.id, s.mk, s.sel, s.odds, parseFloat(stake));
-        if (result.error) {
-          if (result.newOdds) setMsg("⚠️ Odds changed to " + result.newOdds.toFixed(2));
-          else setMsg("❌ " + result.error);
-          setPlacing(false); return;
-        }
+      const res = await oroLaunchGame(`tb_${user.id}`, "sports", "sports", "en");
+      if (res?.url) {
+        setPreviewMode(false);
+        setGameUrl(res.url);
+      } else {
+        setErr(res?.error || "تعذر فتح الرياضة");
+        setTimeout(() => setErr(""), 4000);
       }
-      await refreshBalance(); setMsg("✅ Bet placed!"); setSlip([]); setStake(""); setShowSlip(false);
-      setTimeout(() => setMsg(""), 3000);
-    } catch { setMsg("❌ Connection error"); }
-    setPlacing(false);
+    } catch (e: any) {
+      setErr("⏰ في انتظار تفعيل API من OroPlay - جرّب Preview Mode");
+      setTimeout(() => setErr(""), 4500);
+    }
+    setLaunching(false);
   };
 
-  const fmtDate = (d: string) => { const dt = new Date(d), df = dt.getTime() - Date.now(); if (df < 86400000 && df > 0) return dt.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" }); return dt.toLocaleDateString("en", { month: "short", day: "numeric" }) + " " + dt.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" }); };
+  const close = async () => {
+    setGameUrl(null);
+    setPreviewMode(false);
+    if (user) await refreshBalance();
+  };
 
-  const OB = ({ l, o, sel, on }: { l: string; o: number; sel: boolean; on: () => void }) => (
-    <button onClick={on} className="flex-1 py-1.5 rounded-md text-center transition-all min-w-0"
-      style={{ background: sel ? "rgba(0,209,255,0.18)" : "rgba(255,255,255,0.025)", border: `1px solid ${sel ? "rgba(0,209,255,0.4)" : "rgba(255,255,255,0.04)"}` }}>
-      <span className="text-[7px] text-white/30 block leading-none truncate px-0.5">{l}</span>
-      <span className="text-[12px] font-black leading-tight" style={{ color: sel ? "#00D1FF" : "#fff" }}>{o.toFixed(2)}</span>
-    </button>
-  );
-
-  const MktRow = ({ title, items, mid, mk }: { title: string; items: [string, number][]; mid: string; mk: string }) => {
-    const m = matches.find(x => x.id === mid)!;
-    const valid = items.filter(([, o]) => o > 1 && o < 100);
-    if (!valid.length) return null;
+  // Show iframe full-screen when game is launched
+  if (gameUrl) {
     return (
-      <div className="mb-1.5">
-        <p className="text-[7px] text-white/20 uppercase font-bold mb-0.5">{title}</p>
-        <div className="flex gap-1 flex-wrap">{valid.map(([l, o]) => <OB key={l} l={l} o={o} sel={slip.some(s => s.id === mid && s.sel === l && s.mk === mk)} on={() => addSlip(m, mk, l, o)} />)}</div>
+      <div className="fixed inset-0 z-[200] bg-black flex flex-col">
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-3 py-2"
+          style={{ background: "linear-gradient(90deg, rgba(0,209,255,0.12), rgba(0,0,0,0.95))",
+                   borderBottom: "1px solid rgba(0,209,255,0.15)" }}>
+          <div className="flex items-center gap-2">
+            <button onClick={close} className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.05)" }}>
+              <ArrowLeft className="w-4 h-4 text-white/70" />
+            </button>
+            <div className="px-2 py-0.5 rounded text-[9px] font-black flex items-center gap-1"
+              style={{
+                background: previewMode ? "rgba(255,165,0,0.85)" : "rgba(0,209,255,0.9)",
+                color: "#000"
+              }}>
+              {previewMode ? "👁 PREVIEW" : <><Activity className="w-2.5 h-2.5" />SPORTS</>}
+            </div>
+            {!previewMode && (
+              <span className="text-xs text-white/50 font-mono">
+                💰 {user?.balance} TND
+              </span>
+            )}
+            {previewMode && (
+              <span className="text-xs text-orange-300 font-medium">
+                Browse Only — No Real Bets
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => iframeRef.current?.contentWindow?.location.reload()}
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.05)" }}>
+              <RefreshCw className="w-3.5 h-3.5 text-white/70" />
+            </button>
+            <button onClick={() => iframeRef.current?.requestFullscreen?.()}
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.05)" }}>
+              <Maximize2 className="w-3.5 h-3.5 text-white/70" />
+            </button>
+          </div>
+        </div>
+
+        {/* Iframe */}
+        <iframe
+          ref={iframeRef}
+          src={gameUrl}
+          className="flex-1 w-full border-none bg-white"
+          allow="fullscreen autoplay payment"
+          title="Sportsbook"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
+        />
       </div>
     );
-  };
+  }
 
   return (
     <>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <div className="p-3 pb-24 space-y-2">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <div className="p-4 pb-24 space-y-4">
+          {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Trophy className="w-5 h-5" style={{ color: "#00D1FF" }} />
-              <h1 className="text-lg font-black tracking-wider">SPORTS</h1>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg, #00D1FF, #0066FF)" }}>
+                <Trophy className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-black tracking-wider">SPORTSBOOK</h1>
+                <p className="text-[10px] text-white/40 font-mono">
+                  LIVE + VIRTUAL + PRE-MATCH
+                </p>
+              </div>
             </div>
-            <button onClick={() => { localStorage.removeItem("tb_espn_v7"); fetchAllMatches().then(setMatches); }} className="p-1.5 rounded-lg" style={{ background: "rgba(255,255,255,0.03)" }}><RefreshCw className="w-3.5 h-3.5 text-white/25" /></button>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full"
+              style={{
+                background: oroReady ? "rgba(0,200,83,0.15)" : "rgba(255,165,0,0.15)",
+                border: `1px solid ${oroReady ? "rgba(0,200,83,0.3)" : "rgba(255,165,0,0.3)"}`
+              }}>
+              <Activity className={`w-3 h-3 ${oroReady ? "text-green-400" : "text-orange-400"}`} />
+              <span className="text-[10px] font-bold"
+                style={{ color: oroReady ? "#00C853" : "#FFA000" }}>
+                {oroReady ? "LIVE" : "PREVIEW"}
+              </span>
+            </div>
           </div>
 
-          {/* Main Tabs */}
-          <div className="flex gap-2">
-            {([["m", "⚽ Matches"], ["b", "🎫 My Bets"]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setTab(k)} className="flex-1 py-2 rounded-xl text-xs font-bold"
-                style={{ background: tab === k ? (k === "m" ? "rgba(0,209,255,0.1)" : "rgba(255,215,0,0.1)") : "rgba(255,255,255,0.02)", border: `1px solid ${tab === k ? (k === "m" ? "rgba(0,209,255,0.2)" : "rgba(255,215,0,0.2)") : "rgba(255,255,255,0.04)"}`, color: tab === k ? (k === "m" ? "#00D1FF" : "#FFD700") : "rgba(255,255,255,0.3)" }}>{l}</button>
+          {err && (
+            <div className="p-3 rounded-xl text-sm text-center"
+              style={{ background: "rgba(255,45,85,0.1)", border: "1px solid rgba(255,45,85,0.3)", color: "#FF2D55" }}>
+              {err}
+            </div>
+          )}
+
+          {/* Hero card */}
+          <motion.div
+            whileHover={{ scale: 1.01 }}
+            className="relative rounded-2xl overflow-hidden cursor-pointer"
+            onClick={() => launch(false)}
+            style={{
+              height: 240,
+              background: "linear-gradient(135deg, rgba(0,209,255,0.15) 0%, rgba(0,102,255,0.08) 50%, rgba(255,45,85,0.1) 100%)",
+              border: "1px solid rgba(0,209,255,0.25)",
+            }}>
+            <div className="absolute inset-0 opacity-20"
+              style={{ background: "radial-gradient(circle at 30% 50%, #00D1FF66, transparent 60%)" }} />
+
+            {/* Floating sport icons */}
+            <div className="absolute top-3 right-3 flex gap-1.5 text-2xl">
+              <span>⚽</span><span>🏀</span><span>🎾</span><span>🏈</span>
+            </div>
+
+            <div className="absolute inset-0 flex flex-col justify-center p-5">
+              <h2 className="text-3xl font-black tracking-wider text-white mb-1"
+                style={{ textShadow: "0 0 20px rgba(0,209,255,0.4)" }}>
+                FULL SPORTSBOOK
+              </h2>
+              <p className="text-xs text-white/60 mb-3 max-w-xs">
+                +30 رياضة • مباريات حية • Pre-match • Virtual Sports • Mini Games
+              </p>
+
+              <div className="flex items-center gap-2 flex-wrap mb-4">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
+                  style={{ background: "rgba(0,209,255,0.15)", color: "#00D1FF" }}>⚽ Football</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
+                  style={{ background: "rgba(255,215,0,0.15)", color: "#FFD700" }}>🏀 Basketball</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
+                  style={{ background: "rgba(255,107,53,0.15)", color: "#FF6B35" }}>🏇 Horse Racing</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
+                  style={{ background: "rgba(168,85,247,0.15)", color: "#a855f7" }}>🐕 Dog Racing</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
+                  style={{ background: "rgba(236,72,153,0.15)", color: "#ec4899" }}>🎰 Keno</span>
+              </div>
+
+              <button
+                disabled={launching}
+                className="self-start px-5 py-2 rounded-xl text-sm font-black text-black disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #00D1FF, #0066FF)",
+                         boxShadow: "0 4px 20px rgba(0,209,255,0.3)" }}>
+                {launching ? "Loading..." : oroReady ? "🚀 LAUNCH SPORTSBOOK" : "👁 LAUNCH PREVIEW"}
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Status info */}
+          <div className="rounded-xl p-3.5"
+            style={{
+              background: oroReady
+                ? "linear-gradient(135deg, rgba(0,200,83,0.06), rgba(0,209,255,0.04))"
+                : "linear-gradient(135deg, rgba(255,165,0,0.06), rgba(0,209,255,0.04))",
+              border: `1px solid ${oroReady ? "rgba(0,200,83,0.15)" : "rgba(255,165,0,0.15)"}`
+            }}>
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: oroReady ? "rgba(0,200,83,0.15)" : "rgba(255,165,0,0.15)" }}>
+                {oroReady
+                  ? <Zap className="w-4 h-4 text-green-400" />
+                  : <Shield className="w-4 h-4 text-orange-400" />}
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-bold text-white mb-1">
+                  {oroReady ? "✅ Real Money Mode Active" : "⏰ في انتظار تفعيل OroPlay API"}
+                </p>
+                <p className="text-[10px] text-white/55 leading-relaxed">
+                  {oroReady
+                    ? "Sportsbook متصل برصيدك TND مباشرة. كل رهان يخصم تلقائياً، كل ربح يضاف فوراً."
+                    : "Sportsbook كامل متاح حالياً للتصفح فقط (Preview Mode). الرهان الحقيقي سيُفعّل خلال 24 ساعة عند تفعيل OroPlay لـ Sports vendor."}
+                </p>
+                <div className="flex gap-3 mt-2 flex-wrap">
+                  <span className="text-[9px] text-white/40">📊 30+ Sports</span>
+                  <span className="text-[9px] text-white/40">⚡ Live Odds</span>
+                  <span className="text-[9px] text-white/40">🎯 Bet Slip</span>
+                  <span className="text-[9px] text-white/40">📜 Bet History</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick stats */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: "Sports", value: "30+", color: "#00D1FF", icon: "⚽" },
+              { label: "Markets", value: "1000+", color: "#FFD700", icon: "📊" },
+              { label: "Live 24/7", value: "Yes", color: "#FF2D55", icon: "🔴" },
+            ].map((s, i) => (
+              <div key={i} className="rounded-xl p-3 text-center"
+                style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                <div className="text-xl mb-1">{s.icon}</div>
+                <p className="text-lg font-black" style={{ color: s.color }}>{s.value}</p>
+                <p className="text-[9px] text-white/40 uppercase">{s.label}</p>
+              </div>
             ))}
           </div>
 
-          {/* MY BETS */}
-          {tab === "b" && (
-            <div className="space-y-2">
-              {!user ? <div className="text-center py-12"><Ticket className="w-8 h-8 mx-auto mb-2 text-white/10" /><p className="text-white/25 text-sm mb-2">Sign in</p><button onClick={() => setAuth(true)} className="px-5 py-1.5 rounded-xl text-xs font-bold" style={{ background: "#00D1FF", color: "#020408" }}>Sign In</button></div>
-              : ldb ? <div className="text-center py-12 text-white/25 text-sm">Loading...</div>
-              : bets.length === 0 ? <div className="text-center py-12"><Ticket className="w-8 h-8 mx-auto mb-2 text-white/10" /><p className="text-white/25 text-xs">No bets yet</p></div>
-              : bets.map(b => (
-                <div key={b.id} className="rounded-xl p-2.5" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-bold text-white/70 flex-1 mr-2 truncate">{b.event_name}</span>
-                    <span className="px-1.5 py-0.5 rounded-full text-[7px] font-black flex items-center gap-0.5"
-                      style={{ background: b.status === "won" ? "rgba(0,200,0,0.1)" : b.status === "lost" ? "rgba(255,0,0,0.1)" : "rgba(255,165,0,0.1)", color: b.status === "won" ? "#00C853" : b.status === "lost" ? "#FF1744" : "#FFA000" }}>
-                      {b.status === "won" ? <CheckCircle className="w-2.5 h-2.5" /> : b.status === "lost" ? <XCircle className="w-2.5 h-2.5" /> : <Timer className="w-2.5 h-2.5" />}{b.status.toUpperCase()}
-                    </span>
-                  </div>
-                  <p className="text-[8px] text-white/30 mb-1.5">{b.selection_name}</p>
-                  <div className="flex gap-3 text-[9px]">
-                    <span className="text-white/20">Stake: <b className="text-white">{b.stake.toFixed(2)}</b></span>
-                    <span className="text-white/20">Odds: <b style={{ color: "#00D1FF" }}>{b.odds.toFixed(2)}</b></span>
-                    <span className="text-white/20">Win: <b style={{ color: "#00C853" }}>{b.potential_win.toFixed(2)}</b></span>
-                  </div>
-                </div>
-              ))}
-            </div>
+          {/* Preview option */}
+          {!oroReady && (
+            <button onClick={() => launch(true)}
+              className="w-full py-3 rounded-xl text-sm font-bold text-white"
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,165,0,0.3)",
+                color: "#FFA000"
+              }}>
+              👁 افتح Preview Mode (تصفح فقط، بدون رهان)
+            </button>
           )}
 
-          {/* MATCHES */}
-          {tab === "m" && (
-            <>
-              {/* LIVE / ALL / UPCOMING filter */}
-              <div className="flex gap-1.5">
-                {([
-                  ["all", `All (${matches.filter(m => m.status !== "finished").length})`, null],
-                  ["live", `🔴 Live (${liveCount})`, "#FF2D55"],
-                  ["upcoming", `⏰ Upcoming (${upcomingCount})`, "#FFA000"],
-                ] as const).map(([k, l, c]) => (
-                  <button key={k} onClick={() => setFilter(k as any)} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold"
-                    style={{ background: filter === k ? `${c ? c : "#00D1FF"}15` : "rgba(255,255,255,0.02)", border: `1px solid ${filter === k ? `${c || "#00D1FF"}30` : "rgba(255,255,255,0.04)"}`, color: filter === k ? (c || "#00D1FF") : "rgba(255,255,255,0.3)" }}>{l}</button>
-                ))}
-              </div>
-
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
-                <input type="text" value={q} onChange={e => setQ(e.target.value)} placeholder="Search..."
-                  className="w-full pl-8 pr-8 py-1.5 rounded-xl text-[11px] bg-white/4 border border-white/6 text-white placeholder:text-white/20 focus:outline-none focus:border-[#00D1FF]/30" />
-                {q && <button onClick={() => setQ("")} className="absolute right-2.5 top-1/2 -translate-y-1/2"><X className="w-3 h-3 text-white/25" /></button>}
-              </div>
-
-              {/* Leagues */}
-              <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-hide">
-                <button onClick={() => setLeague("all")} className="flex-shrink-0 px-2 py-1 rounded-lg text-[9px] font-bold whitespace-nowrap"
-                  style={{ background: league === "all" ? "rgba(0,209,255,0.1)" : "rgba(255,255,255,0.015)", border: `1px solid ${league === "all" ? "rgba(0,209,255,0.2)" : "rgba(255,255,255,0.03)"}`, color: league === "all" ? "#00D1FF" : "rgba(255,255,255,0.25)" }}>All</button>
-                {leagues.map(([l, c]) => (
-                  <button key={l} onClick={() => setLeague(l)} className="flex-shrink-0 px-2 py-1 rounded-lg text-[9px] font-bold whitespace-nowrap"
-                    style={{ background: league === l ? "rgba(0,209,255,0.1)" : "rgba(255,255,255,0.015)", border: `1px solid ${league === l ? "rgba(0,209,255,0.2)" : "rgba(255,255,255,0.03)"}`, color: league === l ? "#00D1FF" : "rgba(255,255,255,0.25)" }}>{l}</button>
-                ))}
-              </div>
-
-              {/* Matches */}
-              {loading ? <div className="text-center py-16 text-white/20 text-sm">Loading real matches...</div>
-              : filtered.length === 0 ? <div className="text-center py-16"><Trophy className="w-8 h-8 mx-auto mb-2 text-white/10" /><p className="text-white/20 text-xs">{filter === "live" ? "No live matches right now" : "No matches found"}</p></div>
-              : Object.entries(grouped).map(([lg, ms]) => (
-                <div key={lg}>
-                  <div className="flex items-center gap-1.5 py-1 sticky top-0 z-10" style={{ background: "#020408" }}>
-                    <span className="text-xs">{ms[0].icon}</span>
-                    <span className="text-[9px] font-bold text-white/30 uppercase">{lg}</span>
-                  </div>
-                  {ms.map(m => {
-                    const isE = exp === m.id;
-                    const mainMk = ["1X2", "O/U 2.5"];
-                    const extraMk = Object.keys(m.markets).filter(k => !mainMk.includes(k));
-
-                    return (
-                      <div key={m.id} className="rounded-xl p-2.5 mb-1.5" style={{ background: "rgba(255,255,255,0.012)", border: `1px solid ${m.status === "live" ? "rgba(255,45,85,0.12)" : "rgba(255,255,255,0.03)"}` }}>
-                        {/* Header */}
-                        {m.suspended && <div className="py-1 px-3 rounded-lg text-[9px] font-black text-center mb-1" style={{background:"rgba(255,165,0,0.15)",color:"#FFA000",border:"1px solid rgba(255,165,0,0.2)"}}>⚠️ MARKETS SUSPENDED - Goal Scored</div>}
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-1.5">
-                            {m.status === "live" ? (
-                              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-black" style={{ background: "rgba(255,45,85,0.12)", color: "#FF2D55" }}>
-                                <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-[#FF2D55]" />LIVE {m.period && <span className="text-white/40 ml-0.5">{m.period}</span>}
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-[9px] text-white/25"><Clock className="w-3 h-3" />{fmtDate(m.date)}</span>
-                            )}
-                            {m.hasRealOdds && <span className="px-1 py-0.5 rounded text-[6px] font-black" style={{ background: "rgba(0,200,0,0.1)", color: "#4CAF50" }}>REAL ODDS</span>}
-                          </div>
-                          {m.status === "live" && <span className="text-lg font-black text-white tracking-widest">{m.homeScore} - {m.awayScore}</span>}
-                        </div>
-
-                        {/* Teams with logos */}
-                        <div className="mb-2 space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            {m.homeLogo && <img src={m.homeLogo} className="w-4 h-4" alt="" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
-                            <p className="text-[11px] font-bold text-white">{m.home}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {m.awayLogo && <img src={m.awayLogo} className="w-4 h-4" alt="" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
-                            <p className="text-[11px] text-white/50">{m.away}</p>
-                          </div>
-                        </div>
-
-                        {/* Main markets */}
-                        {mainMk.map(mk => m.markets[mk] && <MktRow key={mk} title={MARKET_NAMES[mk] || mk} mk={mk} mid={m.id} items={Object.entries(m.markets[mk])} />)}
-
-                        {/* Extra markets */}
-                        <AnimatePresence>
-                          {isE && (
-                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                              {extraMk.map(mk => m.markets[mk] && <MktRow key={mk} title={MARKET_NAMES[mk] || mk} mk={mk} mid={m.id} items={Object.entries(m.markets[mk])} />)}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-
-                        {extraMk.length > 0 && (
-                          <button onClick={() => setExp(isE ? null : m.id)} className="w-full flex items-center justify-center gap-0.5 pt-1 text-[8px] text-white/15 hover:text-white/30">
-                            {isE ? <><ChevronUp className="w-2.5 h-2.5" /> Less</> : <><ChevronDown className="w-2.5 h-2.5" /> +{extraMk.length} Markets</>}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </>
-          )}
+          {/* CTA */}
+          <div className="rounded-xl p-3 text-center"
+            style={{
+              background: "linear-gradient(135deg, rgba(0,209,255,0.04), rgba(255,215,0,0.03))",
+              border: "1px solid rgba(255,255,255,0.05)"
+            }}>
+            <p className="text-[10px] text-white/40 leading-relaxed">
+              في الانتظار؟ جرّب <span className="text-[#00D1FF] font-semibold">1577 لعبة كازينو</span> برصيد TND حقيقي ←
+            </p>
+          </div>
         </div>
       </motion.div>
-
-      {/* Bet Slip FAB */}
-      {slip.length > 0 && !showSlip && tab === "m" && (
-        <button onClick={() => setShowSlip(true)} className="fixed bottom-24 right-4 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-xl"
-          style={{ background: "linear-gradient(135deg,#00D1FF,#0066FF)", boxShadow: "0 4px 20px rgba(0,209,255,0.4)" }}>
-          <Ticket className="w-5 h-5 text-white" />
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-[9px] font-black text-white flex items-center justify-center">{slip.length}</span>
-        </button>
-      )}
-
-      {/* Bet Slip */}
-      <AnimatePresence>
-        {showSlip && slip.length > 0 && (
-          <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }} className="fixed bottom-16 left-0 right-0 z-50 flex justify-center pointer-events-none">
-            <div className="w-full max-w-[420px] mx-3 pointer-events-auto rounded-2xl overflow-hidden" style={{ background: "rgba(2,4,8,0.97)", border: "1px solid rgba(0,209,255,0.12)", backdropFilter: "blur(20px)", boxShadow: "0 -8px 32px rgba(0,0,0,0.6)" }}>
-              <div className="px-3 py-1.5 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                <span className="text-[11px] font-black" style={{ color: "#00D1FF" }}>BET SLIP ({slip.length})</span>
-                <div className="flex gap-1.5">
-                  <button onClick={() => setSlip([])} className="text-[8px] text-white/25 px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.03)" }}>Clear</button>
-                  <button onClick={() => setShowSlip(false)} className="text-[8px] text-white/25 px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.03)" }}>▼</button>
-                </div>
-              </div>
-              <div className="px-3 py-1.5 max-h-28 overflow-y-auto space-y-1">
-                {slip.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0 mr-2"><p className="text-[8px] text-white/30 truncate">{s.match}</p><p className="text-[10px] font-bold text-white">{s.mk}: {s.sel}</p></div>
-                    <span className="text-[11px] font-black mr-1.5" style={{ color: "#00D1FF" }}>{s.odds.toFixed(2)}</span>
-                    <button onClick={() => rmSlip(i)}><X className="w-3 h-3 text-white/20" /></button>
-                  </div>
-                ))}
-              </div>
-              <div className="px-3 py-2 space-y-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                <div className="flex gap-2 items-center">
-                  <input type="number" value={stake} onChange={e => setStake(e.target.value)} placeholder="Stake (TND)"
-                    className="flex-1 px-2 py-1.5 rounded-lg text-[11px] bg-white/3 border border-white/6 text-white placeholder:text-white/20 focus:outline-none" />
-                  <div className="text-right"><p className="text-[7px] text-white/20">Total</p><p className="text-[11px] font-black" style={{ color: "#FFD700" }}>{totOdds.toFixed(2)}</p></div>
-                </div>
-                {potWin > 0 && <p className="text-[9px] text-center" style={{ color: "#00C853" }}>Win: <b>{potWin.toFixed(2)} TND</b></p>}
-                {msg && <p className="text-[9px] text-center font-bold">{msg}</p>}
-                <button onClick={placeBet} disabled={placing || !stake || parseFloat(stake) <= 0}
-                  className="w-full py-2 rounded-xl text-[11px] font-black text-white disabled:opacity-25"
-                  style={{ background: "linear-gradient(135deg,#00D1FF,#0066FF)" }}>
-                  {placing ? "..." : `Place Bet • ${parseFloat(stake || "0").toFixed(2)} TND`}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {auth && <AuthModal onClose={() => setAuth(false)} />}
     </>
