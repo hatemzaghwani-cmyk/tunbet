@@ -116,8 +116,10 @@ export default function Lobby() {
   }, []);
 
   // Smart sort: popular first, then interleave providers so no same-provider clusters
+  // NOTE: BGaming (provider 20) is hidden — AES wallet returns CURRENCY_NOT_SUPPORTED for TND on all their games.
+  const HIDDEN_PROVIDERS = new Set<number>([20]);
   const games = useMemo(() => {
-    const enabled = allGames.filter(g => g.launch_enable);
+    const enabled = allGames.filter(g => g.launch_enable && !HIDDEN_PROVIDERS.has(g.provider_id));
 
     // Score each game: popular games get high score
     const scored = enabled.map(g => {
@@ -340,7 +342,7 @@ export default function Lobby() {
                   id: number; label: string; tag: string; grad: string; ring: string; accent: string;
                 }> = [
                   { id: 15, label: "Spribe", tag: "Crash · Aviator · Mines", grad: "linear-gradient(135deg,#84cc16,#16a34a)", ring: "rgba(132,204,22,0.35)", accent: "#84cc16" },
-                  { id: 20, label: "BGaming", tag: "Plinko · Aviatrix · Originals", grad: "linear-gradient(135deg,#6366f1,#8b5cf6)", ring: "rgba(99,102,241,0.35)", accent: "#818cf8" },
+                  { id: 3, label: "PG Soft", tag: "Mahjong · Treasures of Aztec · Wild Bandito", grad: "linear-gradient(135deg,#a855f7,#7c3aed)", ring: "rgba(168,85,247,0.35)", accent: "#c084fc" },
                   { id: 16, label: "Hacksaw Gaming", tag: "Hand of Anubis · Wanted · Cash Compass", grad: "linear-gradient(135deg,#f97316,#dc2626)", ring: "rgba(249,115,22,0.35)", accent: "#fb923c" },
                 ];
                 return (
