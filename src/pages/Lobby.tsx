@@ -315,28 +315,6 @@ export default function Lobby() {
           {/* Banner Slider */}
           <BannerSlider />
 
-          {/* TunBet Originals promo card */}
-          <a href="/originals" onClick={(e) => { e.preventDefault(); window.location.href = "/originals"; }}
-            className="block relative rounded-2xl overflow-hidden cursor-pointer"
-            style={{ height: 100,
-                     background: "linear-gradient(135deg, #a855f7 0%, #FF2D55 50%, #FF6B35 100%)" }}>
-            <div className="absolute inset-0 opacity-30"
-              style={{ background: "radial-gradient(circle at 30% 50%, #fff, transparent 60%)" }} />
-            <div className="absolute inset-0 flex items-center justify-between px-4">
-              <div className="flex items-center gap-3">
-                <div className="text-4xl">🎰</div>
-                <div>
-                  <h3 className="text-base font-black text-white">TunBet Originals</h3>
-                  <p className="text-[10px] text-white/80">Crash • Mines • Dice • Plinko • Limbo</p>
-                  <p className="text-[10px] text-yellow-200 font-bold mt-0.5">💰 رصيد TND حقيقي • Provably Fair</p>
-                </div>
-              </div>
-              <div className="px-3 py-1.5 rounded-lg text-[11px] font-black bg-white text-black">
-                LIVE ▶
-              </div>
-            </div>
-          </a>
-
           {launchError && (
             <div className="p-3 rounded-xl text-sm text-center" style={{ background: "rgba(255,45,85,0.1)", border: "1px solid rgba(255,45,85,0.3)", color: "#FF2D55" }}>{launchError}</div>
           )}
