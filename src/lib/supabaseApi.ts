@@ -121,11 +121,13 @@ export async function apiAdminDeleteUser(id: number) {
 // Never read-then-write from JS — always use RPC.
 // ─────────────────────────────────────────────────────────────────────
 
-async function rpcUpdateBalance(userId: number, action: "add" | "withdraw" | "set", amount: number, description?: string): Promise<number> {
+async function rpcUpdateBalance(userId: number, action: "add" | "withdraw" | "set", amount: number, _description?: string): Promise<number> {
+  // NOTE: Supabase RPC signature is (p_action, p_amount, p_user_id) — does NOT accept p_description.
+  // Description is kept in JS for caller-side logging/transaction history but never sent to RPC.
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_balance`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ p_user_id: userId, p_action: action, p_amount: amount, ...(description ? { p_description: description } : {}) }),
+    body: JSON.stringify({ p_user_id: userId, p_action: action, p_amount: amount }),
   });
   const data = await r.json();
   if (r.status >= 400 || (typeof data === "object" && data?.message)) {
