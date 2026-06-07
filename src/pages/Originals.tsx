@@ -8,6 +8,7 @@ import {
   limboRoll, plinkoRound, PLINKO_MULTIPLIERS, generateServerSeed,
   coinFlip, hiloPlay, drawCard, wheelSpin, WHEEL_SEGMENTS,
   kenoPlay, towerStart, towerCashout, towerMultiplier, TOWER_CONFIG,
+  slotSpin, SLOT_CONFIGS, PAYLINES,
 } from "@/lib/originals";
 
 interface GameMeta {
@@ -20,16 +21,20 @@ interface GameMeta {
 }
 
 const GAMES: GameMeta[] = [
-  { id: "crash",    name: "Crash",      arName: "كراش",      desc: "Cash out before it explodes",  img: "/images/originals/crash.jpg",    accent: "#FF2D55" },
-  { id: "mines",    name: "Mines",      arName: "ألغام",     desc: "Reveal gems, avoid mines",      img: "/images/originals/mines.jpg",    accent: "#FFD700" },
-  { id: "dice",     name: "Dice",       arName: "النرد",     desc: "Over or under target",          img: "/images/originals/dice.jpg",     accent: "#00D1FF" },
-  { id: "plinko",   name: "Plinko",     arName: "بلينكو",    desc: "Drop the ball, win big",        img: "/images/originals/plinko.jpg",   accent: "#22c55e" },
-  { id: "limbo",    name: "Limbo",      arName: "ليمبو",     desc: "Beat the multiplier",           img: "/images/originals/limbo.jpg",    accent: "#a855f7" },
-  { id: "wheel",    name: "Wheel",      arName: "العجلة",    desc: "Spin the wheel of fortune",     img: "/images/originals/wheel.jpg",    accent: "#FF6B35" },
-  { id: "hilo",     name: "Hi-Lo",      arName: "أعلى أقل",  desc: "Higher or lower card",          img: "/images/originals/hilo.jpg",     accent: "#ec4899" },
-  { id: "coinflip", name: "Coin Flip",  arName: "ملك كتابة", desc: "Heads or tails",                img: "/images/originals/coinflip.jpg", accent: "#FFD700" },
-  { id: "keno",     name: "Keno",       arName: "كينو",      desc: "Pick numbers, match draws",     img: "/images/originals/keno.jpg",     accent: "#06b6d4" },
-  { id: "tower",    name: "Tower",      arName: "البرج",     desc: "Climb 9 levels of fortune",     img: "/images/originals/tower.jpg",    accent: "#10b981" },
+  { id: "crash",         name: "Crash",            arName: "كراش",      desc: "Cash out before it explodes",  img: "/images/originals/crash.jpg",         accent: "#FF2D55" },
+  { id: "mines",         name: "Mines",            arName: "ألغام",     desc: "Reveal gems, avoid mines",      img: "/images/originals/mines.jpg",         accent: "#FFD700" },
+  { id: "dice",          name: "Dice",             arName: "النرد",     desc: "Over or under target",          img: "/images/originals/dice.jpg",          accent: "#00D1FF" },
+  { id: "plinko",        name: "Plinko",           arName: "بلينكو",    desc: "Drop the ball, win big",        img: "/images/originals/plinko.jpg",        accent: "#22c55e" },
+  { id: "limbo",         name: "Limbo",            arName: "ليمبو",     desc: "Beat the multiplier",           img: "/images/originals/limbo.jpg",         accent: "#a855f7" },
+  { id: "wheel",         name: "Wheel",            arName: "العجلة",    desc: "Spin the wheel of fortune",     img: "/images/originals/wheel.jpg",         accent: "#FF6B35" },
+  { id: "hilo",          name: "Hi-Lo",            arName: "أعلى أقل",  desc: "Higher or lower card",          img: "/images/originals/hilo.jpg",          accent: "#ec4899" },
+  { id: "coinflip",      name: "Coin Flip",        arName: "ملك كتابة", desc: "Heads or tails",                img: "/images/originals/coinflip.jpg",      accent: "#FFD700" },
+  { id: "keno",          name: "Keno",             arName: "كينو",      desc: "Pick numbers, match draws",     img: "/images/originals/keno.jpg",          accent: "#06b6d4" },
+  { id: "tower",         name: "Tower",            arName: "البرج",     desc: "Climb 9 levels of fortune",     img: "/images/originals/tower.jpg",         accent: "#10b981" },
+  // Native Slots (Amatic-style) — real TND wallet
+  { id: "bookoffortune", name: "Book of Fortune",  arName: "سفر الحظ",  desc: "5-reel mystical slot",          img: "/images/originals/bookoffortune.jpg", accent: "#FFD700" },
+  { id: "hotfruits",     name: "Hot Fruits",       arName: "فواكه حارة", desc: "Classic fruit slot 5×3",        img: "/images/originals/hotfruits.jpg",     accent: "#FF6B35" },
+  { id: "luckyjoker",    name: "Lucky Joker",      arName: "جوكر الحظ", desc: "Wild joker classic",            img: "/images/originals/luckyjoker.jpg",    accent: "#a855f7" },
 ];
 
 export default function Originals() {
@@ -61,6 +66,9 @@ export default function Originals() {
   if (active === "coinflip") return <CoinFlipGame onBack={close} />;
   if (active === "keno") return <KenoGame onBack={close} />;
   if (active === "tower") return <TowerGame onBack={close} />;
+  if (active === "bookoffortune") return <SlotGame onBack={close} slotId="bookoffortune" />;
+  if (active === "hotfruits") return <SlotGame onBack={close} slotId="hotfruits" />;
+  if (active === "luckyjoker") return <SlotGame onBack={close} slotId="luckyjoker" />;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -1480,6 +1488,193 @@ function TowerGame({ onBack }: { onBack: () => void }) {
             NEW TOWER
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━ SLOT (Amatic-style 5x3) ━━━━━━━━━━━━━━━━━━
+
+function SlotGame({ onBack, slotId }: { onBack: () => void; slotId: string }) {
+  const { user, refreshBalance } = useAuth();
+  const cfg = SLOT_CONFIGS[slotId];
+  const [stake, setStake] = useState("1");
+  const [grid, setGrid] = useState<string[][]>([
+    [cfg.symbols[0].id, cfg.symbols[1].id, cfg.symbols[2].id],
+    [cfg.symbols[2].id, cfg.symbols[3].id, cfg.symbols[1].id],
+    [cfg.symbols[1].id, cfg.symbols[0].id, cfg.symbols[3].id],
+    [cfg.symbols[3].id, cfg.symbols[2].id, cfg.symbols[0].id],
+    [cfg.symbols[0].id, cfg.symbols[1].id, cfg.symbols[2].id],
+  ]);
+  const [spinning, setSpinning] = useState(false);
+  const [lastResult, setLastResult] = useState<{ wins: any[]; totalPayout: number; scatterCount: number } | null>(null);
+  const [winningLines, setWinningLines] = useState<number[]>([]);
+  const [error, setError] = useState("");
+  const [history, setHistory] = useState<number[]>([]);
+  const [nonce, setNonce] = useState(Math.floor(Math.random() * 1e6));
+  const clientSeed = useRef(generateServerSeed().substring(0, 16));
+
+  if (!user) return null;
+  const balance = parseFloat(user.balance);
+
+  // Color per symbol
+  const symbolColor = (id: string) => {
+    const idx = cfg.symbols.findIndex(s => s.id === id);
+    const colors = ["#94a3b8", "#facc15", "#f87171", "#a78bfa", "#22d3ee", "#FF8C00", "#FFD700", "#FF2D55", "#fff"];
+    return colors[Math.min(idx, colors.length - 1)];
+  };
+
+  const symbolByid = (id: string) => cfg.symbols.find(s => s.id === id);
+
+  const spin = async () => {
+    setError(""); setLastResult(null); setWinningLines([]);
+    const s = parseFloat(stake);
+    if (!s || s <= 0) { setError("أدخل المبلغ"); return; }
+    if (balance <= 0) { setError("رصيدك 0 — تواصل مع الإدارة"); return; }
+    if (s > balance) { setError("رصيد غير كافٍ"); return; }
+
+    setSpinning(true);
+
+    // Pre-spin animation: rapidly cycle symbols on each reel
+    const animDur = 1200;
+    const fps = 80;
+    const startT = Date.now();
+    const allIds = cfg.symbols.map(x => x.id);
+    const anim = setInterval(() => {
+      const newGrid: string[][] = [];
+      for (let r = 0; r < 5; r++) {
+        const col: string[] = [];
+        for (let row = 0; row < 3; row++) {
+          col.push(allIds[Math.floor(Math.random() * allIds.length)]);
+        }
+        newGrid.push(col);
+      }
+      setGrid(newGrid);
+      if (Date.now() - startT >= animDur) clearInterval(anim);
+    }, fps);
+
+    const res = await slotSpin(user.id, slotId, s, clientSeed.current, nonce);
+    setNonce(n => n + 1);
+    if (!res.ok) {
+      clearInterval(anim);
+      setError(res.error || "خطأ");
+      setSpinning(false);
+      return;
+    }
+    await refreshBalance();
+
+    // Wait for animation to settle, then set final grid
+    setTimeout(() => {
+      clearInterval(anim);
+      setGrid(res.grid!);
+      setLastResult({ wins: res.wins || [], totalPayout: res.totalPayout || 0, scatterCount: res.scatterCount || 0 });
+      setWinningLines((res.wins || []).map(w => w.line));
+      setHistory(h => [(res.totalPayout || 0), ...h].slice(0, 10));
+      setSpinning(false);
+    }, animDur);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-[#080a10] flex flex-col">
+      <TopBar onBack={onBack} title={cfg.name.toUpperCase()} balance={user.balance} color="#FFD700" />
+      <GameBanner img={`/images/originals/${slotId}.jpg`} color="#FFD700" />
+
+      <div className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto"
+        style={{ background: "radial-gradient(ellipse at top, rgba(255,215,0,0.06), #080a10 70%)" }}>
+
+        {/* Reels 5x3 */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="grid grid-cols-5 gap-1.5 p-3 rounded-2xl w-full max-w-md"
+            style={{ background: "linear-gradient(135deg,#1a1d28,#0d0f17)",
+                     border: "2px solid rgba(255,215,0,0.3)",
+                     boxShadow: "inset 0 0 30px rgba(0,0,0,0.6), 0 0 40px rgba(255,215,0,0.1)" }}>
+            {grid.map((col, ri) => (
+              <div key={ri} className="flex flex-col gap-1.5">
+                {col.map((symId, row) => {
+                  const sym = symbolByid(symId);
+                  if (!sym) return null;
+                  const isWin = (lastResult?.wins || []).some(w => {
+                    if (w.line === 0) return symId === cfg.scatterSymbol; // scatter
+                    const line = PAYLINES[w.line - 1];
+                    return line && line[ri] === row && w.count > ri;
+                  });
+                  return (
+                    <motion.div key={row}
+                      animate={isWin ? { scale: [1, 1.12, 1] } : {}}
+                      transition={{ duration: 0.5, repeat: isWin ? Infinity : 0 }}
+                      className="aspect-square rounded-lg flex items-center justify-center text-xl font-black"
+                      style={{
+                        background: isWin
+                          ? "linear-gradient(135deg,rgba(255,215,0,0.35),rgba(255,140,0,0.25))"
+                          : "linear-gradient(135deg,rgba(255,255,255,0.06),rgba(0,0,0,0.3))",
+                        color: symbolColor(symId),
+                        border: isWin ? "2px solid #FFD700" : "1px solid rgba(255,255,255,0.05)",
+                        textShadow: `0 0 10px ${symbolColor(symId)}90, 0 2px 4px rgba(0,0,0,0.8)`,
+                        boxShadow: isWin ? "0 0 18px rgba(255,215,0,0.5)" : "none",
+                      }}>
+                      {sym.emoji}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Last result */}
+        {lastResult && (
+          <motion.div initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+            className="text-center">
+            {lastResult.totalPayout > 0 ? (
+              <p className="text-xl font-black tracking-wide"
+                style={{ color: "#00C853", textShadow: "0 0 20px currentColor" }}>
+                WIN +{lastResult.totalPayout.toFixed(2)} TND
+              </p>
+            ) : (
+              <p className="text-sm font-bold text-white/40 tracking-wide">NO WIN</p>
+            )}
+            {lastResult.wins.length > 0 && (
+              <p className="text-[10px] text-white/50 mt-1">
+                {lastResult.wins.length} winning line{lastResult.wins.length > 1 ? "s" : ""}
+              </p>
+            )}
+          </motion.div>
+        )}
+
+        {/* Symbol payout legend (compact) */}
+        <div className="grid grid-cols-3 gap-1.5">
+          {cfg.symbols.slice(-3).reverse().map(s => (
+            <div key={s.id} className="rounded-md p-1.5 flex items-center justify-between"
+              style={{ background: "rgba(255,255,255,0.04)" }}>
+              <span className="text-base font-black" style={{ color: symbolColor(s.id), textShadow: `0 0 6px ${symbolColor(s.id)}90` }}>{s.emoji}</span>
+              <span className="text-[10px] font-bold text-yellow-400">{s.payout}x</span>
+            </div>
+          ))}
+        </div>
+
+        {/* History */}
+        {history.length > 0 && (
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+            {history.map((p, i) => (
+              <div key={i} className="flex-shrink-0 px-2 py-1 rounded text-[10px] font-black"
+                style={{ background: p > 0 ? "rgba(0,200,83,0.85)" : "rgba(120,120,120,0.5)", color: "#000" }}>
+                {p > 0 ? `+${p.toFixed(2)}` : "0"}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="p-3 space-y-3 flex-shrink-0"
+        style={{ background: "rgba(15,18,28,0.98)", borderTop: "1px solid rgba(255,215,0,0.2)" }}>
+        {error && <p className="text-[11px] text-center font-bold text-pink-400">{error}</p>}
+        <StakeInput value={stake} onChange={setStake} max={balance} color="#FFD700" />
+        <button onClick={spin} disabled={spinning}
+          className="w-full py-3 rounded-xl text-sm font-black text-black disabled:opacity-50 tracking-wide"
+          style={{ background: "linear-gradient(135deg,#FFD700,#FFA500)",
+                   boxShadow: "0 4px 20px rgba(255,215,0,0.4)" }}>
+          {spinning ? "SPINNING..." : `SPIN · ${parseFloat(stake || "0").toFixed(2)} TND`}
+        </button>
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
-import { AMATIC_GAMES } from "@/lib/amaticGames";
-import { oroLaunchGame, oroDeposit, oroWithdrawAll, oroCreateUser, isOroAvailable } from "@/lib/oroClient";
+import { isOroAvailable } from "@/lib/oroClient";
 import { t } from "@/lib/i18n";
 import { Search, LayoutGrid, Gamepad2, Lock, RefreshCw, Flame, Crown, Sparkles, Zap } from "lucide-react";
 import { motion } from "framer-motion";
@@ -357,58 +356,6 @@ export default function Lobby() {
               )}
 
 
-
-              {/* 🎰 AMATIC Section */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg, #FFD700, #FF8C00)" }}>
-                      <Crown className="w-3.5 h-3.5 text-black" />
-                    </div>
-                    <h2 className="text-sm font-black tracking-wider text-white/70 uppercase">AMATIC</h2>
-                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(255,215,0,0.15)", color: "#FFD700" }}>FREE DEMO</span>
-                  </div>
-                  <span className="text-[10px] text-white/30">{AMATIC_GAMES.length} games</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {AMATIC_GAMES.map((ag) => (
-                    <div key={ag.id}
-                      className="rounded-xl overflow-hidden cursor-pointer group relative"
-                      style={{ aspectRatio: "3/4", border: "1px solid rgba(255,215,0,0.12)", background: "rgba(255,215,0,0.04)" }}
-                      onClick={() => {
-                        if (!user) { setShowAuth(true); return; }
-                        setActiveGame({
-                          provider_id: 999,
-                          game_code: ag.id,
-                          game_name: ag.name,
-                          locale_name: ag.name,
-                          game_image: ag.thumb,
-                          game_image_narrow: ag.thumb,
-                          launch_enable: true,
-                          category: "Slots",
-                          _amaticUrl: ag.url,
-                        } as any);
-                        setSessionAmt(0);
-                        setGameUrl(ag.url);
-                      }}>
-                      <img src={ag.thumb} alt={ag.name} loading="lazy"
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, transparent 55%)" }} />
-                      <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[7px] font-black"
-                        style={{ background: "rgba(255,215,0,0.95)", color: "#000" }}>AMATIC</div>
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(255,215,0,0.9)" }}>
-                          <Zap className="w-5 h-5 text-black" />
-                        </div>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 p-2">
-                        <p className="text-[10px] font-bold text-white leading-tight line-clamp-2">{ag.name}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
               {/* Provider filter */}
               <div>

@@ -623,3 +623,198 @@ export async function towerCashout(userId: number, stake: number, mode: keyof ty
   const cr = await credit(userId, payout, "Tower", true);
   return { ok: cr.ok, payout, balance: cr.balance };
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// SLOTS — Native Amatic-style 5-reel slots with REAL TND wallet
+// ⚠️ HOUSE-FAVORED: target RTP ~50% (vs typical 96%)
+// 5 reels × 3 rows, 10 paylines, weighted symbols
+// ─────────────────────────────────────────────────────────────────────
+
+export type SlotSymbol = string;
+
+export interface SlotConfig {
+  id: string;
+  name: string;
+  symbols: { id: string; name: string; emoji: string; payout: number; weight: number }[];
+  scatterSymbol?: string;
+  wildSymbol?: string;
+  freeSpinsTrigger?: number; // num scatters needed
+}
+
+// Symbol weights are HOUSE-FAVORED: low-value symbols are far more common
+// Total weight per slot is what determines actual probability
+
+export const SLOT_CONFIGS: Record<string, SlotConfig> = {
+  bookoffortune: {
+    id: "bookoffortune",
+    name: "Book of Fortune",
+    symbols: [
+      { id: "10",  name: "10",       emoji: "10",  payout: 0.5,  weight: 40 },
+      { id: "J",   name: "J",        emoji: "J",   payout: 0.5,  weight: 38 },
+      { id: "Q",   name: "Q",        emoji: "Q",   payout: 0.8,  weight: 36 },
+      { id: "K",   name: "K",        emoji: "K",   payout: 1.0,  weight: 32 },
+      { id: "A",   name: "A",        emoji: "A",   payout: 1.5,  weight: 28 },
+      { id: "anu", name: "Anubis",   emoji: "AN",  payout: 5.0,  weight: 12 },
+      { id: "rl",  name: "Ruler",    emoji: "RL",  payout: 10,   weight: 8  },
+      { id: "sc",  name: "Scarab",   emoji: "SC",  payout: 20,   weight: 5  },
+      { id: "bk",  name: "Book",     emoji: "BK",  payout: 50,   weight: 3  }, // wild + scatter
+    ],
+    scatterSymbol: "bk",
+    wildSymbol: "bk",
+    freeSpinsTrigger: 3,
+  },
+  hotfruits: {
+    id: "hotfruits",
+    name: "Hot Fruits",
+    symbols: [
+      { id: "ch", name: "Cherry",     emoji: "CH",  payout: 0.5,  weight: 40 },
+      { id: "lm", name: "Lemon",      emoji: "LM",  payout: 0.8,  weight: 36 },
+      { id: "or", name: "Orange",    emoji: "OR",  payout: 1.0,  weight: 32 },
+      { id: "pl", name: "Plum",       emoji: "PL",  payout: 1.5,  weight: 28 },
+      { id: "wm", name: "Watermelon", emoji: "WM",  payout: 2.5,  weight: 22 },
+      { id: "gr", name: "Grape",      emoji: "GR",  payout: 4.0,  weight: 16 },
+      { id: "bl", name: "Bell",       emoji: "BL",  payout: 8.0,  weight: 10 },
+      { id: "s7", name: "Lucky 7",    emoji: "7",   payout: 25,   weight: 5  },
+      { id: "st", name: "Star",       emoji: "ST",  payout: 50,   weight: 3  }, // scatter
+    ],
+    scatterSymbol: "st",
+    freeSpinsTrigger: 3,
+  },
+  luckyjoker: {
+    id: "luckyjoker",
+    name: "Lucky Joker",
+    symbols: [
+      { id: "ch",  name: "Cherry",  emoji: "CH",  payout: 0.5,  weight: 40 },
+      { id: "lm",  name: "Lemon",   emoji: "LM",  payout: 0.8,  weight: 36 },
+      { id: "pl",  name: "Plum",    emoji: "PL",  payout: 1.0,  weight: 32 },
+      { id: "wm",  name: "Melon",   emoji: "WM",  payout: 1.5,  weight: 28 },
+      { id: "gr",  name: "Grape",   emoji: "GR",  payout: 2.5,  weight: 22 },
+      { id: "bl",  name: "Bell",    emoji: "BL",  payout: 5.0,  weight: 15 },
+      { id: "s7",  name: "Seven",   emoji: "7",   payout: 15,   weight: 8  },
+      { id: "jk",  name: "Joker",   emoji: "JK",  payout: 40,   weight: 4  }, // wild
+      { id: "st",  name: "Star",    emoji: "ST",  payout: 60,   weight: 2  }, // scatter
+    ],
+    scatterSymbol: "st",
+    wildSymbol: "jk",
+    freeSpinsTrigger: 3,
+  },
+};
+
+// 10 paylines (5 reels × 3 rows). Each payline = array of 5 row indices (0-2)
+export const PAYLINES = [
+  [1,1,1,1,1], // line 1: middle row
+  [0,0,0,0,0], // line 2: top
+  [2,2,2,2,2], // line 3: bottom
+  [0,1,2,1,0], // line 4: V shape
+  [2,1,0,1,2], // line 5: ^ shape
+  [1,0,0,0,1], // line 6
+  [1,2,2,2,1], // line 7
+  [0,0,1,2,2], // line 8
+  [2,2,1,0,0], // line 9
+  [1,2,1,0,1], // line 10
+];
+
+function pickWeighted(symbols: SlotConfig["symbols"], r: number): SlotConfig["symbols"][0] {
+  const total = symbols.reduce((s, x) => s + x.weight, 0);
+  let pick = r * total;
+  for (const s of symbols) {
+    pick -= s.weight;
+    if (pick <= 0) return s;
+  }
+  return symbols[symbols.length - 1];
+}
+
+export async function slotSpin(
+  userId: number,
+  slotId: string,
+  stake: number,
+  clientSeed: string,
+  nonce: number
+): Promise<{
+  ok: boolean;
+  grid?: string[][];        // [reel][row] symbol ids
+  wins?: { line: number; symbolId: string; count: number; payout: number }[];
+  totalPayout?: number;
+  scatterCount?: number;
+  freeSpinsWon?: number;
+  balance?: number;
+  error?: string;
+  serverSeed?: string;
+}> {
+  const cfg = SLOT_CONFIGS[slotId];
+  if (!cfg) return { ok: false, error: "اللعبة غير موجودة" };
+
+  const dr = await debit(userId, stake, `Slot:${cfg.name}`);
+  if (!dr.ok) return { ok: false, error: dr.error };
+
+  const serverSeed = generateServerSeed();
+  // House-favored: 70% chance to bias reels toward low-value common symbols
+  const lowValueSymbols = cfg.symbols.filter(s => s.payout < 2);
+  const allSymbols = cfg.symbols;
+
+  // 5 reels × 3 rows grid
+  const grid: string[][] = [];
+  for (let reel = 0; reel < 5; reel++) {
+    const column: string[] = [];
+    for (let row = 0; row < 3; row++) {
+      const r = await fairRandom(serverSeed, clientSeed, nonce * 100 + reel * 10 + row);
+      // 70% pick from low-value pool, 30% pick from all
+      const pool = r < 0.7 ? lowValueSymbols : allSymbols;
+      const r2 = await fairRandom(serverSeed, clientSeed, nonce * 1000 + reel * 100 + row * 10 + 7);
+      column.push(pickWeighted(pool, r2).id);
+    }
+    grid.push(column);
+  }
+
+  // Evaluate paylines (left to right, 3+ matching)
+  const wins: { line: number; symbolId: string; count: number; payout: number }[] = [];
+  let totalPayout = 0;
+  for (let lineIdx = 0; lineIdx < PAYLINES.length; lineIdx++) {
+    const line = PAYLINES[lineIdx];
+    const lineSymbols = line.map((row, reel) => grid[reel][row]);
+    const first = lineSymbols[0];
+    if (cfg.scatterSymbol && first === cfg.scatterSymbol) continue;
+
+    // Count consecutive matching (or wild)
+    let count = 1;
+    for (let i = 1; i < lineSymbols.length; i++) {
+      if (lineSymbols[i] === first || (cfg.wildSymbol && lineSymbols[i] === cfg.wildSymbol)) count++;
+      else break;
+    }
+    if (count >= 3) {
+      const sym = cfg.symbols.find(s => s.id === first);
+      if (sym) {
+        // Payout = symbol.payout × (count - 2) × (stake/10) — divisor reduces win
+        const linePay = +(sym.payout * (count - 2) * (stake / 10)).toFixed(2);
+        wins.push({ line: lineIdx + 1, symbolId: first, count, payout: linePay });
+        totalPayout += linePay;
+      }
+    }
+  }
+
+  // Scatter check (anywhere on grid)
+  let scatterCount = 0;
+  if (cfg.scatterSymbol) {
+    for (const col of grid) for (const s of col) if (s === cfg.scatterSymbol) scatterCount++;
+  }
+  let freeSpinsWon = 0;
+  if (cfg.freeSpinsTrigger && scatterCount >= cfg.freeSpinsTrigger) {
+    // Award scatter payout but NO free spins (we don't implement free spins to keep house edge)
+    const scSym = cfg.symbols.find(s => s.id === cfg.scatterSymbol);
+    if (scSym) {
+      const scPay = +(scSym.payout * (scatterCount - 2) * (stake / 10)).toFixed(2);
+      wins.push({ line: 0, symbolId: cfg.scatterSymbol, count: scatterCount, payout: scPay });
+      totalPayout += scPay;
+    }
+  }
+
+  totalPayout = +totalPayout.toFixed(2);
+
+  let balance = dr.balance!;
+  if (totalPayout > 0) {
+    const cr = await credit(userId, totalPayout, `Slot:${cfg.name}`, true);
+    if (cr.ok) balance = cr.balance!;
+  }
+
+  return { ok: true, grid, wins, totalPayout, scatterCount, freeSpinsWon, balance, serverSeed };
+}
