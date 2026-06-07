@@ -355,16 +355,16 @@ export default function Lobby() {
 
                 // Featured-first ordering: Pragmatic, PG Soft, Hacksaw, Spribe, Habanero, CQ9 — then the rest by count
                 const FEATURED_ORDER = [1, 3, 16, 15, 7, 2];
-                const allProviderIds = providers
-                  .map(p => p.provider_id)
-                  .filter(id => games.some(g => g.provider_id === id));
-                const rest = allProviderIds
+                // Derive provider IDs from the games themselves so this works even if
+                // /v4/game/providers fetch failed or hasn't returned yet.
+                const idsWithGames = Array.from(new Set(games.map(g => g.provider_id)));
+                const rest = idsWithGames
                   .filter(id => !FEATURED_ORDER.includes(id))
                   .sort((a, b) =>
                     games.filter(g => g.provider_id === b).length -
                     games.filter(g => g.provider_id === a).length
                   );
-                const orderedIds = [...FEATURED_ORDER.filter(id => allProviderIds.includes(id)), ...rest];
+                const orderedIds = [...FEATURED_ORDER.filter(id => idsWithGames.includes(id)), ...rest];
 
                 return (
                   <>
