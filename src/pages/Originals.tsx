@@ -1493,7 +1493,218 @@ function TowerGame({ onBack }: { onBack: () => void }) {
   );
 }
 
-// ━━━━━━━━━━━━━━━━━━ SLOT (Amatic-style 5x3) ━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━ SLOT SYMBOL ART (premium SVG icons, no text/emoji) ━━━━━━━━━━━━━━━━━━
+
+function SymbolIcon({ id }: { id: string }) {
+  const s = "100%";
+  const props = { width: s, height: s, viewBox: "0 0 64 64", xmlns: "http://www.w3.org/2000/svg" };
+  // Soft drop shadow filter is applied via parent text-shadow
+
+  switch (id) {
+    // ─── BOOK OF FORTUNE (Egyptian) ───
+    case "10": return ( // Ankh
+      <svg {...props}>
+        <defs><linearGradient id="g10" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#FFE08A"/><stop offset="1" stopColor="#C99A2E"/></linearGradient></defs>
+        <path d="M32 8c-6 0-10 4-10 9 0 5 3 8 7 10v3h-8v6h8v20h6V36h8v-6h-8v-3c4-2 7-5 7-10 0-5-4-9-10-9z M27 17c0-3 2-5 5-5s5 2 5 5-2 5-5 5-5-2-5-5z"
+              fill="url(#g10)" stroke="#7A5300" strokeWidth="1"/>
+      </svg>
+    );
+    case "J": return ( // Sun disk
+      <svg {...props}>
+        <defs><radialGradient id="gJ"><stop offset="0" stopColor="#FFF1A8"/><stop offset="0.6" stopColor="#FFB300"/><stop offset="1" stopColor="#B36300"/></radialGradient></defs>
+        {[...Array(8)].map((_,i)=>(
+          <rect key={i} x="31" y="6" width="2" height="10" fill="#FFD700" transform={`rotate(${i*45} 32 32)`}/>
+        ))}
+        <circle cx="32" cy="32" r="14" fill="url(#gJ)" stroke="#7A4800" strokeWidth="1.5"/>
+      </svg>
+    );
+    case "Q": return ( // Eye of Horus
+      <svg {...props}>
+        <defs><linearGradient id="gQ" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5EE7FF"/><stop offset="1" stopColor="#00709C"/></linearGradient></defs>
+        <path d="M8 32 C 18 16, 46 16, 56 32 C 46 48, 18 48, 8 32 Z" fill="#fff" stroke="#000" strokeWidth="2"/>
+        <circle cx="32" cy="32" r="9" fill="url(#gQ)" stroke="#000" strokeWidth="1.5"/>
+        <circle cx="32" cy="32" r="4" fill="#000"/>
+        <path d="M32 41 L36 50 L40 47 M32 41 L26 52" stroke="#000" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+      </svg>
+    );
+    case "K": return ( // Pyramid
+      <svg {...props}>
+        <defs><linearGradient id="gK" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#F0C76A"/><stop offset="0.5" stopColor="#FFE08A"/><stop offset="1" stopColor="#A37020"/></linearGradient></defs>
+        <path d="M32 8 L8 54 L56 54 Z" fill="url(#gK)" stroke="#5C3A00" strokeWidth="1.5"/>
+        <path d="M32 8 L32 54" stroke="#7A5300" strokeWidth="1" opacity="0.6"/>
+        <circle cx="50" cy="20" r="3" fill="#FFD700"/>
+      </svg>
+    );
+    case "A": return ( // Star (golden)
+      <svg {...props}>
+        <defs><linearGradient id="gA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FFF1A8"/><stop offset="1" stopColor="#B36300"/></linearGradient></defs>
+        <path d="M32 6 L38 24 L57 25 L42 37 L48 56 L32 46 L16 56 L22 37 L7 25 L26 24 Z"
+              fill="url(#gA)" stroke="#5C3A00" strokeWidth="1.5" strokeLinejoin="round"/>
+      </svg>
+    );
+    case "anu": return ( // Anubis head
+      <svg {...props}>
+        <defs><linearGradient id="ganu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#222"/><stop offset="1" stopColor="#000"/></linearGradient></defs>
+        <path d="M32 8 L20 18 L18 32 L14 36 L18 56 L46 56 L50 36 L46 32 L44 18 Z" fill="url(#ganu)" stroke="#FFD700" strokeWidth="1.5"/>
+        <path d="M20 18 L14 6 L24 16 M44 18 L50 6 L40 16" fill="url(#ganu)" stroke="#FFD700" strokeWidth="1.5"/>
+        <circle cx="26" cy="32" r="2" fill="#FFD700"/>
+        <circle cx="38" cy="32" r="2" fill="#FFD700"/>
+        <path d="M28 42 L36 42 L34 46 L30 46 Z" fill="#FFD700"/>
+      </svg>
+    );
+    case "rl": return ( // Pharaoh crown / Nemes
+      <svg {...props}>
+        <defs><linearGradient id="grl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FFE08A"/><stop offset="0.5" stopColor="#D49930"/><stop offset="1" stopColor="#7A4800"/></linearGradient></defs>
+        <ellipse cx="32" cy="38" rx="20" ry="20" fill="#F0C49A" stroke="#5C3A00" strokeWidth="1.5"/>
+        <path d="M12 30 Q 32 6 52 30 L 50 42 Q 32 22 14 42 Z" fill="url(#grl)" stroke="#5C3A00" strokeWidth="1.5"/>
+        <path d="M28 34 L 36 34 L 36 38 L 28 38 Z" fill="#D49930" stroke="#5C3A00" strokeWidth="1"/>
+        <circle cx="26" cy="40" r="1.5" fill="#000"/>
+        <circle cx="38" cy="40" r="1.5" fill="#000"/>
+        <path d="M28 48 Q 32 52 36 48" stroke="#A33000" strokeWidth="2" fill="none"/>
+      </svg>
+    );
+    case "sc": return ( // Scarab beetle
+      <svg {...props}>
+        <defs><radialGradient id="gsc"><stop offset="0" stopColor="#54E89D"/><stop offset="0.6" stopColor="#0E8B43"/><stop offset="1" stopColor="#063A1B"/></radialGradient></defs>
+        <ellipse cx="32" cy="36" rx="18" ry="22" fill="url(#gsc)" stroke="#022612" strokeWidth="1.5"/>
+        <ellipse cx="32" cy="22" rx="10" ry="6" fill="#0A5C2D" stroke="#022612" strokeWidth="1.5"/>
+        <path d="M32 18 L32 58" stroke="#022612" strokeWidth="1.5"/>
+        <path d="M14 30 L4 22 M14 38 L4 40 M14 46 L4 54 M50 30 L60 22 M50 38 L60 40 M50 46 L60 54"
+              stroke="#022612" strokeWidth="2" strokeLinecap="round"/>
+        <circle cx="32" cy="36" r="3" fill="#FFD700" stroke="#022612" strokeWidth="1"/>
+      </svg>
+    );
+    case "bk": return ( // Book of Fortune (wild + scatter)
+      <svg {...props}>
+        <defs>
+          <linearGradient id="gbk1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#8B0000"/><stop offset="0.5" stopColor="#C90000"/><stop offset="1" stopColor="#600000"/></linearGradient>
+          <linearGradient id="gbk2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FFE08A"/><stop offset="1" stopColor="#A37020"/></linearGradient>
+        </defs>
+        <rect x="6" y="10" width="52" height="44" rx="3" fill="url(#gbk1)" stroke="#3A0000" strokeWidth="2"/>
+        <rect x="8" y="12" width="48" height="40" rx="2" fill="none" stroke="#FFD700" strokeWidth="1.5"/>
+        <circle cx="32" cy="32" r="11" fill="url(#gbk2)" stroke="#5C3A00" strokeWidth="1.5"/>
+        <path d="M32 23 L34 30 L41 30 L36 34 L38 41 L32 37 L26 41 L28 34 L23 30 L30 30 Z"
+              fill="#3A0000" stroke="#000" strokeWidth="0.5"/>
+        <path d="M32 10 L32 54" stroke="#3A0000" strokeWidth="1"/>
+      </svg>
+    );
+
+    // ─── HOT FRUITS ───
+    case "ch": return ( // Cherry
+      <svg {...props}>
+        <defs><radialGradient id="gch"><stop offset="0" stopColor="#FF6B85"/><stop offset="0.6" stopColor="#D9001C"/><stop offset="1" stopColor="#6B0010"/></radialGradient></defs>
+        <path d="M40 10 Q 50 14 50 28 Q 50 36 42 40 M40 10 Q 32 14 26 28 Q 20 38 16 50"
+              fill="none" stroke="#0E7A2A" strokeWidth="2.5"/>
+        <ellipse cx="42" cy="20" rx="9" ry="6" fill="#22B544" transform="rotate(-30 42 20)"/>
+        <circle cx="22" cy="48" r="13" fill="url(#gch)" stroke="#3A0010" strokeWidth="1.5"/>
+        <circle cx="44" cy="48" r="13" fill="url(#gch)" stroke="#3A0010" strokeWidth="1.5"/>
+        <ellipse cx="18" cy="44" rx="3" ry="2" fill="#FFC0CB" opacity="0.7"/>
+        <ellipse cx="40" cy="44" rx="3" ry="2" fill="#FFC0CB" opacity="0.7"/>
+      </svg>
+    );
+    case "lm": return ( // Lemon
+      <svg {...props}>
+        <defs><radialGradient id="glm"><stop offset="0" stopColor="#FFF59D"/><stop offset="0.7" stopColor="#FFD600"/><stop offset="1" stopColor="#A37500"/></radialGradient></defs>
+        <ellipse cx="32" cy="34" rx="20" ry="22" fill="url(#glm)" stroke="#5C3A00" strokeWidth="1.5"/>
+        <path d="M16 16 L20 22 M48 16 L44 22" stroke="#5C3A00" strokeWidth="2.5" strokeLinecap="round"/>
+        <ellipse cx="32" cy="34" rx="10" ry="12" fill="none" stroke="#FFD700" strokeWidth="1" opacity="0.6"/>
+        <ellipse cx="24" cy="28" rx="5" ry="3" fill="#FFF59D" opacity="0.7"/>
+      </svg>
+    );
+    case "or": return ( // Orange
+      <svg {...props}>
+        <defs><radialGradient id="gor"><stop offset="0" stopColor="#FFC880"/><stop offset="0.7" stopColor="#FF8500"/><stop offset="1" stopColor="#7A3500"/></radialGradient></defs>
+        <circle cx="32" cy="36" r="22" fill="url(#gor)" stroke="#5C2700" strokeWidth="1.5"/>
+        <circle cx="32" cy="36" r="22" fill="none" stroke="#5C2700" strokeWidth="0.5" opacity="0.6"/>
+        <path d="M32 14 L36 8 L40 12 L34 18 Z" fill="#22B544" stroke="#0A5C2D" strokeWidth="1"/>
+        <ellipse cx="24" cy="28" rx="6" ry="3" fill="#FFE0B3" opacity="0.6"/>
+      </svg>
+    );
+    case "pl": return ( // Plum
+      <svg {...props}>
+        <defs><radialGradient id="gpl"><stop offset="0" stopColor="#B89AE0"/><stop offset="0.7" stopColor="#5A2A8C"/><stop offset="1" stopColor="#2A0A4A"/></radialGradient></defs>
+        <ellipse cx="32" cy="34" rx="20" ry="22" fill="url(#gpl)" stroke="#1A053A" strokeWidth="1.5"/>
+        <path d="M32 14 Q 36 4 42 8" stroke="#22B544" strokeWidth="3" fill="none" strokeLinecap="round"/>
+        <ellipse cx="40" cy="11" rx="6" ry="3.5" fill="#22B544" stroke="#0A5C2D" strokeWidth="1" transform="rotate(-20 40 11)"/>
+        <ellipse cx="24" cy="26" rx="5" ry="3" fill="#D0B3F0" opacity="0.6"/>
+        <path d="M32 14 L 32 56" stroke="#3D1873" strokeWidth="0.5" opacity="0.4"/>
+      </svg>
+    );
+    case "wm": return ( // Watermelon
+      <svg {...props}>
+        <defs><linearGradient id="gwm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FF5A8A"/><stop offset="1" stopColor="#C90031"/></linearGradient></defs>
+        <path d="M6 36 Q 32 0, 58 36 L 58 38 Q 32 50, 6 38 Z" fill="url(#gwm)" stroke="#5C0020" strokeWidth="1.5"/>
+        <path d="M6 36 Q 32 0, 58 36" fill="none" stroke="#0E7A2A" strokeWidth="4"/>
+        <path d="M6 32 Q 32 -4, 58 32" fill="none" stroke="#FFFFFF" strokeWidth="2" opacity="0.7"/>
+        {[18,28,38,48].map((x,i)=>(
+          <ellipse key={i} cx={x} cy={30 - (i===1||i===2 ? 4 : 0)} rx="2" ry="3" fill="#1A0008"/>
+        ))}
+      </svg>
+    );
+    case "gr": return ( // Grape cluster
+      <svg {...props}>
+        <defs><radialGradient id="ggr"><stop offset="0" stopColor="#B89AE0"/><stop offset="0.7" stopColor="#5A2A8C"/><stop offset="1" stopColor="#2A0A4A"/></radialGradient></defs>
+        <path d="M30 8 Q 38 4 44 12" stroke="#22B544" strokeWidth="3" fill="none" strokeLinecap="round"/>
+        <ellipse cx="44" cy="14" rx="7" ry="4" fill="#22B544" transform="rotate(-25 44 14)"/>
+        {[[20,18,7],[32,16,7],[44,18,7],[26,28,7],[38,28,7],[32,38,7],[20,38,7],[44,38,7],[26,48,7],[38,48,7]].map(([x,y,r],i)=>(
+          <circle key={i} cx={x} cy={y} r={r} fill="url(#ggr)" stroke="#1A053A" strokeWidth="1"/>
+        ))}
+      </svg>
+    );
+    case "bl": return ( // Bell
+      <svg {...props}>
+        <defs><linearGradient id="gbl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FFF1A8"/><stop offset="0.6" stopColor="#FFB300"/><stop offset="1" stopColor="#7A4800"/></linearGradient></defs>
+        <path d="M32 8 L 30 12 Q 14 18, 14 38 L 8 46 L 56 46 L 50 38 Q 50 18, 34 12 L 32 8 Z"
+              fill="url(#gbl)" stroke="#3D2400" strokeWidth="1.5" strokeLinejoin="round"/>
+        <circle cx="32" cy="52" r="5" fill="url(#gbl)" stroke="#3D2400" strokeWidth="1.5"/>
+        <ellipse cx="24" cy="22" rx="5" ry="10" fill="#FFFFFF" opacity="0.5" transform="rotate(-20 24 22)"/>
+      </svg>
+    );
+    case "s7": return ( // Lucky Seven
+      <svg {...props}>
+        <defs>
+          <linearGradient id="g7" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FF5A2A"/><stop offset="0.5" stopColor="#FF2D55"/><stop offset="1" stopColor="#7A0017"/></linearGradient>
+          <linearGradient id="g7e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FFD700"/><stop offset="1" stopColor="#7A4800"/></linearGradient>
+        </defs>
+        <path d="M10 12 L 54 12 L 54 22 L 36 56 L 22 56 L 40 22 L 10 22 Z"
+              fill="url(#g7)" stroke="url(#g7e)" strokeWidth="2.5" strokeLinejoin="round"/>
+        <path d="M14 16 L 50 16 L 50 18 L 14 18 Z" fill="#FFFFFF" opacity="0.4"/>
+      </svg>
+    );
+    case "st": return ( // Star (scatter)
+      <svg {...props}>
+        <defs>
+          <radialGradient id="gst"><stop offset="0" stopColor="#FFFFFF"/><stop offset="0.4" stopColor="#FFF1A8"/><stop offset="1" stopColor="#B36300"/></radialGradient>
+          <filter id="gstGlow"><feGaussianBlur stdDeviation="1.5"/></filter>
+        </defs>
+        <path d="M32 4 L40 24 L62 25 L44 38 L51 60 L32 48 L13 60 L20 38 L2 25 L24 24 Z"
+              fill="url(#gst)" stroke="#5C3A00" strokeWidth="1.5" strokeLinejoin="round"/>
+        <circle cx="32" cy="32" r="6" fill="#FFFFFF" opacity="0.6"/>
+      </svg>
+    );
+
+    // ─── LUCKY JOKER ───
+    case "jk": return ( // Joker hat / mask
+      <svg {...props}>
+        <defs><linearGradient id="gjk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#FF2D55"/><stop offset="0.5" stopColor="#A855F7"/><stop offset="1" stopColor="#06b6d4"/></linearGradient></defs>
+        <path d="M32 4 L 14 30 L 10 36 L 12 40 L 22 38 L 14 50 L 22 48 L 18 56 L 32 46 L 46 56 L 42 48 L 50 50 L 42 38 L 52 40 L 54 36 L 50 30 Z"
+              fill="url(#gjk)" stroke="#1A053A" strokeWidth="1.5" strokeLinejoin="round"/>
+        <circle cx="12" cy="40" r="2.5" fill="#FFD700"/>
+        <circle cx="22" cy="48" r="2.5" fill="#FFD700"/>
+        <circle cx="42" cy="48" r="2.5" fill="#FFD700"/>
+        <circle cx="52" cy="40" r="2.5" fill="#FFD700"/>
+        <circle cx="28" cy="32" r="2" fill="#000"/>
+        <circle cx="36" cy="32" r="2" fill="#000"/>
+        <path d="M26 40 Q 32 44 38 40" stroke="#000" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      </svg>
+    );
+
+    default:
+      return <svg {...props}><circle cx="32" cy="32" r="22" fill="#888"/></svg>;
+  }
+}
+
 
 function SlotGame({ onBack, slotId }: { onBack: () => void; slotId: string }) {
   const { user, refreshBalance } = useAuth();
@@ -1602,17 +1813,16 @@ function SlotGame({ onBack, slotId }: { onBack: () => void; slotId: string }) {
                     <motion.div key={row}
                       animate={isWin ? { scale: [1, 1.12, 1] } : {}}
                       transition={{ duration: 0.5, repeat: isWin ? Infinity : 0 }}
-                      className="aspect-square rounded-lg flex items-center justify-center text-xl font-black"
+                      className="aspect-square rounded-lg flex items-center justify-center p-1.5"
                       style={{
                         background: isWin
                           ? "linear-gradient(135deg,rgba(255,215,0,0.35),rgba(255,140,0,0.25))"
                           : "linear-gradient(135deg,rgba(255,255,255,0.06),rgba(0,0,0,0.3))",
-                        color: symbolColor(symId),
                         border: isWin ? "2px solid #FFD700" : "1px solid rgba(255,255,255,0.05)",
-                        textShadow: `0 0 10px ${symbolColor(symId)}90, 0 2px 4px rgba(0,0,0,0.8)`,
                         boxShadow: isWin ? "0 0 18px rgba(255,215,0,0.5)" : "none",
+                        filter: `drop-shadow(0 0 6px ${symbolColor(symId)}80) drop-shadow(0 2px 3px rgba(0,0,0,0.7))`,
                       }}>
-                      {sym.emoji}
+                      <SymbolIcon id={symId}/>
                     </motion.div>
                   );
                 })}
@@ -1641,12 +1851,14 @@ function SlotGame({ onBack, slotId }: { onBack: () => void; slotId: string }) {
           </motion.div>
         )}
 
-        {/* Symbol payout legend (compact) */}
+        {/* Symbol payout legend (top symbols) */}
         <div className="grid grid-cols-3 gap-1.5">
           {cfg.symbols.slice(-3).reverse().map(s => (
-            <div key={s.id} className="rounded-md p-1.5 flex items-center justify-between"
+            <div key={s.id} className="rounded-md p-1.5 flex items-center justify-between gap-1.5"
               style={{ background: "rgba(255,255,255,0.04)" }}>
-              <span className="text-base font-black" style={{ color: symbolColor(s.id), textShadow: `0 0 6px ${symbolColor(s.id)}90` }}>{s.emoji}</span>
+              <div className="w-7 h-7" style={{ filter: `drop-shadow(0 0 4px ${symbolColor(s.id)}90)` }}>
+                <SymbolIcon id={s.id}/>
+              </div>
               <span className="text-[10px] font-bold text-yellow-400">{s.payout}x</span>
             </div>
           ))}
