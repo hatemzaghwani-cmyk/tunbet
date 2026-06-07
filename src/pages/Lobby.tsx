@@ -209,24 +209,17 @@ export default function Lobby() {
 
   const launchGame = async (game: AesGame) => {
     if (!user) { setShowAuth(true); return; }
-    if (parseFloat(user.balance) <= 0) {
-      setLaunchError(t("insufficientBalance") + " — تواصل مع الإدارة لشحن رصيدك");
-      setTimeout(() => setLaunchError(""), 4500); return;
-    }
-    // If provider has a free public demo → open Session dialog (Escrow wallet)
-    if (hasFreeDemo(game.provider_id)) {
-      setPendingGame(game);
-      setStakeInput("10");
+    // If provider has a free public demo → open directly (no session, demo credits only)
+    const directUrl = (game as any)._amaticUrl || getDemoUrl(game.provider_id, game.game_code);
+    if (directUrl) {
+      setActiveGame(game);
+      setSessionAmt(0); // no escrow - browsing only
+      setGameUrl(directUrl);
       return;
     }
-    // Fallback: AES API launch (requires real funds in AES wallet)
-    setLaunchingGame(game.game_code); setLaunchError("");
-    try {
-      const result = await apiLaunchGame(token!, game.game_code, game.provider_id);
-      if (result.url) { setGameUrl(result.url); setActiveGame(game); }
-      else { setLaunchError(result.error ?? t("noGames")); setTimeout(() => setLaunchError(""), 5000); }
-    } catch { setLaunchError("Error"); setTimeout(() => setLaunchError(""), 4000); }
-    finally { setLaunchingGame(null); }
+    // Show "TND only available in Originals" notice for non-demo providers
+    setLaunchError("هذه اللعبة تجريبية فقط. للرهان الحقيقي بـ TND، جرّب Originals (Crash, Mines, Dice, Plinko, Limbo) ←");
+    setTimeout(() => setLaunchError(""), 5500);
   };
 
   const confirmLaunchWithSession = async () => {
@@ -250,23 +243,10 @@ export default function Lobby() {
   };
 
   const closeGame = async () => {
-    if (!user || !token) { setGameUrl(null); setActiveGame(null); return; }
-    // If escrow session active → require cash out (Pragmatic, Amatic, or any provider with free demo)
-    const isFreeSession = activeGame && (hasFreeDemo(activeGame.provider_id) || activeGame.provider_id === 999 || (activeGame as any)._amaticUrl);
-    if (sessionAmt > 0 && isFreeSession) {
-      setCloseInput(sessionAmt.toFixed(2));
-      setShowCloseModal(true);
-      return;
-    }
-    // AES game close (legacy)
-    setClosingGame(true);
-    setGameUrl(null); setActiveGame(null);
-    try {
-      await new Promise(r => setTimeout(r, 1000));
-      await apiSyncBalance(token);
-      await refreshBalance();
-    } catch {}
-    setClosingGame(false);
+    setGameUrl(null);
+    setActiveGame(null);
+    setSessionAmt(0);
+    if (user) await refreshBalance();
   };
 
   const confirmCloseSession = async () => {
@@ -335,6 +315,28 @@ export default function Lobby() {
           {/* Banner Slider */}
           <BannerSlider />
 
+          {/* TunBet Originals promo card */}
+          <a href="/originals" onClick={(e) => { e.preventDefault(); window.location.href = "/originals"; }}
+            className="block relative rounded-2xl overflow-hidden cursor-pointer"
+            style={{ height: 100,
+                     background: "linear-gradient(135deg, #a855f7 0%, #FF2D55 50%, #FF6B35 100%)" }}>
+            <div className="absolute inset-0 opacity-30"
+              style={{ background: "radial-gradient(circle at 30% 50%, #fff, transparent 60%)" }} />
+            <div className="absolute inset-0 flex items-center justify-between px-4">
+              <div className="flex items-center gap-3">
+                <div className="text-4xl">🎰</div>
+                <div>
+                  <h3 className="text-base font-black text-white">TunBet Originals</h3>
+                  <p className="text-[10px] text-white/80">Crash • Mines • Dice • Plinko • Limbo</p>
+                  <p className="text-[10px] text-yellow-200 font-bold mt-0.5">💰 رصيد TND حقيقي • Provably Fair</p>
+                </div>
+              </div>
+              <div className="px-3 py-1.5 rounded-lg text-[11px] font-black bg-white text-black">
+                LIVE ▶
+              </div>
+            </div>
+          </a>
+
           {launchError && (
             <div className="p-3 rounded-xl text-sm text-center" style={{ background: "rgba(255,45,85,0.1)", border: "1px solid rgba(255,45,85,0.3)", color: "#FF2D55" }}>{launchError}</div>
           )}
@@ -386,7 +388,7 @@ export default function Lobby() {
                       <Crown className="w-3.5 h-3.5 text-black" />
                     </div>
                     <h2 className="text-sm font-black tracking-wider text-white/70 uppercase">AMATIC</h2>
-                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(0,200,83,0.18)", color: "#00C853" }}>💰 TND</span>
+                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(255,215,0,0.15)", color: "#FFD700" }}>FREE DEMO</span>
                   </div>
                   <span className="text-[10px] text-white/30">{AMATIC_GAMES.length} games</span>
                 </div>
@@ -397,9 +399,8 @@ export default function Lobby() {
                       style={{ aspectRatio: "3/4", border: "1px solid rgba(255,215,0,0.12)", background: "rgba(255,215,0,0.04)" }}
                       onClick={() => {
                         if (!user) { setShowAuth(true); return; }
-                        // Use free demo via Escrow wallet (same as Pragmatic)
-                        setPendingGame({
-                          provider_id: 999, // marker for Amatic free demo
+                        setActiveGame({
+                          provider_id: 999,
                           game_code: ag.id,
                           game_name: ag.name,
                           locale_name: ag.name,
@@ -407,10 +408,10 @@ export default function Lobby() {
                           game_image_narrow: ag.thumb,
                           launch_enable: true,
                           category: "Slots",
-                          // Add demo URL directly
                           _amaticUrl: ag.url,
                         } as any);
-                        setStakeInput("10");
+                        setSessionAmt(0);
+                        setGameUrl(ag.url);
                       }}>
                       <img src={ag.thumb} alt={ag.name} loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
@@ -507,154 +508,33 @@ export default function Lobby() {
         </div>
       </div>
 
-      {/* Game iframe */}
+      {/* Game iframe (DEMO mode for browsing 3rd party games) */}
       {gameUrl && (
         <div className="fixed inset-0 bg-black flex flex-col" style={{ zIndex: 9999 }}>
           <div className="flex items-center justify-between p-2 flex-shrink-0 gap-2"
-            style={{ background: "#020408", borderBottom: "1px solid rgba(0,209,255,0.15)" }}>
+            style={{ background: "#020408", borderBottom: "1px solid rgba(255,165,0,0.25)" }}>
             <div className="flex items-center gap-2 min-w-0">
               <span className="font-black text-xs tracking-wider flex-shrink-0" style={{ color: "#00D1FF" }}>TUNBET</span>
+              <span className="px-2 py-0.5 rounded text-[9px] font-black"
+                style={{ background: "rgba(255,165,0,0.85)", color: "#000" }}>🎮 DEMO</span>
               {activeGame && (
                 <span className="text-[10px] text-white/60 font-bold truncate">{activeGame.game_name}</span>
               )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {sessionAmt > 0 && (
-                <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg"
-                  style={{ background: "rgba(255,215,0,0.1)", border: "1px solid rgba(255,215,0,0.25)" }}>
-                  <span className="text-[9px] text-white/40">Session:</span>
-                  <span className="text-[10px] text-yellow-400 font-bold">{sessionAmt.toFixed(2)} TND</span>
-                </div>
-              )}
-              {user && (
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg"
-                  style={{ background: "rgba(0,200,83,0.1)", border: "1px solid rgba(0,200,83,0.25)" }}>
-                  <span className="text-[9px] text-white/40">💰</span>
-                  <span className="text-[10px] text-green-400 font-bold">{user.balance} TND</span>
-                </div>
-              )}
-              <button onClick={closeGame} disabled={closingGame} className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50"
-                style={{ background: sessionAmt > 0 ? "linear-gradient(135deg,#00C853,#00E676)" : "rgba(255,45,85,0.15)",
-                         color: sessionAmt > 0 ? "#000" : "#FF2D55",
-                         border: sessionAmt > 0 ? "none" : "1px solid rgba(255,45,85,0.3)" }}>
-                {closingGame ? "..." : sessionAmt > 0 ? "💰 Cash Out" : t("closeGame") + " ✕"}
+              <a href="/originals" onClick={(e) => { e.preventDefault(); window.location.hash="#/originals"; window.location.pathname="/originals"; }}
+                className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold"
+                style={{ background: "linear-gradient(135deg,#a855f7,#FF2D55)", color: "#fff" }}>
+                💰 Real TND → Originals
+              </a>
+              <button onClick={closeGame} className="px-3 py-1.5 rounded-lg text-xs font-bold"
+                style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55", border: "1px solid rgba(255,45,85,0.3)" }}>
+                ✕ Close
               </button>
             </div>
           </div>
           <div className="flex-1 relative">
             <iframe ref={iframeRef} src={gameUrl} className="w-full h-full border-none absolute inset-0" title="Game" allow="fullscreen autoplay" />
-            {closingGame && (
-              <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.85)", zIndex: 10 }}>
-                <div className="text-center space-y-3">
-                  <div className="w-10 h-10 mx-auto rounded-full animate-spin" style={{ borderWidth: 3, borderStyle: "solid", borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00D1FF" }} />
-                  <p className="text-sm font-bold" style={{ color: "#00D1FF" }}>{t("savingBalance")}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Pre-launch Session dialog (Free Demo with Escrow) */}
-      {pendingGame && user && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.88)", backdropFilter: "blur(12px)" }}
-          onClick={() => setPendingGame(null)}>
-          <div onClick={e => e.stopPropagation()}
-            className="w-full max-w-sm rounded-2xl overflow-hidden"
-            style={{ background: "rgba(15,18,28,0.98)", border: "1px solid rgba(0,209,255,0.3)" }}>
-            <div className="relative h-32 overflow-hidden">
-              <img src={pendingGame.game_image_narrow || pendingGame.game_image} alt={pendingGame.game_name}
-                className="w-full h-full object-cover" />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(15,18,28,0.98), transparent 50%)" }} />
-              <button onClick={() => setPendingGame(null)}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(0,0,0,0.7)", color: "#fff" }}>✕</button>
-              <div className="absolute bottom-2 left-3 right-3">
-                <h3 className="text-lg font-black text-white">{pendingGame.game_name}</h3>
-                <p className="text-[10px] text-white/60">{getProviderName(pendingGame.provider_id)}</p>
-              </div>
-            </div>
-            <div className="p-4 space-y-3">
-              <div className="rounded-lg p-2.5" style={{ background: "rgba(0,209,255,0.06)" }}>
-                <p className="text-[10px] text-white/60 leading-tight">
-                  💡 يُخصم مبلغ الجلسة من رصيدك ويُعاد عند الإنهاء حسب نتيجتك<br/>
-                  رصيدك الحالي: <b className="text-white">{user.balance} TND</b>
-                </p>
-              </div>
-              <div>
-                <label className="text-[10px] text-white/40 mb-1 block">مبلغ الجلسة (TND)</label>
-                <input type="number" value={stakeInput} onChange={e => setStakeInput(e.target.value)}
-                  min="1" max={parseFloat(user.balance)} step="0.5"
-                  className="w-full px-3 py-2.5 rounded-xl text-lg font-black text-white text-center"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,209,255,0.25)" }} />
-                <div className="flex gap-1.5 mt-2">
-                  {[5, 10, 20, 50, 100].map(v => (
-                    <button key={v} onClick={() => setStakeInput(String(v))}
-                      className="flex-1 py-1 rounded-md text-[10px] font-bold text-white/60"
-                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {launchError && <p className="text-[11px] text-center font-bold text-pink-400">{launchError}</p>}
-              <button onClick={confirmLaunchWithSession} disabled={launchingGame === pendingGame.game_code}
-                className="w-full py-3 rounded-xl text-sm font-black text-black disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #00D1FF, #0066FF)" }}>
-                {launchingGame === pendingGame.game_code ? "..." : `🎰 Open • ${parseFloat(stakeInput || "0").toFixed(2)} TND`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cash Out modal */}
-      {showCloseModal && user && (
-        <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.9)", backdropFilter: "blur(12px)" }}>
-          <div className="w-full max-w-sm rounded-2xl overflow-hidden"
-            style={{ background: "rgba(15,18,28,0.98)", border: "1px solid rgba(0,200,83,0.3)" }}>
-            <div className="p-4 border-b" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
-              <h3 className="text-lg font-black text-white mb-1">💰 Cash Out</h3>
-              <p className="text-[11px] text-white/40">أدخل رصيدك المتبقي لإعادته لمحفظتك</p>
-            </div>
-            <div className="p-4 space-y-3">
-              <div className="rounded-xl p-3 text-center" style={{ background: "rgba(0,209,255,0.08)" }}>
-                <p className="text-[10px] text-white/40 mb-1">Session opened with</p>
-                <p className="text-2xl font-black text-white">{sessionAmt.toFixed(2)} <span className="text-sm text-white/40">TND</span></p>
-              </div>
-              <div>
-                <label className="text-[10px] text-white/40 mb-1 block">رصيدك الحالي في اللعبة (TND)</label>
-                <input type="number" value={closeInput} onChange={e => setCloseInput(e.target.value)}
-                  step="0.01" min="0"
-                  className="w-full px-3 py-2.5 rounded-xl text-lg font-black text-white text-center"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }} />
-              </div>
-              {closeInput && !isNaN(parseFloat(closeInput)) && (
-                <div className="rounded-lg p-2.5 text-center"
-                  style={{ background: parseFloat(closeInput) >= sessionAmt ? "rgba(0,200,83,0.1)" : "rgba(255,45,85,0.1)" }}>
-                  <p className="text-[10px] text-white/40">Net Result</p>
-                  <p className="text-lg font-black"
-                    style={{ color: parseFloat(closeInput) >= sessionAmt ? "#00C853" : "#FF2D55" }}>
-                    {parseFloat(closeInput) >= sessionAmt ? "+" : ""}{(parseFloat(closeInput) - sessionAmt).toFixed(2)} TND
-                  </p>
-                </div>
-              )}
-              {launchError && <p className="text-[11px] text-center font-bold text-pink-400">{launchError}</p>}
-              <div className="flex gap-2">
-                <button onClick={() => { setShowCloseModal(false); setLaunchError(""); }}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white/60"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  إلغاء
-                </button>
-                <button onClick={confirmCloseSession} disabled={closingGame || !closeInput}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-black text-black disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg,#00C853,#00E676)" }}>
-                  {closingGame ? "..." : "تأكيد"}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}

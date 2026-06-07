@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Gamepad2, Trophy, Flame, Vault } from "lucide-react";
+import { Gamepad2, Trophy, Flame, Vault, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { t, isRTL } from "@/lib/i18n";
 
@@ -8,6 +8,7 @@ export function BottomNav() {
 
   const navItems = [
     { path: "/", label: t("casino"), icon: Gamepad2 },
+    { path: "/originals", label: "Originals", icon: Sparkles },
     { path: "/sports", label: t("sports"), icon: Trophy },
     { path: "/live", label: t("live"), icon: Flame },
     { path: "/vault", label: t("vault"), icon: Vault },

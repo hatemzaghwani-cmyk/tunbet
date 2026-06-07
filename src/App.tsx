@@ -9,6 +9,7 @@ import Lobby from "@/pages/Lobby";
 import Sports from "@/pages/Sports";
 import Live from "@/pages/Live";
 import Vault from "@/pages/Vault";
+import Originals from "@/pages/Originals";
 import { Layout } from "@/components/Layout";
 import AdminPanel from "@/pages/admin/AdminPanel";
 import AgentPanel from "@/pages/agent/AgentPanel";
@@ -20,6 +21,7 @@ function CasinoRouter() {
     <AnimatePresence mode="wait">
       <Switch>
         <Route path="/" component={Lobby} />
+        <Route path="/originals" component={Originals} />
         <Route path="/sports" component={Sports} />
         <Route path="/live" component={Live} />
         <Route path="/vault" component={Vault} />
