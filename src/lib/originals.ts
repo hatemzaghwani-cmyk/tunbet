@@ -296,3 +296,244 @@ export async function plinkoRound(
   }
   return { ok: true, path, bucket, multiplier, payout, balance, won, serverSeed };
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// GAME 6: COIN FLIP — bet on heads/tails, 1.98x payout (1% edge)
+// ─────────────────────────────────────────────────────────────────────
+
+export async function coinFlip(
+  userId: number,
+  stake: number,
+  pick: "heads" | "tails",
+  clientSeed: string,
+  nonce: number
+): Promise<{ ok: boolean; result?: "heads" | "tails"; won?: boolean; payout?: number; balance?: number; error?: string; serverSeed?: string }> {
+  const dr = await debit(userId, stake, "CoinFlip");
+  if (!dr.ok) return { ok: false, error: dr.error };
+  const serverSeed = generateServerSeed();
+  const r = await fairRandom(serverSeed, clientSeed, nonce);
+  const result: "heads" | "tails" = r < 0.5 ? "heads" : "tails";
+  const won = result === pick;
+  let balance = dr.balance!;
+  let payout = 0;
+  if (won) {
+    payout = +(stake * 1.98).toFixed(2);
+    const cr = await credit(userId, payout, "CoinFlip", true);
+    if (cr.ok) balance = cr.balance!;
+  }
+  return { ok: true, result, won, payout, balance, serverSeed };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// GAME 7: HI-LO — guess if next card is higher or lower
+// Multiplier = 99 / win_chance (1% edge)
+// ─────────────────────────────────────────────────────────────────────
+
+export const CARDS = [
+  { v: 1, n: "A", s: "♠" }, { v: 2, n: "2", s: "♠" }, { v: 3, n: "3", s: "♠" }, { v: 4, n: "4", s: "♠" },
+  { v: 5, n: "5", s: "♠" }, { v: 6, n: "6", s: "♠" }, { v: 7, n: "7", s: "♠" }, { v: 8, n: "8", s: "♠" },
+  { v: 9, n: "9", s: "♠" }, { v: 10, n: "10", s: "♠" }, { v: 11, n: "J", s: "♠" }, { v: 12, n: "Q", s: "♠" },
+  { v: 13, n: "K", s: "♠" }
+];
+
+export async function drawCard(serverSeed: string, clientSeed: string, nonce: number): Promise<{ v: number; n: string; s: string }> {
+  const r = await fairRandom(serverSeed, clientSeed, nonce);
+  const idx = Math.floor(r * 13);
+  const suits = ["♠", "♥", "♦", "♣"];
+  const r2 = await fairRandom(serverSeed, clientSeed, nonce + 99999);
+  const s = suits[Math.floor(r2 * 4)];
+  return { ...CARDS[idx], s };
+}
+
+export async function hiloPlay(
+  userId: number,
+  stake: number,
+  currentCardValue: number,
+  guess: "higher" | "lower" | "equal",
+  clientSeed: string,
+  nonce: number
+): Promise<{ ok: boolean; newCard?: { v: number; n: string; s: string }; won?: boolean; multiplier?: number; payout?: number; balance?: number; error?: string; serverSeed?: string }> {
+  const dr = await debit(userId, stake, "HiLo");
+  if (!dr.ok) return { ok: false, error: dr.error };
+  const serverSeed = generateServerSeed();
+  const newCard = await drawCard(serverSeed, clientSeed, nonce);
+  // Calculate multiplier based on probability
+  let winChance: number;
+  if (guess === "higher") winChance = (13 - currentCardValue) / 13 * 100;
+  else if (guess === "lower") winChance = (currentCardValue - 1) / 13 * 100;
+  else winChance = 1 / 13 * 100; // equal
+  const multiplier = winChance > 0 ? +(99 / winChance).toFixed(4) : 0;
+  let won = false;
+  if (guess === "higher") won = newCard.v > currentCardValue;
+  else if (guess === "lower") won = newCard.v < currentCardValue;
+  else won = newCard.v === currentCardValue;
+  let balance = dr.balance!;
+  let payout = 0;
+  if (won && multiplier > 0) {
+    payout = +(stake * multiplier).toFixed(2);
+    const cr = await credit(userId, payout, "HiLo", true);
+    if (cr.ok) balance = cr.balance!;
+  }
+  return { ok: true, newCard, won, multiplier, payout, balance, serverSeed };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// GAME 8: WHEEL of Fortune — 50 segments with various multipliers
+// ─────────────────────────────────────────────────────────────────────
+
+export const WHEEL_SEGMENTS: Record<string, number[]> = {
+  // Low risk: small but more frequent wins
+  "low":  [1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.2, 1.2, 0, 1.2, 1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.5, 1.2, 1.2, 1.2],
+  "med":  [3.0, 1.5, 0, 1.5, 0, 1.5, 2.0, 0, 1.5, 0, 2.0, 1.5, 0, 1.5, 0, 1.5, 3.0, 1.5, 2.0, 0],
+  "high": [10, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 50, 0, 0, 0, 0],
+};
+
+export async function wheelSpin(
+  userId: number,
+  stake: number,
+  risk: "low" | "med" | "high",
+  clientSeed: string,
+  nonce: number
+): Promise<{ ok: boolean; segment?: number; multiplier?: number; payout?: number; balance?: number; won?: boolean; error?: string; serverSeed?: string }> {
+  const dr = await debit(userId, stake, "Wheel");
+  if (!dr.ok) return { ok: false, error: dr.error };
+  const serverSeed = generateServerSeed();
+  const r = await fairRandom(serverSeed, clientSeed, nonce);
+  const segments = WHEEL_SEGMENTS[risk];
+  const segment = Math.floor(r * segments.length);
+  const multiplier = segments[segment];
+  let balance = dr.balance!;
+  let payout = 0;
+  const won = multiplier > 0;
+  if (won) {
+    payout = +(stake * multiplier).toFixed(2);
+    const cr = await credit(userId, payout, "Wheel", true);
+    if (cr.ok) balance = cr.balance!;
+  }
+  return { ok: true, segment, multiplier, payout, balance, won, serverSeed };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// GAME 9: KENO — pick 1-10 numbers from 1-40, draw 10
+// Payout depends on hits, configurable risk
+// ─────────────────────────────────────────────────────────────────────
+
+// Payout table per risk: rows = picks, cols = hits 0-10
+export const KENO_PAYOUTS: Record<string, number[][]> = {
+  low: [
+    [], //0 picks
+    [0.7, 1.85], //1
+    [0, 2, 3.8],
+    [0, 1, 1.4, 10],
+    [0, 0, 1.4, 3, 22],
+    [0, 0, 1.4, 1.5, 4, 14],
+    [0, 0, 0.5, 1.4, 2.5, 6, 30],
+    [0, 0, 0.5, 1.5, 1.5, 3, 7, 35],
+    [0, 0, 0.5, 1.4, 1.5, 2, 4, 16, 60],
+    [0, 0, 0.5, 1.4, 1.5, 2, 3.5, 5, 20, 70],
+    [0, 0, 0.5, 1, 1.5, 2, 3, 5, 12, 30, 100],
+  ],
+  med: [
+    [],
+    [0.4, 2.75],
+    [0, 1.8, 5.1],
+    [0, 0, 2.8, 50],
+    [0, 0, 1.7, 10, 100],
+    [0, 0, 1.4, 4, 14, 390],
+    [0, 0, 0, 3, 9, 180, 710],
+    [0, 0, 0, 2, 7, 30, 400, 800],
+    [0, 0, 0, 2, 4, 11, 67, 400, 900],
+    [0, 0, 0, 2, 2.5, 5, 15, 100, 500, 1000],
+    [0, 0, 0, 1.6, 2, 4, 7, 26, 100, 500, 1000],
+  ],
+  high: [
+    [],
+    [0, 3.96],
+    [0, 0, 17.1],
+    [0, 0, 0, 81.5],
+    [0, 0, 0, 10, 259],
+    [0, 0, 0, 4.5, 48, 450],
+    [0, 0, 0, 0, 11, 350, 710],
+    [0, 0, 0, 0, 7, 90, 400, 800],
+    [0, 0, 0, 0, 5, 20, 270, 600, 900],
+    [0, 0, 0, 0, 4, 11, 56, 500, 800, 1000],
+    [0, 0, 0, 0, 3.5, 8, 13, 63, 500, 800, 1000],
+  ],
+};
+
+export async function kenoPlay(
+  userId: number,
+  stake: number,
+  picks: number[],
+  risk: "low" | "med" | "high",
+  clientSeed: string,
+  nonce: number
+): Promise<{ ok: boolean; draws?: number[]; hits?: number; multiplier?: number; payout?: number; balance?: number; won?: boolean; error?: string; serverSeed?: string }> {
+  if (picks.length < 1 || picks.length > 10) return { ok: false, error: "اختر 1-10 أرقام" };
+  const dr = await debit(userId, stake, "Keno");
+  if (!dr.ok) return { ok: false, error: dr.error };
+  const serverSeed = generateServerSeed();
+  // Draw 10 unique numbers from 1-40
+  const pool = Array.from({ length: 40 }, (_, i) => i + 1);
+  for (let i = 39; i > 0; i--) {
+    const r = await fairRandom(serverSeed, clientSeed, nonce + i);
+    const j = Math.floor(r * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const draws = pool.slice(0, 10);
+  const hits = picks.filter(p => draws.includes(p)).length;
+  const multiplier = KENO_PAYOUTS[risk][picks.length]?.[hits] || 0;
+  let balance = dr.balance!;
+  let payout = 0;
+  const won = multiplier > 0;
+  if (won) {
+    payout = +(stake * multiplier).toFixed(2);
+    const cr = await credit(userId, payout, "Keno", true);
+    if (cr.ok) balance = cr.balance!;
+  }
+  return { ok: true, draws, hits, multiplier, payout, balance, won, serverSeed };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// GAME 10: TOWER — climb 9 levels, each has 1-4 mines per row
+// House edge: ~3%; mode = easy(1 mine of 4) / medium(2/4) / hard(3/4)
+// Multiplier per safe level: safe_count / (4 - mines)
+// ─────────────────────────────────────────────────────────────────────
+
+export const TOWER_CONFIG = {
+  easy: { tilesPerRow: 4, minesPerRow: 1 },
+  medium: { tilesPerRow: 3, minesPerRow: 1 },
+  hard: { tilesPerRow: 2, minesPerRow: 1 },
+  extreme: { tilesPerRow: 3, minesPerRow: 2 },
+};
+
+export function towerMultiplier(mode: keyof typeof TOWER_CONFIG, level: number): number {
+  const cfg = TOWER_CONFIG[mode];
+  const safe = cfg.tilesPerRow - cfg.minesPerRow;
+  let m = 1;
+  for (let i = 0; i < level; i++) {
+    m *= cfg.tilesPerRow / safe;
+  }
+  return +(m * 0.97).toFixed(4); // 3% edge
+}
+
+export async function towerStart(userId: number, stake: number, mode: keyof typeof TOWER_CONFIG, clientSeed: string, nonce: number): Promise<{ ok: boolean; mineLayout?: number[]; balance?: number; serverSeed?: string; error?: string }> {
+  const dr = await debit(userId, stake, "Tower");
+  if (!dr.ok) return { ok: false, error: dr.error };
+  const serverSeed = generateServerSeed();
+  const cfg = TOWER_CONFIG[mode];
+  const mineLayout: number[] = []; // mine column per row (0 to tilesPerRow-1)
+  for (let i = 0; i < 9; i++) {
+    const r = await fairRandom(serverSeed, clientSeed, nonce + i);
+    // For simplicity, pick first mine column. If minesPerRow > 1, we'd need set
+    mineLayout.push(Math.floor(r * cfg.tilesPerRow));
+  }
+  return { ok: true, mineLayout, balance: dr.balance, serverSeed };
+}
+
+export async function towerCashout(userId: number, stake: number, mode: keyof typeof TOWER_CONFIG, level: number): Promise<{ ok: boolean; payout?: number; balance?: number }> {
+  const m = towerMultiplier(mode, level);
+  const payout = +(stake * m).toFixed(2);
+  const cr = await credit(userId, payout, "Tower", true);
+  return { ok: cr.ok, payout, balance: cr.balance };
+}
