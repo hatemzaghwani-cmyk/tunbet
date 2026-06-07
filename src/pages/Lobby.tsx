@@ -6,7 +6,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { apiGames, apiGameProviders, apiLaunchGame, apiSyncBalance } from "@/lib/localApi";
-import { AMATIC_GAMES } from "@/lib/amaticGames";
 import { useLocation } from "wouter";
 
 
@@ -335,82 +334,93 @@ export default function Lobby() {
                 </div>
               )}
 
-              {/* AMATIC INDUSTRIES — real catalog, native engine with TND wallet */}
-              {!search && activeProvider === null && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-md flex items-center justify-center"
-                        style={{ background: "linear-gradient(135deg,#FFD700,#FF8C00)" }}>
-                        <Crown className="w-3.5 h-3.5 text-black" />
-                      </div>
-                      <h2 className="text-sm font-black tracking-wider text-white uppercase">Amatic Industries</h2>
-                      <span className="px-1.5 py-0.5 rounded text-[8px] font-black"
-                        style={{ background: "rgba(0,200,83,0.18)", color: "#00C853" }}>
-                        REAL TND
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-white/40">{AMATIC_GAMES.length} games</span>
-                  </div>
+              {/* FEATURED PROVIDERS — real games, real TND wallet via AES */}
+              {!search && activeProvider === null && (() => {
+                const FEATURED_BLOCKS: Array<{
+                  id: number; label: string; tag: string; grad: string; ring: string; accent: string;
+                }> = [
+                  { id: 15, label: "Spribe", tag: "Crash · Aviator · Mines", grad: "linear-gradient(135deg,#84cc16,#16a34a)", ring: "rgba(132,204,22,0.35)", accent: "#84cc16" },
+                  { id: 20, label: "BGaming", tag: "Plinko · Aviatrix · Originals", grad: "linear-gradient(135deg,#6366f1,#8b5cf6)", ring: "rgba(99,102,241,0.35)", accent: "#818cf8" },
+                  { id: 16, label: "Hacksaw Gaming", tag: "Hand of Anubis · Wanted · Cash Compass", grad: "linear-gradient(135deg,#f97316,#dc2626)", ring: "rgba(249,115,22,0.35)", accent: "#fb923c" },
+                ];
+                return (
+                  <>
+                    {FEATURED_BLOCKS.map(block => {
+                      const blockGames = games
+                        .filter(g => g.provider_id === block.id && g.launch_enable)
+                        .slice(0, 6);
+                      if (blockGames.length === 0) return null;
+                      return (
+                        <div key={block.id} className="mb-4">
+                          <div className="flex items-center justify-between mb-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-md flex items-center justify-center"
+                                style={{ background: block.grad }}>
+                                <Sparkles className="w-3.5 h-3.5 text-white" />
+                              </div>
+                              <h2 className="text-sm font-black tracking-wider text-white uppercase">{block.label}</h2>
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-black"
+                                style={{ background: "rgba(0,200,83,0.18)", color: "#00C853" }}>
+                                REAL TND
+                              </span>
+                            </div>
+                            <button onClick={() => setActiveProvider(block.id)}
+                              className="text-[10px] font-bold uppercase tracking-wider"
+                              style={{ color: block.accent }}>
+                              {t("seeAll") || "See all"} →
+                            </button>
+                          </div>
 
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {AMATIC_GAMES.map((ag, i) => (
-                      <motion.div key={ag.id}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: Math.min(i * 0.012, 0.25) }}
-                        whileHover={{ y: -3 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => {
-                          if (!user) { setShowAuth(true); return; }
-                          navigate(`/slot/${ag.id}`);
-                        }}
-                        className="relative rounded-xl overflow-hidden cursor-pointer group"
-                        style={{ aspectRatio: "3/4", border: "1px solid rgba(255,215,0,0.18)" }}>
+                          <div className="grid grid-cols-3 gap-2.5">
+                            {blockGames.map((g, i) => (
+                              <motion.div key={`${block.id}-${g.game_code}`}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: Math.min(i * 0.04, 0.25) }}
+                                whileHover={{ y: -3 }}
+                                whileTap={{ scale: 0.97 }}
+                                onClick={() => launchGame(g)}
+                                className="relative rounded-xl overflow-hidden cursor-pointer group"
+                                style={{ aspectRatio: "3/4", border: `1px solid ${block.ring}` }}>
 
-                        <img src={ag.thumb} alt={ag.name} loading="lazy"
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                          onError={e => {
-                            const t = e.target as HTMLImageElement;
-                            if (ag.thumbFallback && t.src !== ag.thumbFallback) { t.src = ag.thumbFallback; return; }
-                            t.style.background = "linear-gradient(135deg,#1a1d28,#3D2400)";
-                            t.style.display = "none";
-                          }} />
+                                <img src={g.game_image_narrow || g.game_image} alt={g.game_name || g.locale_name} loading="lazy"
+                                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                  onError={e => {
+                                    const t = e.target as HTMLImageElement;
+                                    if (g.game_image && t.src !== g.game_image) { t.src = g.game_image; return; }
+                                    t.style.display = "none";
+                                  }} />
 
-                        <div className="absolute inset-0"
-                          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 45%, transparent 80%)" }} />
+                                <div className="absolute inset-0"
+                                  style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 45%, transparent 80%)" }} />
 
-                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[7px] font-black"
-                          style={{ background: "linear-gradient(135deg,#FFD700,#FF8C00)", color: "#000" }}>
-                          AMATIC
-                        </div>
+                                <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[7px] font-black uppercase"
+                                  style={{ background: block.grad, color: "#fff" }}>
+                                  {block.label.split(" ")[0]}
+                                </div>
 
-                        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[7px] font-black"
-                          style={{ background: "rgba(0,0,0,0.7)", color: "#FFD700" }}>
-                          {ag.rtp}%
-                        </div>
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="w-11 h-11 rounded-full flex items-center justify-center"
+                                    style={{ background: block.accent, boxShadow: `0 0 24px ${block.ring}` }}>
+                                    <span className="text-black font-black text-lg ml-0.5">▶</span>
+                                  </div>
+                                </div>
 
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="w-11 h-11 rounded-full flex items-center justify-center"
-                            style={{ background: "rgba(255,215,0,0.95)", boxShadow: "0 0 24px rgba(255,215,0,0.7)" }}>
-                            <span className="text-black font-black text-lg ml-0.5">▶</span>
+                                <div className="absolute bottom-0 left-0 right-0 p-1.5">
+                                  <p className="text-[10px] font-black text-white leading-tight tracking-wide line-clamp-2"
+                                    style={{ textShadow: "0 2px 4px rgba(0,0,0,0.95)" }}>
+                                    {g.game_name || g.locale_name}
+                                  </p>
+                                </div>
+                              </motion.div>
+                            ))}
                           </div>
                         </div>
-
-                        <div className="absolute bottom-0 left-0 right-0 p-1.5">
-                          <p className="text-[10px] font-black text-white leading-tight tracking-wide line-clamp-2"
-                            style={{ textShadow: "0 0 8px rgba(255,215,0,0.5), 0 2px 4px rgba(0,0,0,0.95)" }}>
-                            {ag.name}
-                          </p>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-[7px] text-white/50">{ag.reels}×3 · {ag.paylines}L</span>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                      );
+                    })}
+                  </>
+                );
+              })()}
 
               {/* Provider filter */}
               <div>
