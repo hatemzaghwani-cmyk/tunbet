@@ -314,6 +314,26 @@ export default function Lobby() {
             </div>
           ) : (
             <>
+              {/* ========== TOP: Most Popular (mixed sizes) ========== */}
+              {!search && activeProvider === null && topPicks.length > 0 && (
+                <div className="mb-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Flame className="w-4 h-4 animate-pulse" style={{ color: "#FF2D55" }} />
+                    <h2 className="text-sm font-black tracking-wider">{t("popular") || "Most Popular"}</h2>
+                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black ml-1"
+                      style={{ background: "rgba(0,200,83,0.18)", color: "#00C853" }}>
+                      REAL TND
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {topPicks.slice(0, 7).map((g, idx) => (
+                      <GameCard key={`top-${g.provider_id}-${g.game_code}`} game={g} i={idx}
+                        size={idx === 0 || idx === 6 ? "wide" : "normal"} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* ========== HOMEPAGE: section-per-provider ========== */}
               {!search && activeProvider === null && (() => {
                 // Color/branding per provider (fallback to PROVIDER_COLORS map)
