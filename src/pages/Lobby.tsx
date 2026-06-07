@@ -237,7 +237,9 @@ export default function Lobby() {
     const res = await openEscrow(user.id, amt, pendingGame.game_name, "Free Demo");
     if (!res.ok) { setLaunchError(res.error || "خطأ"); setLaunchingGame(null); return; }
     await refreshBalance();
-    const url = getDemoUrl(pendingGame.provider_id, pendingGame.game_code);
+    // Support: 1) Amatic direct URL (via _amaticUrl), 2) Pragmatic free demo via mapping
+    const amaticUrl = (pendingGame as any)._amaticUrl;
+    const url = amaticUrl || getDemoUrl(pendingGame.provider_id, pendingGame.game_code);
     if (url) {
       setGameUrl(url);
       setActiveGame(pendingGame);
@@ -249,8 +251,9 @@ export default function Lobby() {
 
   const closeGame = async () => {
     if (!user || !token) { setGameUrl(null); setActiveGame(null); return; }
-    // If escrow session active → require cash out
-    if (sessionAmt > 0 && activeGame && hasFreeDemo(activeGame.provider_id)) {
+    // If escrow session active → require cash out (Pragmatic, Amatic, or any provider with free demo)
+    const isFreeSession = activeGame && (hasFreeDemo(activeGame.provider_id) || activeGame.provider_id === 999 || (activeGame as any)._amaticUrl);
+    if (sessionAmt > 0 && isFreeSession) {
       setCloseInput(sessionAmt.toFixed(2));
       setShowCloseModal(true);
       return;
@@ -383,46 +386,38 @@ export default function Lobby() {
                       <Crown className="w-3.5 h-3.5 text-black" />
                     </div>
                     <h2 className="text-sm font-black tracking-wider text-white/70 uppercase">AMATIC</h2>
-                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(255,215,0,0.15)", color: "#FFD700" }}>EXCLUSIVE</span>
+                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(0,200,83,0.18)", color: "#00C853" }}>💰 TND</span>
                   </div>
                   <span className="text-[10px] text-white/30">{AMATIC_GAMES.length} games</span>
                 </div>
-                <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-hide">
-                  {AMATIC_GAMES.map((ag, i) => (
+                <div className="grid grid-cols-3 gap-2">
+                  {AMATIC_GAMES.map((ag) => (
                     <div key={ag.id}
-                      className="flex-shrink-0 w-[130px] rounded-xl overflow-hidden cursor-pointer group relative"
-                      style={{ aspectRatio: "3/4", border: "1px solid rgba(255,215,0,0.12)" }}
-                      onClick={async () => {
-                      if (!user || !token) { setShowAuth(true); return; }
-                      const bal = parseFloat(user.balance);
-                      // Try OroPlay real money launch
-                      try {
-                        const userCode = `tb_${user.id}`;
-                        await oroCreateUser(userCode);
-                        if (bal > 0) {
-                          await oroDeposit(userCode, bal);
-                          // Deduct from Supabase
-                          await fetch("https://cjzjrnagpsdmolvbkhnu.supabase.co/rest/v1/rpc/update_balance", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json", "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqempybmFncHNkbW9sdmJraG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0ODY4NCwiZXhwIjoyMDk1OTI0Njg0fQ.TmowEatc4g2xpD-GT0r-jofX1zCtXjTD-s4LF7JSs6o", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqempybmFncHNkbW9sdmJraG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0ODY4NCwiZXhwIjoyMDk1OTI0Njg0fQ.TmowEatc4g2xpD-GT0r-jofX1zCtXjTD-s4LF7JSs6o" },
-                            body: JSON.stringify({ p_user_id: user.id, p_action: "set", p_amount: 0 }),
-                          });
-                        }
-                        const result = await oroLaunchGame(userCode, "slot-amatic", ag.slug, "en");
-                        if (result.url) { setAmaticUrl(result.url); return; }
-                      } catch (e) {
-                        console.log("OroPlay unavailable, using demo:", e);
-                      }
-                      // Fallback to demo
-                      setAmaticUrl(ag.url);
-                    }}>
+                      className="rounded-xl overflow-hidden cursor-pointer group relative"
+                      style={{ aspectRatio: "3/4", border: "1px solid rgba(255,215,0,0.12)", background: "rgba(255,215,0,0.04)" }}
+                      onClick={() => {
+                        if (!user) { setShowAuth(true); return; }
+                        // Use free demo via Escrow wallet (same as Pragmatic)
+                        setPendingGame({
+                          provider_id: 999, // marker for Amatic free demo
+                          game_code: ag.id,
+                          game_name: ag.name,
+                          locale_name: ag.name,
+                          game_image: ag.thumb,
+                          game_image_narrow: ag.thumb,
+                          launch_enable: true,
+                          category: "Slots",
+                          // Add demo URL directly
+                          _amaticUrl: ag.url,
+                        } as any);
+                        setStakeInput("10");
+                      }}>
                       <img src={ag.thumb} alt={ag.name} loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        onError={e => { (e.target as HTMLImageElement).src = "https://shared.vibdbymfua.net/amatic/thumbs/diamondstaxx.avif"; }} />
-                      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%)" }} />
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, transparent 55%)" }} />
                       <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[7px] font-black"
-                        style={{ background: oroReady ? "rgba(0,200,0,0.9)" : "rgba(255,215,0,0.9)", color: "#000" }}>
-                        {oroReady ? "💰 REAL" : "AMATIC"}</div>
+                        style={{ background: "rgba(255,215,0,0.95)", color: "#000" }}>AMATIC</div>
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(255,215,0,0.9)" }}>
                           <Zap className="w-5 h-5 text-black" />
@@ -661,40 +656,6 @@ export default function Lobby() {
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Amatic Game iframe */}
-      {amaticUrl && (
-        <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-          <div className="flex items-center justify-between px-3 py-2" style={{ background: "linear-gradient(90deg, rgba(255,215,0,0.1), rgba(0,0,0,0.9))" }}>
-            <div className="flex items-center gap-2">
-              <div className="px-2 py-0.5 rounded text-[9px] font-black" style={{ background: "rgba(255,215,0,0.9)", color: "#000" }}>AMATIC</div>
-              <span className="text-xs text-white/50 font-mono">{amaticUrl?.includes("freeplay") ? "Demo Mode" : "💰 Real Money"}</span>
-            </div>
-            <button onClick={async () => {
-              if (user) {
-                try {
-                  const userCode = `tb_${user.id}`;
-                  const wd = await oroWithdrawAll(userCode);
-                  if (wd.success && wd.message > 0) {
-                    await fetch("https://cjzjrnagpsdmolvbkhnu.supabase.co/rest/v1/rpc/update_balance", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqempybmFncHNkbW9sdmJraG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0ODY4NCwiZXhwIjoyMDk1OTI0Njg0fQ.TmowEatc4g2xpD-GT0r-jofX1zCtXjTD-s4LF7JSs6o", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqempybmFncHNkbW9sdmJraG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0ODY4NCwiZXhwIjoyMDk1OTI0Njg0fQ.TmowEatc4g2xpD-GT0r-jofX1zCtXjTD-s4LF7JSs6o" },
-                      body: JSON.stringify({ p_user_id: user.id, p_action: "set", p_amount: wd.message }),
-                    });
-                    refreshBalance();
-                  }
-                } catch {}
-              }
-              setAmaticUrl(null);
-            }}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold text-black"
-              style={{ background: "linear-gradient(135deg, #FFD700, #FF8C00)" }}>
-              ✕ Close
-            </button>
-          </div>
-          <iframe src={amaticUrl} className="flex-1 w-full border-none" allow="fullscreen autoplay" title="Amatic Game" />
         </div>
       )}
 
