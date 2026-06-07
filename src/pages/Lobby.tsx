@@ -314,96 +314,104 @@ export default function Lobby() {
             </div>
           ) : (
             <>
-              {/* Featured - Top picks with mixed sizes */}
-              {!search && activeProvider === null && topPicks.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Flame className="w-4 h-4 animate-pulse" style={{ color: "#FF2D55" }} />
-                    <h2 className="text-sm font-black tracking-wider">${t("popular")}</h2>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {/* First: 1 wide card + 2 normal */}
-                    <GameCard game={topPicks[0]} i={0} size="wide" />
-                    <GameCard game={topPicks[1]} i={1} />
-                    {/* Next row: 3 normal */}
-                    <GameCard game={topPicks[2]} i={2} />
-                    <GameCard game={topPicks[3]} i={3} />
-                    <GameCard game={topPicks[4]} i={4} />
-                    {/* Last: 2 normal + 1 wide */}
-                    <GameCard game={topPicks[5]} i={5} />
-                    <GameCard game={topPicks[6]} i={6} size="wide" />
-                  </div>
-                </div>
-              )}
-
-              {/* FEATURED PROVIDERS — real games, real TND wallet via AES */}
+              {/* ========== HOMEPAGE: section-per-provider ========== */}
               {!search && activeProvider === null && (() => {
-                const FEATURED_BLOCKS: Array<{
-                  id: number; label: string; tag: string; grad: string; ring: string; accent: string;
-                }> = [
-                  { id: 15, label: "Spribe", tag: "Crash · Aviator · Mines", grad: "linear-gradient(135deg,#84cc16,#16a34a)", ring: "rgba(132,204,22,0.35)", accent: "#84cc16" },
-                  { id: 3, label: "PG Soft", tag: "Mahjong · Treasures of Aztec · Wild Bandito", grad: "linear-gradient(135deg,#a855f7,#7c3aed)", ring: "rgba(168,85,247,0.35)", accent: "#c084fc" },
-                  { id: 16, label: "Hacksaw Gaming", tag: "Hand of Anubis · Wanted · Cash Compass", grad: "linear-gradient(135deg,#f97316,#dc2626)", ring: "rgba(249,115,22,0.35)", accent: "#fb923c" },
-                ];
+                // Color/branding per provider (fallback to PROVIDER_COLORS map)
+                const PROVIDER_META: Record<number, { label: string; grad: string; ring: string; accent: string }> = {
+                  1:  { label: "Pragmatic Play",   grad: "linear-gradient(135deg,#FF6B35,#dc2626)", ring: "rgba(255,107,53,0.35)",  accent: "#FF8159" },
+                  2:  { label: "CQ9 Gaming",       grad: "linear-gradient(135deg,#00D1FF,#0284c7)", ring: "rgba(0,209,255,0.35)",   accent: "#22D3EE" },
+                  3:  { label: "PG Soft",          grad: "linear-gradient(135deg,#a855f7,#7c3aed)", ring: "rgba(168,85,247,0.35)",  accent: "#c084fc" },
+                  4:  { label: "Booongo",          grad: "linear-gradient(135deg,#22c55e,#16a34a)", ring: "rgba(34,197,94,0.35)",   accent: "#4ade80" },
+                  5:  { label: "Playson",          grad: "linear-gradient(135deg,#f59e0b,#d97706)", ring: "rgba(245,158,11,0.35)",  accent: "#fbbf24" },
+                  7:  { label: "Habanero",         grad: "linear-gradient(135deg,#ec4899,#be185d)", ring: "rgba(236,72,153,0.35)",  accent: "#f472b6" },
+                  9:  { label: "JiLi Gaming",      grad: "linear-gradient(135deg,#14b8a6,#0d9488)", ring: "rgba(20,184,166,0.35)",  accent: "#2dd4bf" },
+                  12: { label: "Tydo",             grad: "linear-gradient(135deg,#8b5cf6,#7c3aed)", ring: "rgba(139,92,246,0.35)",  accent: "#a78bfa" },
+                  13: { label: "PlayStar",         grad: "linear-gradient(135deg,#ef4444,#b91c1c)", ring: "rgba(239,68,68,0.35)",   accent: "#f87171" },
+                  14: { label: "XGaming",          grad: "linear-gradient(135deg,#06b6d4,#0891b2)", ring: "rgba(6,182,212,0.35)",   accent: "#22d3ee" },
+                  15: { label: "Spribe",           grad: "linear-gradient(135deg,#84cc16,#16a34a)", ring: "rgba(132,204,22,0.35)",  accent: "#a3e635" },
+                  16: { label: "Hacksaw Gaming",   grad: "linear-gradient(135deg,#f97316,#dc2626)", ring: "rgba(249,115,22,0.35)",  accent: "#fb923c" },
+                  23: { label: "TADA Gaming",      grad: "linear-gradient(135deg,#e11d48,#9f1239)", ring: "rgba(225,29,72,0.35)",   accent: "#fb7185" },
+                };
+
+                // Featured-first ordering: Pragmatic, PG Soft, Hacksaw, Spribe, Habanero, CQ9 — then the rest by count
+                const FEATURED_ORDER = [1, 3, 16, 15, 7, 2];
+                const allProviderIds = providers
+                  .map(p => p.provider_id)
+                  .filter(id => games.some(g => g.provider_id === id));
+                const rest = allProviderIds
+                  .filter(id => !FEATURED_ORDER.includes(id))
+                  .sort((a, b) =>
+                    games.filter(g => g.provider_id === b).length -
+                    games.filter(g => g.provider_id === a).length
+                  );
+                const orderedIds = [...FEATURED_ORDER.filter(id => allProviderIds.includes(id)), ...rest];
+
                 return (
                   <>
-                    {FEATURED_BLOCKS.map(block => {
-                      const blockGames = games
-                        .filter(g => g.provider_id === block.id && g.launch_enable)
-                        .slice(0, 6);
+                    {orderedIds.map(pid => {
+                      const blockGames = games.filter(g => g.provider_id === pid);
                       if (blockGames.length === 0) return null;
+                      const meta = PROVIDER_META[pid] || {
+                        label: providers.find(p => p.provider_id === pid)?.locale_name || `Provider ${pid}`,
+                        grad: "linear-gradient(135deg,#00D1FF,#0284c7)",
+                        ring: "rgba(0,209,255,0.35)",
+                        accent: PROVIDER_COLORS[pid] || "#00D1FF",
+                      };
+                      const preview = blockGames.slice(0, 6); // 6 games = 2 rows x 3
+
                       return (
-                        <div key={block.id} className="mb-4">
+                        <div key={pid} className="mb-5">
                           <div className="flex items-center justify-between mb-2.5">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-md flex items-center justify-center"
-                                style={{ background: block.grad }}>
-                                <Sparkles className="w-3.5 h-3.5 text-white" />
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
+                                style={{ background: meta.grad }}>
+                                <Sparkles className="w-4 h-4 text-white" />
                               </div>
-                              <h2 className="text-sm font-black tracking-wider text-white uppercase">{block.label}</h2>
-                              <span className="px-1.5 py-0.5 rounded text-[8px] font-black"
-                                style={{ background: "rgba(0,200,83,0.18)", color: "#00C853" }}>
-                                REAL TND
-                              </span>
+                              <div className="min-w-0">
+                                <h2 className="text-sm font-black tracking-wider text-white uppercase truncate">
+                                  {meta.label}
+                                </h2>
+                                <p className="text-[9px] text-white/40 -mt-0.5">{blockGames.length} games · Real TND</p>
+                              </div>
                             </div>
-                            <button onClick={() => setActiveProvider(block.id)}
-                              className="text-[10px] font-bold uppercase tracking-wider"
-                              style={{ color: block.accent }}>
+                            <button onClick={() => { setActiveProvider(pid); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                              className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-lg flex-shrink-0"
+                              style={{ color: meta.accent, background: `${meta.accent}15`, border: `1px solid ${meta.accent}40` }}>
                               {t("seeAll") || "See all"} →
                             </button>
                           </div>
 
                           <div className="grid grid-cols-3 gap-2.5">
-                            {blockGames.map((g, i) => (
-                              <motion.div key={`${block.id}-${g.game_code}`}
+                            {preview.map((g, i) => (
+                              <motion.div key={`${pid}-${g.game_code}`}
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: Math.min(i * 0.04, 0.25) }}
+                                transition={{ delay: Math.min(i * 0.03, 0.2) }}
                                 whileHover={{ y: -3 }}
                                 whileTap={{ scale: 0.97 }}
                                 onClick={() => launchGame(g)}
                                 className="relative rounded-xl overflow-hidden cursor-pointer group"
-                                style={{ aspectRatio: "3/4", border: `1px solid ${block.ring}` }}>
+                                style={{ aspectRatio: "3/4", border: `1px solid ${meta.ring}` }}>
 
                                 <img src={g.game_image_narrow || g.game_image} alt={g.game_name || g.locale_name} loading="lazy"
                                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                   onError={e => {
-                                    const t = e.target as HTMLImageElement;
-                                    if (g.game_image && t.src !== g.game_image) { t.src = g.game_image; return; }
-                                    t.style.display = "none";
+                                    const im = e.target as HTMLImageElement;
+                                    if (g.game_image && im.src !== g.game_image) { im.src = g.game_image; return; }
+                                    im.style.display = "none";
                                   }} />
 
                                 <div className="absolute inset-0"
                                   style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 45%, transparent 80%)" }} />
 
                                 <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[7px] font-black uppercase"
-                                  style={{ background: block.grad, color: "#fff" }}>
-                                  {block.label.split(" ")[0]}
+                                  style={{ background: meta.grad, color: "#fff" }}>
+                                  {meta.label.split(" ")[0]}
                                 </div>
 
                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                   <div className="w-11 h-11 rounded-full flex items-center justify-center"
-                                    style={{ background: block.accent, boxShadow: `0 0 24px ${block.ring}` }}>
+                                    style={{ background: meta.accent, boxShadow: `0 0 24px ${meta.ring}` }}>
                                     <span className="text-black font-black text-lg ml-0.5">▶</span>
                                   </div>
                                 </div>
@@ -465,35 +473,40 @@ export default function Lobby() {
                 </div>
               </div>
 
-              {/* Section title */}
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4" style={{ color: "#a855f7" }} />
-                <h2 className="text-sm font-black tracking-wider">
-                  {activeProvider !== null ? providers.find(p => p.provider_id === activeProvider)?.locale_name : t("allGames")}
-                </h2>
-                <span className="text-[10px] text-white/20 ml-auto flex items-center gap-1">
-                  <Gamepad2 className="w-3 h-3" /> 
-                </span>
-              </div>
+              {/* Flat grid: shown only when a provider is selected OR while searching */}
+              {(activeProvider !== null || !!search) && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" style={{ color: "#a855f7" }} />
+                    <h2 className="text-sm font-black tracking-wider">
+                      {activeProvider !== null
+                        ? providers.find(p => p.provider_id === activeProvider)?.locale_name
+                        : t("searchResults") || `Results: "${search}"`}
+                    </h2>
+                    <span className="text-[10px] text-white/20 ml-auto flex items-center gap-1">
+                      <Gamepad2 className="w-3 h-3" /> {filtered.length}
+                    </span>
+                  </div>
 
-              {/* Games grid */}
-              <div className="grid grid-cols-3 gap-2.5">
-                {paged.map((game, i) => (
-                  <GameCard key={`${game.provider_id}-${game.game_code}`} game={game} i={i} />
-                ))}
-              </div>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {paged.map((game, i) => (
+                      <GameCard key={`${game.provider_id}-${game.game_code}`} game={game} i={i} />
+                    ))}
+                  </div>
 
-              {paged.length < filtered.length && (
-                <button onClick={() => setPage(p => p + 1)}
-                  className="w-full py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2"
-                  style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)", color: "#00D1FF" }}>
-                  <Zap className="w-4 h-4" />
-                  {t("loadMore")}
-                </button>
-              )}
+                  {paged.length < filtered.length && (
+                    <button onClick={() => setPage(p => p + 1)}
+                      className="w-full py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2"
+                      style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)", color: "#00D1FF" }}>
+                      <Zap className="w-4 h-4" />
+                      {t("loadMore")}
+                    </button>
+                  )}
 
-              {filtered.length === 0 && (
-                <div className="text-center py-16 text-white/30">{t("noGames")}</div>
+                  {filtered.length === 0 && (
+                    <div className="text-center py-16 text-white/30">{t("noGames")}</div>
+                  )}
+                </>
               )}
             </>
           )}
