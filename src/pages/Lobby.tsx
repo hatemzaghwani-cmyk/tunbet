@@ -1,5 +1,4 @@
 import { AMATIC_GAMES } from "@/lib/amaticGames";
-import { INHOUSE_GAMES } from "@/lib/inhouseGames";
 import { oroLaunchGame, oroDeposit, oroWithdrawAll, oroCreateUser, isOroAvailable } from "@/lib/oroClient";
 import { t } from "@/lib/i18n";
 import { Search, LayoutGrid, Gamepad2, Lock, RefreshCw, Flame, Crown, Sparkles, Zap } from "lucide-react";
@@ -89,7 +88,6 @@ export default function Lobby() {
   const [gameUrl, setGameUrl] = useState<string | null>(null);
   const [closingGame, setClosingGame] = useState(false);
   const [amaticUrl, setAmaticUrl] = useState<string | null>(null);
-  const [inhouseUrl, setInhouseUrl] = useState<string | null>(null);
   const [oroReady, setOroReady] = useState(false);
   
   // Auto-detect OroPlay API availability
@@ -319,41 +317,7 @@ export default function Lobby() {
                 </div>
               )}
 
-              {/* 🎮 INHOUSE GAMES Section */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg, #FF2D55, #FF6B35)" }}>
-                      <Flame className="w-3.5 h-3.5 text-white" />
-                    </div>
-                    <h2 className="text-sm font-black tracking-wider text-white/70 uppercase">EXCLUSIVE SLOTS</h2>
-                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55" }}>FREE</span>
-                  </div>
-                </div>
-                <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-hide">
-                  {INHOUSE_GAMES.map((g) => (
-                    <div key={g.id}
-                      className="flex-shrink-0 w-[130px] rounded-xl overflow-hidden cursor-pointer group relative"
-                      style={{ aspectRatio: "3/4", border: "1px solid rgba(255,45,85,0.12)" }}
-                      onClick={() => setInhouseUrl(g.path)}>
-                      <img src={g.thumb} alt={g.name} loading="lazy"
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        onError={e => { (e.target as HTMLImageElement).style.background = '#1a1a2e'; }} />
-                      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%)" }} />
-                      <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[7px] font-black"
-                        style={{ background: "rgba(255,45,85,0.9)", color: "#fff" }}>{g.tag}</div>
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(255,45,85,0.9)" }}>
-                          <Zap className="w-5 h-5 text-white" />
-                        </div>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 p-2">
-                        <p className="text-[10px] font-bold text-white leading-tight">{g.name}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+
 
               {/* 🎰 AMATIC Section */}
               <div className="mb-4">
@@ -513,24 +477,6 @@ export default function Lobby() {
               </div>
             )}
           </div>
-        </div>
-      )}
-
-      {/* Inhouse Game iframe */}
-      {inhouseUrl && (
-        <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-          <div className="flex items-center justify-between px-3 py-2" style={{ background: "rgba(255,45,85,0.1)" }}>
-            <div className="flex items-center gap-2">
-              <div className="px-2 py-0.5 rounded text-[9px] font-black" style={{ background: "rgba(255,45,85,0.9)", color: "#fff" }}>EXCLUSIVE</div>
-              <span className="text-xs text-white/50 font-mono">Fun Mode</span>
-            </div>
-            <button onClick={() => setInhouseUrl(null)}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold text-white"
-              style={{ background: "linear-gradient(135deg, #FF2D55, #FF6B35)" }}>
-              ✕ Close
-            </button>
-          </div>
-          <iframe src={inhouseUrl} className="flex-1 w-full border-none" allow="fullscreen autoplay" title="Game" />
         </div>
       )}
 

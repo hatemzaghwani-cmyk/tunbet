@@ -1,6 +1,5 @@
 const BACKENDS = [
-  "https://highest-cir-tours-became.trycloudflare.com",
-  "https://compaq-rescue-parties-admissions.trycloudflare.com",
+  "https://system-angle-mentor-examines.trycloudflare.com",
 ];
 const ESPN = "https://site.api.espn.com/apis/site/v2/sports";
 const LEAGUES = [
