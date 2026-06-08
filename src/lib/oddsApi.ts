@@ -1,14 +1,15 @@
-// odds-api.io client — REST API for real bookmaker odds
+// odds-api.io client — real bookmaker odds (1xbet, Stake on free tier)
 // Docs: https://docs.odds-api.io
 // Account: hatemzaghwani@gmail.com
-//
-// Usage: set your API key via setOddsApiKey() (admin panel) — then call fetchOddsMatches()
 
 const ODDS_API = "https://api.odds-api.io/v3";
 const KEY_STORAGE = "mebet_oddsapi_key";
 
-// Default key (replace via admin localStorage once obtained)
-const DEFAULT_KEY = ""; // empty by default — user fills via admin or window override
+// Pre-filled with user's key — can be overridden via localStorage / Setup screen
+const DEFAULT_KEY = "c18282bc3771a4939079a7fcc2ae6b7bc8caf3811ac20506da552accef35abe0";
+
+// Free-tier allowed bookmakers
+const BOOKMAKERS = "1xbet,Stake";
 
 export function setOddsApiKey(key: string) {
   if (key) localStorage.setItem(KEY_STORAGE, key);
@@ -29,20 +30,19 @@ export interface OddsMatch {
   league: string;
   home: string;
   away: string;
-  date: string;             // ISO timestamp
+  date: string;
   status: "upcoming" | "live" | "finished";
   homeScore?: number;
   awayScore?: number;
-  markets: Record<string, Record<string, number>>;  // { "Match Winner": { "Home": 1.85, "Draw": 3.4, "Away": 4.2 } }
+  markets: Record<string, Record<string, number>>;
   bookmakerCount: number;
 }
 
-// Sports we support in the UI (slug → display name + icon hint)
 export const SPORTS = [
   { slug: "football",          name: "Football",          icon: "⚽" },
   { slug: "basketball",        name: "Basketball",        icon: "🏀" },
   { slug: "tennis",            name: "Tennis",            icon: "🎾" },
-  { slug: "american-football", name: "American Football", icon: "🏈" },
+  { slug: "american-football", name: "Am. Football",      icon: "🏈" },
   { slug: "baseball",          name: "Baseball",          icon: "⚾" },
   { slug: "ice-hockey",        name: "Ice Hockey",        icon: "🏒" },
   { slug: "mixed-martial-arts",name: "MMA",               icon: "🥊" },
@@ -54,9 +54,40 @@ export const SPORTS = [
   { slug: "volleyball",        name: "Volleyball",        icon: "🏐" },
 ] as const;
 
+// Sport → top leagues (lower-priority leagues skipped — focus on quality)
+const TOP_LEAGUES: Record<string, string[]> = {
+  football: [
+    "international-world-cup",
+    "international-euro-championship",
+    "international-int-friendly-games",
+    "international-uefa-nations-league",
+    "international-uefa-champions-league",
+    "international-uefa-europa-league",
+    "england-premier-league",
+    "spain-laliga",
+    "italy-serie-a",
+    "germany-bundesliga",
+    "france-ligue-1",
+  ],
+  basketball: ["usa-nba", "europe-euroleague"],
+  tennis: ["atp-tour", "wta-tour"],
+  "american-football": ["usa-nfl"],
+  baseball: ["usa-mlb"],
+  "ice-hockey": ["usa-nhl"],
+  "mixed-martial-arts": ["ufc"],
+  boxing: [],
+  esports: [],
+  cricket: [],
+  rugby: [],
+  handball: [],
+  volleyball: [],
+};
+
 type CacheEntry = { t: number; d: OddsMatch[] };
 const _cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 30_000; // 30s — respect free tier rate limit (100 req/h)
+const _eventOddsCache = new Map<string, { t: number; data: any }>();
+const CACHE_TTL = 60_000;          // 60s for event lists
+const ODDS_CACHE_TTL = 45_000;     // 45s for odds (free tier = 100 req/h)
 
 async function apiGet<T = any>(path: string): Promise<T | null> {
   const key = getOddsApiKey();
@@ -64,128 +95,189 @@ async function apiGet<T = any>(path: string): Promise<T | null> {
   const sep = path.includes("?") ? "&" : "?";
   try {
     const r = await fetch(`${ODDS_API}${path}${sep}apiKey=${encodeURIComponent(key)}`);
-    if (!r.ok) {
-      console.warn("[oddsApi]", path, r.status);
-      return null;
-    }
+    if (!r.ok) return null;
     return await r.json();
-  } catch (e) {
-    console.warn("[oddsApi] fetch error", e);
+  } catch {
     return null;
   }
 }
 
-// Fetch all matches across all sports we care about
-export async function fetchOddsMatches(sportSlug?: string): Promise<OddsMatch[]> {
-  if (!hasOddsApiKey()) return [];
+// Get list of upcoming events (lightweight — 1 req per sport)
+async function fetchEvents(sportSlug: string): Promise<any[]> {
+  const cached = _cache.get("events_" + sportSlug);
+  if (cached && Date.now() - cached.t < CACHE_TTL) return (cached.d as any) as any[];
 
-  const sports = sportSlug ? [sportSlug] : SPORTS.map(s => s.slug);
-  const cacheKey = sports.join(",");
-  const cached = _cache.get(cacheKey);
-  if (cached && Date.now() - cached.t < CACHE_TTL) return cached.d;
+  // Try with each top league for richer coverage
+  const leagueList = TOP_LEAGUES[sportSlug] || [];
+  const all: any[] = [];
 
-  const results = await Promise.allSettled(sports.map(s => fetchSport(s)));
-  const all: OddsMatch[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled" && Array.isArray(r.value)) all.push(...r.value);
+  if (leagueList.length > 0) {
+    // Fetch top 3-5 leagues in parallel
+    const results = await Promise.allSettled(
+      leagueList.slice(0, 5).map(lg =>
+        apiGet<any[]>(`/events?sport=${sportSlug}&league=${lg}`)
+      )
+    );
+    for (const r of results) {
+      if (r.status === "fulfilled" && Array.isArray(r.value)) all.push(...r.value);
+    }
   }
-  // Sort: live first, then by date ascending
-  all.sort((a, b) => {
-    if (a.status === "live" && b.status !== "live") return -1;
-    if (a.status !== "live" && b.status === "live") return 1;
-    return new Date(a.date).getTime() - new Date(b.date).getTime();
-  });
 
-  _cache.set(cacheKey, { t: Date.now(), d: all });
+  // Fallback: fetch all events for sport if leagues returned nothing
+  if (all.length === 0) {
+    const generic = await apiGet<any[]>(`/events?sport=${sportSlug}`);
+    if (Array.isArray(generic)) all.push(...generic);
+  }
+
+  _cache.set("events_" + sportSlug, { t: Date.now(), d: all as any });
   return all;
 }
 
-async function fetchSport(sportSlug: string): Promise<OddsMatch[]> {
-  // odds-api.io structure: /v3/{sport}/leagues then /v3/{sport}/leagues/{league}/matches
-  // Then /v3/{sport}/matches/{id}/odds
-  // For efficiency, use a single endpoint if available
-  const leagues = await apiGet<any[]>(`/${sportSlug}/leagues`);
-  if (!leagues || !Array.isArray(leagues)) return [];
+// Get odds for a single event (1 req)
+async function fetchEventOdds(sportSlug: string, eventId: string | number): Promise<any | null> {
+  const key = `${sportSlug}_${eventId}`;
+  const cached = _eventOddsCache.get(key);
+  if (cached && Date.now() - cached.t < ODDS_CACHE_TTL) return cached.data;
 
-  // Pick top leagues (limit to first 5 to stay within rate limits)
-  const topLeagues = leagues.slice(0, 5);
-  const out: OddsMatch[] = [];
+  const data = await apiGet<any>(`/odds?sport=${sportSlug}&eventId=${eventId}&bookmakers=${BOOKMAKERS}`);
+  if (data) _eventOddsCache.set(key, { t: Date.now(), data });
+  return data;
+}
 
-  const matchResults = await Promise.allSettled(
-    topLeagues.map(lg => apiGet<any[]>(`/${sportSlug}/leagues/${lg.slug || lg.id || lg.name}/matches`))
-  );
+// Parse a single bookmaker's market data into our flat odds structure
+function parseMarkets(bookmakers: any): Record<string, Record<string, number>> {
+  if (!bookmakers || typeof bookmakers !== "object") return {};
+  const out: Record<string, Record<string, number>> = {};
 
-  for (let i = 0; i < topLeagues.length; i++) {
-    const r = matchResults[i];
-    if (r.status !== "fulfilled" || !Array.isArray(r.value)) continue;
-    const lg = topLeagues[i];
-    const lgName = lg.name || lg.slug || "League";
+  // Prefer 1xbet (best coverage), fall back to Stake
+  const bm = bookmakers["1xbet"] || bookmakers["Stake"];
+  if (!Array.isArray(bm)) return out;
 
-    for (const m of r.value.slice(0, 20)) { // limit per league
-      // Match has odds embedded already or we need to fetch
-      const odds = m.odds || m.markets || {};
-      const markets: Record<string, Record<string, number>> = {};
+  for (const market of bm) {
+    const name: string = market.name || "";
+    const odds = market.odds;
+    if (!Array.isArray(odds) || odds.length === 0) continue;
 
-      // Map common market keys to our standard names
-      if (odds.match_winner || odds.moneyline || odds["1x2"] || odds.h2h) {
-        const mw = odds.match_winner || odds.moneyline || odds["1x2"] || odds.h2h;
-        const obj: Record<string, number> = {};
-        if (mw.home || mw["1"]) obj["Home"] = parseFloat(mw.home || mw["1"]);
-        if (mw.draw || mw["X"] || mw.x) obj["Draw"] = parseFloat(mw.draw || mw["X"] || mw.x);
-        if (mw.away || mw["2"]) obj["Away"] = parseFloat(mw.away || mw["2"]);
-        if (Object.keys(obj).length) markets["Match Winner"] = obj;
+    // ML = Match Winner (1X2)
+    if (name === "ML") {
+      const o = odds[0];
+      const m: Record<string, number> = {};
+      if (o.home) m["Home"] = parseFloat(o.home);
+      if (o.draw) m["Draw"] = parseFloat(o.draw);
+      if (o.away) m["Away"] = parseFloat(o.away);
+      if (Object.keys(m).length) out["Match Winner"] = m;
+    }
+    // Double Chance
+    else if (name === "Double Chance") {
+      const o = odds[0];
+      const m: Record<string, number> = {};
+      if (o["1X"]) m["1X"] = parseFloat(o["1X"]);
+      if (o["12"]) m["12"] = parseFloat(o["12"]);
+      if (o["X2"]) m["X2"] = parseFloat(o["X2"]);
+      if (Object.keys(m).length) out["Double Chance"] = m;
+    }
+    // Totals (Over/Under goals) — pick the 2.5 line if available else closest to 2.5
+    else if (name === "Totals") {
+      let best = odds.find((o: any) => parseFloat(o.hdp) === 2.5);
+      if (!best) {
+        // closest to 2.5
+        best = odds.reduce((a: any, b: any) =>
+          Math.abs(parseFloat(b.hdp) - 2.5) < Math.abs(parseFloat(a.hdp) - 2.5) ? b : a
+        );
       }
-      if (odds.over_under || odds.totals) {
-        const ou = odds.over_under || odds.totals;
-        const obj: Record<string, number> = {};
-        if (ou.over_2_5) obj["Over 2.5"] = parseFloat(ou.over_2_5);
-        if (ou.under_2_5) obj["Under 2.5"] = parseFloat(ou.under_2_5);
-        if (Object.keys(obj).length) markets["Total Goals 2.5"] = obj;
+      if (best && best.over && best.under) {
+        out[`O/U ${best.hdp}`] = {
+          Over: parseFloat(best.over),
+          Under: parseFloat(best.under),
+        };
       }
-      if (odds.btts || odds.both_teams_to_score) {
-        const bt = odds.btts || odds.both_teams_to_score;
-        const obj: Record<string, number> = {};
-        if (bt.yes) obj["Yes"] = parseFloat(bt.yes);
-        if (bt.no) obj["No"] = parseFloat(bt.no);
-        if (Object.keys(obj).length) markets["Both Teams to Score"] = obj;
+    }
+    // Both Teams To Score
+    else if (name === "Both Teams To Score") {
+      const o = odds[0];
+      if (o && o.yes && o.no) {
+        out["Both Teams Score"] = { Yes: parseFloat(o.yes), No: parseFloat(o.no) };
       }
-
-      if (Object.keys(markets).length === 0) continue;  // skip matches with no odds
-
-      const status: "upcoming" | "live" | "finished" =
-        m.status === "live" || m.status === "in_progress" ? "live" :
-        m.status === "finished" || m.status === "ended" ? "finished" : "upcoming";
-
-      if (status === "finished") continue; // hide finished
-
-      out.push({
-        id: String(m.id),
-        sport: sportSlug,
-        league: lgName,
-        home: m.home || m.home_team || m.teams?.home || "Home",
-        away: m.away || m.away_team || m.teams?.away || "Away",
-        date: m.date || m.start_time || m.commence_time || new Date().toISOString(),
-        status,
-        homeScore: m.home_score,
-        awayScore: m.away_score,
-        markets,
-        bookmakerCount: m.bookmaker_count || (odds.bookmakers?.length || 1),
-      });
+    }
+    // Spread (Asian Handicap) — pick line closest to 0
+    else if (name === "Spread") {
+      const best = odds.reduce((a: any, b: any) =>
+        Math.abs(parseFloat(b.hdp)) < Math.abs(parseFloat(a.hdp)) ? b : a
+      );
+      if (best && best.home && best.away) {
+        out[`Spread ${best.hdp}`] = {
+          Home: parseFloat(best.home),
+          Away: parseFloat(best.away),
+        };
+      }
     }
   }
   return out;
 }
 
-// Status check — call to verify the API key actually works
+// Main public fetcher: events for sport, with odds attached
+export async function fetchOddsMatches(sportSlug: string): Promise<OddsMatch[]> {
+  if (!hasOddsApiKey()) return [];
+
+  const events = await fetchEvents(sportSlug);
+  if (!events.length) return [];
+
+  // Filter to pending/upcoming only (ignore settled), sort by date, keep top 30 (rate-limit budget)
+  const now = Date.now();
+  const upcoming = events
+    .filter(e => e.status !== "settled" && new Date(e.date).getTime() > now - 3600_000)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 30);
+
+  // Fetch odds for each in parallel (with throttle)
+  const results: OddsMatch[] = [];
+  // Process in batches of 5 to avoid hammering
+  for (let i = 0; i < upcoming.length; i += 5) {
+    const batch = upcoming.slice(i, i + 5);
+    const odds = await Promise.allSettled(batch.map(e => fetchEventOdds(sportSlug, e.id)));
+    for (let j = 0; j < batch.length; j++) {
+      const e = batch[j];
+      const r = odds[j];
+      if (r.status !== "fulfilled" || !r.value) continue;
+      const markets = parseMarkets(r.value.bookmakers);
+      if (Object.keys(markets).length === 0) continue;
+      results.push({
+        id: String(e.id),
+        sport: sportSlug,
+        league: e.league?.name || "League",
+        home: e.home,
+        away: e.away,
+        date: e.date,
+        status: e.status === "in_progress" || e.status === "live" ? "live" : "upcoming",
+        homeScore: e.scores?.home,
+        awayScore: e.scores?.away,
+        markets,
+        bookmakerCount: Object.keys(r.value.bookmakers || {}).length,
+      });
+    }
+  }
+
+  // Sort: live first
+  results.sort((a, b) => {
+    if (a.status === "live" && b.status !== "live") return -1;
+    if (a.status !== "live" && b.status === "live") return 1;
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
+  });
+
+  return results;
+}
+
 export async function pingOddsApi(): Promise<{ ok: boolean; error?: string }> {
   const key = getOddsApiKey();
   if (!key) return { ok: false, error: "No API key set" };
   try {
-    const r = await fetch(`${ODDS_API}/leagues?apiKey=${encodeURIComponent(key)}`);
+    const r = await fetch(`${ODDS_API}/sports?apiKey=${encodeURIComponent(key)}`);
     if (!r.ok) {
       const t = await r.text();
       return { ok: false, error: `HTTP ${r.status}: ${t.slice(0, 100)}` };
     }
+    const d = await r.json();
+    if (!Array.isArray(d)) return { ok: false, error: "Unexpected response" };
     return { ok: true };
   } catch (e: any) {
     return { ok: false, error: e?.message || "Network error" };
