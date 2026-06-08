@@ -62,7 +62,7 @@ const translations: Record<string, Record<string, string>> = {
     vault: "Vault",
     casino: "Casino",
     loginRequired: "Login to play",
-    insufficientBalance: "Balance is 0. Contact your agent.",
+    insufficientBalance: "Insufficient balance.",
     closeGame: "Close",
     savingBalance: "Saving balance...",
     bet: "Bet",
