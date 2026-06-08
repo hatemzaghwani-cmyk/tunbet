@@ -142,30 +142,28 @@ async function maybeSync(): Promise<void> {
   }
 }
 
-const SYNC_SPORTS: Array<{ slug: string; max: number; priorities: string[] }> = [
-  {
-    slug: "football", max: 40,
-    priorities: [
-      "world cup", "champions league", "europa league", "uefa nations",
-      "premier league", "laliga", "la liga", "serie a", "bundesliga", "ligue 1",
-      "uefa", "fifa", "international", "copa", "euros", "european championship",
-      "primeira", "eredivisie", "süper lig", "super lig", "mls",
-    ],
-  },
-  { slug: "basketball",         max: 12, priorities: ["nba", "euroleague", "wnba", "fiba", "ncaa"] },
-  { slug: "tennis",             max: 10, priorities: ["atp", "wta", "grand slam", "open", "masters", "wimbledon", "roland", "us open"] },
-  { slug: "american-football",  max: 6,  priorities: ["nfl", "ncaa", "college"] },
-  { slug: "baseball",           max: 6,  priorities: ["mlb", "kbo", "npb"] },
-  { slug: "ice-hockey",         max: 6,  priorities: ["nhl", "khl", "shl"] },
-  { slug: "mixed-martial-arts", max: 5,  priorities: ["ufc", "bellator", "one"] },
-  { slug: "esports",            max: 5,  priorities: ["counter", "cs:go", "cs2", "lol", "league of legends", "dota", "valorant"] },
+// Top leagues currently in season (June 2026)
+const SYNC_LEAGUES: Array<{ sport: string; slug: string; max: number }> = [
+  { sport: "football", slug: "usa-mls",                                  max: 8 },
+  { sport: "football", slug: "international-int-friendly-games",          max: 8 },
+  { sport: "football", slug: "sweden-allsvenskan",                        max: 6 },
+  { sport: "football", slug: "norway-eliteserien",                        max: 6 },
+  { sport: "football", slug: "japan-j1-league",                           max: 6 },
+  { sport: "football", slug: "brazil-serie-a",                            max: 8 },
+  { sport: "football", slug: "argentina-primera-division",                max: 6 },
+  { sport: "football", slug: "international-uefa-nations-league",         max: 6 },
+  { sport: "basketball", slug: "usa-wnba",                                max: 8 },
+  { sport: "basketball", slug: "puerto-rico-bsn",                         max: 4 },
+  { sport: "basketball", slug: "philippines-mpbl",                        max: 4 },
+  { sport: "baseball", slug: "usa-mlb",                                   max: 10 },
+  { sport: "baseball", slug: "japan-npb",                                 max: 4 },
+  { sport: "baseball", slug: "south-korea-kbo-league",                    max: 4 },
+  { sport: "american-football", slug: "canada-cfl",                       max: 6 },
+  { sport: "ice-hockey", slug: "australia-australian-ice-hockey-league",  max: 4 },
+  { sport: "esports", slug: "rainbow-six-asia-league",                    max: 4 },
+  { sport: "esports", slug: "counter-strike-european-pro-league-series",  max: 4 },
+  { sport: "esports", slug: "league-of-legends-emea-masters",             max: 4 },
 ];
-
-function scoreEvent(e: any, priorities: string[]): number {
-  const lg = (e.league?.name || "").toLowerCase();
-  for (let i = 0; i < priorities.length; i++) if (lg.includes(priorities[i])) return i;
-  return 999;
-}
 
 async function oddsApiGet(path: string): Promise<any | null> {
   const sep = path.includes("?") ? "&" : "?";
@@ -236,32 +234,29 @@ async function runSync(): Promise<void> {
   console.log("[oddsApi] starting background sync…");
   let total = 0;
 
-  for (const sport of SYNC_SPORTS) {
-    const events = await oddsApiGet(`/events?sport=${sport.slug}`);
+  for (const target of SYNC_LEAGUES) {
+    const events = await oddsApiGet(`/events?sport=${target.sport}&league=${target.slug}`);
     if (!Array.isArray(events)) continue;
 
     const now = Date.now();
-    const pending = events.filter((e: any) =>
-      e.status === "pending" &&
-      new Date(e.date).getTime() > now - 30 * 60_000 &&
-      new Date(e.date).getTime() < now + 14 * 86400_000
-    );
-    const upcoming = pending
-      .map((e: any) => ({ e, score: scoreEvent(e, sport.priorities) }))
-      .sort((a: any, b: any) => a.score - b.score || new Date(a.e.date).getTime() - new Date(b.e.date).getTime())
-      .map((x: any) => x.e)
-      .slice(0, sport.max);
+    const upcoming = events
+      .filter((e: any) =>
+        e.status === "pending" &&
+        new Date(e.date).getTime() > now - 30 * 60_000 &&
+        new Date(e.date).getTime() < now + 21 * 86400_000)
+      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, target.max);
 
     const rows: any[] = [];
     for (const e of upcoming) {
-      const od = await oddsApiGet(`/odds?sport=${sport.slug}&eventId=${e.id}&bookmakers=${BOOKMAKERS}`);
+      const od = await oddsApiGet(`/odds?sport=${target.sport}&eventId=${e.id}&bookmakers=${BOOKMAKERS}`);
       if (!od) continue;
       const markets = parseBookmakerMarkets(od.bookmakers);
       if (Object.keys(markets).length === 0) continue;
 
       rows.push({
         id: String(e.id),
-        sport: sport.slug,
+        sport: target.sport,
         league: e.league?.name || "League",
         home_team: e.home,
         away_team: e.away,
@@ -280,9 +275,9 @@ async function runSync(): Promise<void> {
       });
       if (r.ok) {
         total += rows.length;
-        console.log(`[oddsApi] ${sport.slug}: ${rows.length} synced`);
+        console.log(`[oddsApi] ${target.sport}: ${rows.length} synced`);
       } else {
-        console.warn(`[oddsApi] ${sport.slug} upsert failed:`, await r.text());
+        console.warn(`[oddsApi] ${target.sport} upsert failed:`, await r.text());
       }
     }
   }

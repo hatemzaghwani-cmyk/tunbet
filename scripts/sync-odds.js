@@ -1,6 +1,7 @@
-// Sync odds-api.io → Supabase live_fixtures every 20 minutes
-// Strategy: prioritize TOP-tier leagues (World Cup, CL, EPL, NBA, etc.) — not random regional games
-// Rate budget: 100 req/h = ~3 runs of 30 events each → max=30 events distributed across sports
+// Sync odds-api.io → Supabase live_fixtures
+// Strategy: pull events from a fixed list of TOP leagues directly (not generic sport feed)
+// This guarantees quality (no obscure 5th-tier regional games)
+// Rate budget: ~50-60 req per run (events + odds for ~50 events)
 
 const ODDS_API = "https://api.odds-api.io/v3";
 const BOOKMAKERS = "1xbet,Stake";
@@ -14,25 +15,41 @@ const SH = {
   "Content-Type": "application/json", Prefer: "resolution=merge-duplicates",
 };
 
-// Per-sport: max events to fetch odds for, plus league priority keywords
-// (Events whose league name matches a priority keyword bubble to the top of the queue)
-const SPORTS = [
-  {
-    slug: "football", max: 40,
-    priorities: [
-      "world cup", "champions league", "europa league", "uefa nations",
-      "premier league", "laliga", "la liga", "serie a", "bundesliga", "ligue 1",
-      "uefa", "fifa", "international", "copa", "euros", "european championship",
-      "primeira", "eredivisie", "süper lig", "super lig", "mls",
-    ],
-  },
-  { slug: "basketball",         max: 12, priorities: ["nba", "euroleague", "wnba", "fiba", "ncaa"] },
-  { slug: "tennis",             max: 10, priorities: ["atp", "wta", "grand slam", "open", "masters", "wimbledon", "roland", "us open"] },
-  { slug: "american-football",  max: 6,  priorities: ["nfl", "ncaa", "college"] },
-  { slug: "baseball",           max: 6,  priorities: ["mlb", "kbo", "npb"] },
-  { slug: "ice-hockey",         max: 6,  priorities: ["nhl", "khl", "shl"] },
-  { slug: "mixed-martial-arts", max: 5,  priorities: ["ufc", "bellator", "one"] },
-  { slug: "esports",            max: 5,  priorities: ["counter", "cs:go", "cs2", "lol", "league of legends", "dota", "valorant"] },
+// Top-tier leagues currently in season (auto-discovered via /v3/leagues sorted by events count)
+// Updated for June 2026 season — EPL/CL/NBA off-season, focus on summer leagues
+const TARGET_LEAGUES = [
+  // Football (summer leagues + intl friendlies + youth tournaments)
+  { sport: "football", slug: "usa-mls",                                  max: 8 },
+  { sport: "football", slug: "international-int-friendly-games",          max: 8 },
+  { sport: "football", slug: "sweden-allsvenskan",                        max: 6 },
+  { sport: "football", slug: "norway-eliteserien",                        max: 6 },
+  { sport: "football", slug: "finland-veikkausliiga",                     max: 4 },
+  { sport: "football", slug: "japan-j1-league",                           max: 6 },
+  { sport: "football", slug: "south-korea-k-league-1",                    max: 4 },
+  { sport: "football", slug: "brazil-serie-a",                            max: 8 },
+  { sport: "football", slug: "argentina-primera-division",                max: 6 },
+  { sport: "football", slug: "international-uefa-nations-league",         max: 6 },
+  { sport: "football", slug: "international-int-friendly-games-women",    max: 4 },
+  // Basketball (summer)
+  { sport: "basketball", slug: "usa-wnba",                                max: 8 },
+  { sport: "basketball", slug: "puerto-rico-bsn",                         max: 4 },
+  { sport: "basketball", slug: "australia-nbl1-south",                    max: 4 },
+  { sport: "basketball", slug: "philippines-mpbl",                        max: 4 },
+  // Baseball (full season)
+  { sport: "baseball", slug: "usa-mlb",                                   max: 10 },
+  { sport: "baseball", slug: "japan-npb",                                 max: 4 },
+  { sport: "baseball", slug: "south-korea-kbo-league",                    max: 4 },
+  // American football (off-season but CFL/UFL run)
+  { sport: "american-football", slug: "canada-cfl",                       max: 6 },
+  { sport: "american-football", slug: "usa-arena-football-one",           max: 4 },
+  // Ice hockey (summer leagues)
+  { sport: "ice-hockey", slug: "australia-australian-ice-hockey-league",  max: 4 },
+  { sport: "ice-hockey", slug: "new-zealand-nzihl",                       max: 4 },
+  // Esports
+  { sport: "esports", slug: "rainbow-six-asia-league",                    max: 4 },
+  { sport: "esports", slug: "rainbow-six-europe-league",                  max: 4 },
+  { sport: "esports", slug: "counter-strike-european-pro-league-series",  max: 4 },
+  { sport: "esports", slug: "league-of-legends-emea-masters",             max: 4 },
 ];
 
 async function api(path) {
@@ -85,71 +102,45 @@ function parseMarkets(bookmakers) {
           [`Away ${hdp >= 0 ? "-" : "+"}${Math.abs(hdp)}`]: parseFloat(best.away),
         };
       }
-    } else if (name === "Team Total Home") {
-      const row = odds.find((o) => parseFloat(o.hdp) === 1.5) || odds[Math.floor(odds.length / 2)];
-      if (row?.over && row?.under) {
-        out["Home Total 1.5"] = { Over: parseFloat(row.over), Under: parseFloat(row.under) };
-      }
-    } else if (name === "Team Total Away") {
-      const row = odds.find((o) => parseFloat(o.hdp) === 1.5) || odds[Math.floor(odds.length / 2)];
-      if (row?.over && row?.under) {
-        out["Away Total 1.5"] = { Over: parseFloat(row.over), Under: parseFloat(row.under) };
-      }
     }
   }
   return out;
 }
 
-// Score events: lower score = higher priority (sort ascending)
-function scoreEvent(e, priorities) {
-  const lg = (e.league?.name || "").toLowerCase();
-  for (let i = 0; i < priorities.length; i++) {
-    if (lg.includes(priorities[i])) return i;
-  }
-  return 999; // unmatched leagues go last
-}
-
-async function syncSport(sport) {
-  console.log(`\n→ ${sport.slug}`);
-  const events = await api(`/events?sport=${sport.slug}`);
+async function syncLeague(target) {
+  console.log(`\n→ ${target.sport}/${target.slug}`);
+  const events = await api(`/events?sport=${target.sport}&league=${target.slug}`);
   if (!Array.isArray(events)) { console.log("  no events"); return 0; }
 
   const now = Date.now();
-  // Pending events only, within next 14 days
-  const pending = events.filter(e =>
-    e.status === "pending" &&
-    new Date(e.date).getTime() > now - 30 * 60_000 &&
-    new Date(e.date).getTime() < now + 14 * 86400_000
-  );
+  const upcoming = events
+    .filter(e => e.status === "pending" &&
+      new Date(e.date).getTime() > now - 30 * 60_000 &&
+      new Date(e.date).getTime() < now + 21 * 86400_000)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(0, target.max);
 
-  // Sort: priority first (lower score = higher), then by date
-  const sorted = pending
-    .map(e => ({ e, score: scoreEvent(e, sport.priorities) }))
-    .sort((a, b) => a.score - b.score || new Date(a.e.date) - new Date(b.e.date))
-    .map(x => x.e)
-    .slice(0, sport.max);
-
-  console.log(`  ${pending.length} pending / ${sorted.length} top-priority target`);
-  if (!sorted.length) return 0;
+  console.log(`  ${events.length} total / ${upcoming.length} target`);
+  if (!upcoming.length) return 0;
 
   const rows = [];
-  for (const e of sorted) {
-    const od = await api(`/odds?sport=${sport.slug}&eventId=${e.id}&bookmakers=${BOOKMAKERS}`);
+  for (const e of upcoming) {
+    const od = await api(`/odds?sport=${target.sport}&eventId=${e.id}&bookmakers=${BOOKMAKERS}`);
     if (!od) continue;
     const markets = parseMarkets(od.bookmakers);
     if (Object.keys(markets).length === 0) continue;
     rows.push({
-      id: String(e.id), sport: sport.slug, league: e.league?.name || "League",
+      id: String(e.id), sport: target.sport, league: e.league?.name || target.slug,
       home_team: e.home, away_team: e.away, commence_time: e.date, status: "upcoming",
       markets_data: JSON.stringify(markets), updated_at: new Date().toISOString(),
     });
   }
-  if (!rows.length) return 0;
+  if (!rows.length) { console.log("  no markets"); return 0; }
   const r = await fetch(`${SB_URL}/rest/v1/live_fixtures?on_conflict=id`, {
     method: "POST", headers: SH, body: JSON.stringify(rows),
   });
   if (!r.ok) { console.error(`  ✗ upsert HTTP ${r.status}: ${await r.text()}`); return 0; }
-  console.log(`  ✓ ${rows.length} synced (top leagues prioritized)`);
+  console.log(`  ✓ ${rows.length} synced`);
   return rows.length;
 }
 
@@ -163,7 +154,7 @@ async function prune() {
 
 (async () => {
   let total = 0;
-  for (const sport of SPORTS) total += await syncSport(sport);
+  for (const target of TARGET_LEAGUES) total += await syncLeague(target);
   await prune();
   console.log(`\n=== Done: ${total} fixtures ===`);
 })().catch(e => { console.error(e); process.exit(1); });
