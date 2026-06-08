@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import * as api from "@/lib/localApi";
 
-type Tab = "home" | "players" | "agents" | "txns" | "settings";
+type Tab = "home" | "players" | "agents" | "txns" | "bets" | "settings";
 
 export default function AdminPanel() {
   // Always require login — clear any stale token on mount
@@ -196,6 +196,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
     { id: "home", icon: BarChart3, label: "الرئيسية" },
     { id: "players", icon: Users, label: "لاعبين" },
     { id: "agents", icon: UserCheck, label: "وكلاء" },
+    { id: "bets", icon: Trophy, label: "رهانات" },
     { id: "txns", icon: TrendingUp, label: "معاملات" },
     { id: "settings", icon: Settings, label: "إعدادات" },
   ];
@@ -420,6 +421,11 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
               );
             })}
           </motion.div>
+        )}
+
+        {/* ── SPORTS BETS ── */}
+        {tab === "bets" && (
+          <BetsTab notify={notify} />
         )}
 
         {/* ── SETTINGS ── */}
@@ -737,5 +743,167 @@ function AesLoginSection({ notify }: { notify: (msg: string, ok?: boolean) => vo
         </div>
       )}
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPORTS BETS TAB — list all bets, filter by status, settle (won/lost/void)
+   ═══════════════════════════════════════════════════════════════════════════ */
+function BetsTab({ notify }: { notify: (msg: string, ok?: any) => void }) {
+  const [bets, setBets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "pending" | "won" | "lost">("pending");
+  const [search, setSearch] = useState("");
+  const [settling, setSettling] = useState<number | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await api.apiAdminBets();
+      setBets(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      notify(e?.message || "Failed to load bets", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const filtered = bets.filter(b => {
+    if (filter !== "all" && b.status !== filter) return false;
+    if (search && !`${b.event_name} ${b.selection_name}`.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const settle = async (bet: any, status: "won" | "lost" | "void") => {
+    if (!confirm(`Settle bet #${bet.id} as ${status.toUpperCase()}?\n${bet.event_name}\nStake: ${bet.stake} TND`)) return;
+    setSettling(bet.id);
+    try {
+      await api.apiAdminSettleBet(bet.id, status);
+      notify(`Bet #${bet.id} settled as ${status} ✓`);
+      await load();
+    } catch (e: any) {
+      notify(e?.message || "Failed to settle", "error");
+    } finally {
+      setSettling(null);
+    }
+  };
+
+  const counts = {
+    pending: bets.filter(b => b.status === "pending").length,
+    won: bets.filter(b => b.status === "won").length,
+    lost: bets.filter(b => b.status === "lost").length,
+    all: bets.length,
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-black">رهانات رياضية</h2>
+        <button onClick={load} className="p-2 rounded-lg"
+          style={{ background: "rgba(0,209,255,0.1)", border: "1px solid rgba(0,209,255,0.2)" }}>
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} style={{ color: "#00D1FF" }} />
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-2">
+        {([
+          { key: "pending", label: "قيد الانتظار", color: "#f59e0b" },
+          { key: "won", label: "رابحة", color: "#00C853" },
+          { key: "lost", label: "خاسرة", color: "#FF2D55" },
+          { key: "all", label: "الإجمالي", color: "#00D1FF" },
+        ] as const).map(s => (
+          <button key={s.key} onClick={() => setFilter(s.key as any)}
+            className="p-2 rounded-xl text-center"
+            style={{
+              background: filter === s.key ? `${s.color}20` : "rgba(255,255,255,0.04)",
+              border: filter === s.key ? `1px solid ${s.color}60` : "1px solid rgba(255,255,255,0.06)",
+            }}>
+            <div className="text-xs text-white/50">{s.label}</div>
+            <div className="text-lg font-black tabular-nums" style={{ color: s.color }}>
+              {counts[s.key]}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث بإسم المباراة..."
+          className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm text-white outline-none"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }} />
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="text-center py-12 text-white/30">جاري التحميل…</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-white/30">
+          <Trophy className="w-12 h-12 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">لا توجد رهانات {filter !== "all" ? `(${filter})` : ""}</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(b => {
+            const color = b.status === "won" ? "#00C853" : b.status === "lost" ? "#FF2D55"
+                      : b.status === "void" ? "#94a3b8" : "#f59e0b";
+            const dt = new Date(b.created_at);
+            return (
+              <div key={b.id} className="rounded-xl p-3"
+                style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${color}30` }}>
+                <div className="flex items-start justify-between mb-1.5 gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold text-white truncate">{b.event_name}</div>
+                    <div className="text-[10px] text-white/40">User #{b.user_id} · {dt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase flex-shrink-0"
+                    style={{ background: `${color}25`, color }}>
+                    {b.status}
+                  </span>
+                </div>
+                <div className="text-[10px] text-white/60 mb-2 line-clamp-2">{b.selection_name}</div>
+                <div className="grid grid-cols-3 gap-1 text-[10px] mb-2">
+                  <div>
+                    <div className="text-white/35 uppercase text-[8px]">Stake</div>
+                    <div className="font-bold text-white tabular-nums">{b.stake} TND</div>
+                  </div>
+                  <div>
+                    <div className="text-white/35 uppercase text-[8px]">Odds</div>
+                    <div className="font-bold text-white tabular-nums">{parseFloat(b.odds).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-white/35 uppercase text-[8px]">Win</div>
+                    <div className="font-black tabular-nums" style={{ color }}>{parseFloat(b.potential_win).toFixed(2)}</div>
+                  </div>
+                </div>
+
+                {b.status === "pending" && (
+                  <div className="flex gap-1.5 mt-2">
+                    <button onClick={() => settle(b, "won")} disabled={settling === b.id}
+                      className="flex-1 py-1.5 rounded-lg text-[10px] font-black disabled:opacity-50"
+                      style={{ background: "rgba(0,200,83,0.15)", color: "#00C853", border: "1px solid rgba(0,200,83,0.3)" }}>
+                      ✓ رابح
+                    </button>
+                    <button onClick={() => settle(b, "lost")} disabled={settling === b.id}
+                      className="flex-1 py-1.5 rounded-lg text-[10px] font-black disabled:opacity-50"
+                      style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55", border: "1px solid rgba(255,45,85,0.3)" }}>
+                      ✕ خاسر
+                    </button>
+                    <button onClick={() => settle(b, "void")} disabled={settling === b.id}
+                      className="flex-1 py-1.5 rounded-lg text-[10px] font-black disabled:opacity-50"
+                      style={{ background: "rgba(148,163,184,0.15)", color: "#94a3b8", border: "1px solid rgba(148,163,184,0.3)" }}>
+                      ↺ إلغاء
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </motion.div>
   );
 }
