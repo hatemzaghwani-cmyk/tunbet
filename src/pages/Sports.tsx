@@ -6,11 +6,12 @@ import {
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
-import { fetchOddsMatches, SPORTS, type OddsMatch } from "@/lib/oddsApi";
+import {
+  fetchOddsMatches, SPORTS, placeSportsBetBatch, fetchMySportsBets,
+  getSportsbookApiBase, clearSportsbookCache, type OddsMatch,
+} from "@/lib/oddsApi";
 
-const SU = "https://cjzjrnagpsdmolvbkhnu.supabase.co";
-const SK = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqempybmFncHNkbW9sdmJraG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0ODY4NCwiZXhwIjoyMDk1OTI0Njg0fQ.TmowEatc4g2xpD-GT0r-jofX1zCtXjTD-s4LF7JSs6o";
-const SH = { apikey: SK, Authorization: `Bearer ${SK}`, "Content-Type": "application/json" };
+const API_HOST = getSportsbookApiBase().replace(/^https?:\/\//, "");
 
 interface Slip { id: string; matchId: string; match: string; mk: string; sel: string; odds: number; }
 interface Bet {
@@ -18,20 +19,21 @@ interface Bet {
   odds: number; stake: number; potential_win: number; status: string; created_at: string;
 }
 
-type TimeFilter = "all" | "live" | "today" | "tomorrow" | "week";
+type TimeFilter = "all" | "today" | "tomorrow" | "week";
 
 export default function Sports() {
   const { user, refreshBalance } = useAuth();
   const [matches, setMatches] = useState<OddsMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
-  const [sport, setSport] = useState<string>("football");
+  const [sport, setSport] = useState<string>("all");
+  const [statusTab, setStatusTab] = useState<"live" | "upcoming">("upcoming");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [leagueFilter, setLeagueFilter] = useState<string>("all");
   const [auth, setAuth] = useState(false);
   const [slip, setSlip] = useState<Slip[]>([]);
   const [stake, setStake] = useState("");
-  const [betMode, setBetMode] = useState<"single" | "multi">("multi");
+  const [betMode, setBetMode] = useState<"single" | "multi">("single");
   const [placing, setPlacing] = useState(false);
   const [msg, setMsg] = useState<{ text: string; tone: "ok" | "err" } | null>(null);
   const [tab, setTab] = useState<"m" | "b">("m");
@@ -53,8 +55,10 @@ export default function Sports() {
   useEffect(() => {
     if (tab !== "b" || !user) return;
     setLdb(true);
-    fetch(`${SU}/rest/v1/sports_bets?user_id=eq.${user.id}&select=*&order=id.desc&limit=80`, { headers: SH })
-      .then(r => r.json()).then(setBets).catch(() => {}).finally(() => setLdb(false));
+    fetchMySportsBets(user.id)
+      .then(d => { if (Array.isArray(d)) setBets(d); })
+      .catch(() => {})
+      .finally(() => setLdb(false));
   }, [tab, user]);
 
   // ─── Filter logic ──────────────────────────────────────────────────────
@@ -66,21 +70,23 @@ export default function Sports() {
     const endOfWeek = new Date(startOfToday); endOfWeek.setDate(endOfWeek.getDate() + 7);
 
     return matches.filter(m => {
-      // Hide matches that started >10 min ago (likely missed or finished)
+      // Hide finished/stale matches and apply LIVE/Upcoming professional tabs
       const matchTime = new Date(m.date).getTime();
+      if (m.status === "finished") return false;
+      if (statusTab === "live" && m.status !== "live") return false;
+      if (statusTab === "upcoming" && m.status !== "upcoming") return false;
       if (m.status !== "live" && matchTime < now - 10 * 60_000) return false;
       // Search
       if (q && !`${m.home} ${m.away} ${m.league}`.toLowerCase().includes(q.toLowerCase())) return false;
       // League filter
       if (leagueFilter !== "all" && m.league !== leagueFilter) return false;
       // Time filter
-      if (timeFilter === "live" && m.status !== "live") return false;
       if (timeFilter === "today" && (matchTime < startOfToday.getTime() || matchTime >= startOfTomorrow.getTime())) return false;
       if (timeFilter === "tomorrow" && (matchTime < startOfTomorrow.getTime() || matchTime >= endOfTomorrow.getTime())) return false;
       if (timeFilter === "week" && matchTime >= endOfWeek.getTime()) return false;
       return true;
     });
-  }, [matches, q, leagueFilter, timeFilter]);
+  }, [matches, q, leagueFilter, timeFilter, statusTab]);
 
   // Group by date (Today / Tomorrow / etc)
   const grouped = useMemo(() => {
@@ -119,6 +125,7 @@ export default function Sports() {
 
   // Live count, etc
   const liveCount = useMemo(() => matches.filter(m => m.status === "live").length, [matches]);
+  const upcomingCount = useMemo(() => matches.filter(m => m.status === "upcoming").length, [matches]);
   const todayCount = useMemo(() => {
     const t = new Date(); t.setHours(0, 0, 0, 0);
     const tom = new Date(t); tom.setDate(tom.getDate() + 1);
@@ -153,7 +160,7 @@ export default function Sports() {
     if (!Number.isFinite(stakeNum)) return setMsgErr("Invalid stake");
 
     // Total to debit depends on mode
-    const totalDebit = betMode === "single" ? stakeNum * slip.length : stakeNum;
+    const totalDebit = stakeNum * slip.length;
     if (totalDebit > parseFloat(user.balance)) {
       return setMsgErr(`Insufficient balance (need ${totalDebit.toFixed(2)} TND)`);
     }
@@ -163,99 +170,35 @@ export default function Sports() {
     for (const pick of slip) {
       const m = matches.find(x => x.id === pick.matchId);
       if (!m) return setMsgErr(`Match no longer available: ${pick.match}`);
-      if (new Date(m.date).getTime() < now - 5 * 60_000) {
+      if (m.suspended) return setMsgErr(`Markets suspended after score change: ${pick.match}`);
+      if (m.status !== "live" && new Date(m.date).getTime() < now - 5 * 60_000) {
         return setMsgErr(`Match already started: ${pick.match}`);
       }
     }
 
     setPlacing(true);
     try {
-      if (betMode === "multi") {
-        // Single accumulator bet — one atomic debit
-        const wr = await fetch(`${SU}/rest/v1/rpc/update_balance`, {
-          method: "POST", headers: SH,
-          body: JSON.stringify({ p_user_id: user.id, p_action: "withdraw", p_amount: stakeNum }),
-        });
-        if (!wr.ok) {
-          const t = await wr.text();
-          throw new Error(t.includes("Insufficient") ? "Insufficient balance" : `Bet failed (${wr.status})`);
-        }
+      const result = await placeSportsBetBatch(
+        user.id,
+        slip.map(pick => ({
+          eventId: pick.matchId,
+          market: pick.mk,
+          selection: pick.sel,
+          odds: pick.odds,
+        })),
+        stakeNum,
+      );
 
-        const eventName = slip.map(x => x.match).join(" + ");
-        const selectionName = slip.map(x => `${x.mk}:${x.sel}@${x.odds.toFixed(2)}`).join(" | ");
-        const br = await fetch(`${SU}/rest/v1/sports_bets`, {
-          method: "POST", headers: { ...SH, Prefer: "return=minimal" },
-          body: JSON.stringify({
-            user_id: user.id,
-            event_id: slip.map(x => x.matchId).join(","),
-            event_name: eventName.slice(0, 250),
-            sport, league: "Multi-leg", selection: slip.map(x => x.sel).join(","),
-            selection_name: selectionName.slice(0, 250),
-            odds: +totalOdds.toFixed(2), stake: stakeNum,
-            potential_win: +potentialWin.toFixed(2), status: "pending",
-          }),
-        });
-
-        // Rollback if bet record failed
-        if (!br.ok) {
-          await fetch(`${SU}/rest/v1/rpc/update_balance`, {
-            method: "POST", headers: SH,
-            body: JSON.stringify({ p_user_id: user.id, p_action: "add", p_amount: stakeNum }),
-          }).catch(() => {});
-          throw new Error("Failed to record bet — refunded");
-        }
-      } else {
-        // Multiple single bets — rollback any successful ones if one fails
-        const refundQueue: number[] = [];
-        for (const pick of slip) {
-          const wr = await fetch(`${SU}/rest/v1/rpc/update_balance`, {
-            method: "POST", headers: SH,
-            body: JSON.stringify({ p_user_id: user.id, p_action: "withdraw", p_amount: stakeNum }),
-          });
-          if (!wr.ok) {
-            // Rollback all prior withdraws
-            for (const _ of refundQueue) {
-              await fetch(`${SU}/rest/v1/rpc/update_balance`, {
-                method: "POST", headers: SH,
-                body: JSON.stringify({ p_user_id: user.id, p_action: "add", p_amount: stakeNum }),
-              }).catch(() => {});
-            }
-            const t = await wr.text();
-            throw new Error(t.includes("Insufficient") ? "Insufficient balance during multi-bet" : `Bet ${refundQueue.length + 1} failed — earlier bets refunded`);
-          }
-
-          const br = await fetch(`${SU}/rest/v1/sports_bets`, {
-            method: "POST", headers: { ...SH, Prefer: "return=minimal" },
-            body: JSON.stringify({
-              user_id: user.id, event_id: pick.matchId,
-              event_name: pick.match.slice(0, 250),
-              sport, league: "Single", selection: pick.sel,
-              selection_name: `${pick.mk}: ${pick.sel} @ ${pick.odds.toFixed(2)}`.slice(0, 250),
-              odds: pick.odds, stake: stakeNum,
-              potential_win: +(stakeNum * pick.odds).toFixed(2), status: "pending",
-            }),
-          });
-
-          if (!br.ok) {
-            // Refund this withdraw + all earlier
-            for (let i = 0; i < refundQueue.length + 1; i++) {
-              await fetch(`${SU}/rest/v1/rpc/update_balance`, {
-                method: "POST", headers: SH,
-                body: JSON.stringify({ p_user_id: user.id, p_action: "add", p_amount: stakeNum }),
-              }).catch(() => {});
-            }
-            throw new Error("Bet record failed — all refunded");
-          }
-          refundQueue.push(stakeNum);
-        }
+      if (!result.success) {
+        throw new Error(result.currentOdds ? `Odds changed — current: ${Number(result.currentOdds).toFixed(2)}` : (result.error || "Bet failed"));
       }
+
       setSlip([]); setStake(""); setShowSlipPanel(false);
-      setMsgOk(`Bet placed! Potential win: ${(betMode === "single" ? singleTotalWin : potentialWin).toFixed(2)} TND`);
+      setMsgOk(`${result.count || slip.length} bet${(result.count || slip.length) > 1 ? "s" : ""} placed! Potential win: ${singleTotalWin.toFixed(2)} TND`);
       await refreshBalance();
-      // Refresh My Bets cache if user is viewing
       if (tab === "b") {
-        const fr = await fetch(`${SU}/rest/v1/sports_bets?user_id=eq.${user.id}&select=*&order=id.desc&limit=80`, { headers: SH });
-        if (fr.ok) setBets(await fr.json());
+        const fresh = await fetchMySportsBets(user.id);
+        if (Array.isArray(fresh)) setBets(fresh);
       }
     } catch (e: any) {
       setMsgErr(e?.message || "Bet failed");
@@ -289,7 +232,7 @@ export default function Sports() {
             </span>
           )}
         </div>
-        <button onClick={() => { setLoading(true); fetchOddsMatches(sport).then(d => { setMatches(d); setLoading(false); }); }}
+        <button onClick={() => { setLoading(true); clearSportsbookCache(); fetchOddsMatches(sport).then(d => { setMatches(d); setLoading(false); }); }}
           className="p-2 rounded-lg" style={{ background: "rgba(0,209,255,0.1)", border: "1px solid rgba(0,209,255,0.2)" }}>
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} style={{ color: "#00D1FF" }} />
         </button>
@@ -317,6 +260,30 @@ export default function Sports() {
 
       {tab === "m" && (
         <>
+          {/* LIVE / Upcoming tabs */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {([
+              { id: "live", label: "LIVE", count: liveCount, color: "#FF2D55", icon: Radio },
+              { id: "upcoming", label: "UPCOMING", count: upcomingCount, color: "#00D1FF", icon: Calendar },
+            ] as const).map(x => {
+              const Icon = x.icon;
+              const active = statusTab === x.id;
+              return (
+                <button key={x.id} onClick={() => setStatusTab(x.id)}
+                  className="py-2.5 rounded-xl text-xs font-black tracking-wide flex items-center justify-center gap-1.5"
+                  style={{
+                    background: active ? `${x.color}22` : "rgba(255,255,255,0.04)",
+                    border: active ? `1px solid ${x.color}66` : "1px solid rgba(255,255,255,0.06)",
+                    color: active ? x.color : "rgba(255,255,255,0.45)",
+                  }}>
+                  <Icon className={`w-3.5 h-3.5 ${x.id === "live" && x.count > 0 ? "animate-pulse" : ""}`} />
+                  {x.label}
+                  <span className="opacity-70">({x.count})</span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* Search */}
           <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
@@ -344,7 +311,6 @@ export default function Sports() {
           <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-3 px-3 mb-3 scrollbar-hide">
             {([
               { id: "all", label: "All", count: matches.length, accent: undefined as string | undefined },
-              { id: "live", label: "Live", count: liveCount, accent: "#FF2D55" as string | undefined },
               { id: "today", label: "Today", count: todayCount, accent: undefined as string | undefined },
               { id: "tomorrow", label: "Tomorrow", count: undefined as number | undefined, accent: undefined as string | undefined },
               { id: "week", label: "This Week", count: undefined as number | undefined, accent: undefined as string | undefined },
@@ -356,7 +322,6 @@ export default function Sports() {
                   border: timeFilter === f.id ? `1px solid ${f.accent || "#00D1FF"}60` : "1px solid rgba(255,255,255,0.05)",
                   color: timeFilter === f.id ? (f.accent || "#00D1FF") : "rgba(255,255,255,0.4)",
                 }}>
-                {f.id === "live" && <Radio className="w-3 h-3 animate-pulse" />}
                 {f.label}
                 {("count" in f && f.count !== undefined) && <span className="opacity-60">({f.count})</span>}
               </button>
@@ -396,7 +361,7 @@ export default function Sports() {
             style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
             <span className="px-1.5 py-0.5 rounded font-black" style={{ background: "rgba(34,197,94,0.25)", color: "#22c55e" }}>LIVE FEED</span>
             <span className="text-white/70">
-              Real odds from <span className="font-bold text-white">1xBet</span> via odds-api.io · refreshes every 20min
+ESPN live fixtures + <span className="font-bold text-white">DraftKings</span> odds where available · TunBet math model fallback · backend {API_HOST}
             </span>
           </div>
 
@@ -550,7 +515,7 @@ function MatchCard({
       {m.updatedAt && (
         <div className="px-3 pb-1 flex items-center gap-1.5 text-[8px] text-white/30">
           <span className="px-1 py-0.5 rounded font-black" style={{ background: "rgba(34,197,94,0.12)", color: "#22c55e" }}>
-            ODDS: 1xBet
+            {m.hasRealOdds ? (m.oddsSource || "ESPN DraftKings") : "TunBet Model"}
           </span>
           <span>•</span>
           <span>Updated {timeAgo(m.updatedAt)}</span>
@@ -647,7 +612,7 @@ function BetSlip({
   show, setShow, onRemove, onClear, onPlace, placing,
 }: any) {
   const stakeNum = parseFloat(stake) || 0;
-  const totalDebit = betMode === "single" ? stakeNum * slip.length : stakeNum;
+  const totalDebit = stakeNum * slip.length;
   const insufficient = stakeNum > 0 && totalDebit > balance;
   const invalidStake = stakeNum > 0 && (stakeNum < 0.5 || stakeNum > 5000);
   return (
@@ -675,24 +640,14 @@ function BetSlip({
         {show && (
           <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }}
             className="overflow-hidden">
-            {/* Bet mode toggle (only for multi-leg) */}
+            {/* Professional singles slip */}
             {slip.length > 1 && (
-              <div className="px-3 pt-2.5 flex gap-2">
-                {([
-                  { id: "multi", label: "Accumulator", desc: `${totalOdds.toFixed(2)}× combined` },
-                  { id: "single", label: "Singles", desc: `${slip.length} separate bets` },
-                ] as const).map(opt => (
-                  <button key={opt.id} onClick={() => setBetMode(opt.id)}
-                    className="flex-1 py-1.5 rounded-lg text-[10px] font-bold"
-                    style={{
-                      background: betMode === opt.id ? "rgba(0,209,255,0.18)" : "rgba(255,255,255,0.04)",
-                      border: betMode === opt.id ? "1px solid rgba(0,209,255,0.5)" : "1px solid rgba(255,255,255,0.08)",
-                      color: betMode === opt.id ? "#00D1FF" : "rgba(255,255,255,0.5)",
-                    }}>
-                    <div>{opt.label}</div>
-                    <div className="text-[9px] opacity-60">{opt.desc}</div>
-                  </button>
-                ))}
+              <div className="px-3 pt-2.5">
+                <div className="px-3 py-2 rounded-lg text-[10px] font-bold flex items-center justify-between"
+                  style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.18)", color: "rgba(255,255,255,0.65)" }}>
+                  <span>Singles mode</span>
+                  <span style={{ color: "#00D1FF" }}>{slip.length} tickets · stake per pick</span>
+                </div>
               </div>
             )}
 
@@ -732,12 +687,12 @@ function BetSlip({
                 <div className="text-right">
                   <div className="text-[9px] text-white/40 uppercase">Win</div>
                   <div className="text-sm font-black tabular-nums" style={{ color: "#00C853" }}>
-                    {(betMode === "single" ? singleTotalWin : potentialWin).toFixed(2)} TND
+                    {singleTotalWin.toFixed(2)} TND
                   </div>
                 </div>
               </div>
 
-              {betMode === "single" && slip.length > 1 && (
+              {slip.length > 0 && (
                 <div className="text-[10px] text-white/50 px-1">
                   Total stake: <span className="font-bold text-white">{totalDebit.toFixed(2)} TND</span>
                   {" · "}Balance: <span className="font-bold" style={{ color: insufficient ? "#FF2D55" : "#00C853" }}>{balance.toFixed(2)} TND</span>
@@ -772,7 +727,7 @@ function BetSlip({
         ) : invalidStake ? (
           <>INVALID STAKE</>
         ) : (
-          <><Zap className="w-3.5 h-3.5" /> PLACE BET</>
+          <><Zap className="w-3.5 h-3.5" /> PLACE {slip.length > 1 ? `${slip.length} BETS` : "BET"}</>
         )}
       </button>
     </div>
