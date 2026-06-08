@@ -139,22 +139,21 @@ const translations: Record<string, Record<string, string>> = {
   },
 };
 
-export type Lang = "ar" | "en" | "fr";
+export type Lang = "en";
 
+// Site is English-only. Locked at "en" — language switcher removed.
 export function getLang(): Lang {
-  return (localStorage.getItem("mebet_lang") as Lang) || "ar";
+  return "en";
 }
 
-export function setLang(lang: Lang) {
-  localStorage.setItem("mebet_lang", lang);
-  window.location.reload();
+export function setLang(_lang: Lang) {
+  // no-op (English only)
 }
 
 export function t(key: string): string {
-  const lang = getLang();
-  return translations[lang]?.[key] || translations["ar"]?.[key] || key;
+  return translations["en"]?.[key] || translations["ar"]?.[key] || key;
 }
 
 export function isRTL(): boolean {
-  return getLang() === "ar";
+  return false;
 }

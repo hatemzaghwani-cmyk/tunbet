@@ -1,28 +1,20 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { User, LogOut, ChevronDown, Globe } from "lucide-react";
+import { User, LogOut, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "./AuthModal";
-import { getLang, setLang, t, isRTL, Lang } from "@/lib/i18n";
-
-const LANGS: { id: Lang; flag: string; name: string }[] = [
-  { id: "ar", flag: "🇹🇳", name: "العربية" },
-  { id: "en", flag: "🇬🇧", name: "English" },
-  { id: "fr", flag: "🇫🇷", name: "Français" },
-];
+import { t } from "@/lib/i18n";
 
 export function Header() {
   const { user, logout } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showLang, setShowLang] = useState(false);
-  const currentLang = LANGS.find(l => l.id === getLang()) || LANGS[0];
 
   return (
     <>
       <header
         className="flex items-center justify-between px-4 py-3 sticky top-0 z-40"
-        dir={isRTL() ? "rtl" : "ltr"}
+        dir="ltr"
         style={{
           background: "rgba(2,4,8,0.9)",
           backdropFilter: "blur(20px)",
@@ -32,39 +24,15 @@ export function Header() {
         <Link href="/" className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full flex items-center justify-center"
             style={{ border: "1.5px solid #00D1FF", boxShadow: "0 0 12px rgba(0,209,255,0.4)" }}>
-            <span className="font-black text-xl leading-none" style={{ color: "#00D1FF" }}>T</span>
+            <span className="font-black text-xl leading-none" style={{ color: "#00D1FF" }}>M</span>
           </div>
           <span className="font-black tracking-[0.18em] text-base text-white">MEBET</span>
         </Link>
 
         <div className="flex items-center gap-2">
-          {/* Language Switcher */}
-          <div className="relative">
-            <button onClick={() => { setShowLang(!showLang); setShowUserMenu(false); }}
-              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <span>{currentLang.flag}</span>
-              <ChevronDown className="w-3 h-3 text-white/40" />
-            </button>
-            {showLang && (
-              <div className="absolute right-0 top-full mt-2 w-36 rounded-xl py-1 z-50"
-                style={{ background: "rgba(2,4,8,0.98)", border: "1px solid rgba(0,209,255,0.2)", backdropFilter: "blur(20px)" }}>
-                {LANGS.map(l => (
-                  <button key={l.id} onClick={() => { setLang(l.id); setShowLang(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/5"
-                    style={{ color: l.id === getLang() ? "#00D1FF" : "rgba(255,255,255,0.6)" }}>
-                    <span>{l.flag}</span>
-                    <span className="font-medium">{l.name}</span>
-                    {l.id === getLang() && <span className="ml-auto text-xs">✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           {user ? (
             <div className="relative">
-              <button onClick={() => { setShowUserMenu(!showUserMenu); setShowLang(false); }}
+              <button onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center gap-2 rounded-xl px-3 py-2"
                 style={{ background: "rgba(0,209,255,0.1)", border: "1px solid rgba(0,209,255,0.2)" }}>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
@@ -105,3 +73,4 @@ export function Header() {
     </>
   );
 }
+
