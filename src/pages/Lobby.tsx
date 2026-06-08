@@ -209,7 +209,7 @@ export default function Lobby() {
     if (gameUrl) return;                         // can't launch while another game is open
     if (closingGame) return;                     // can't launch while closing previous
     if (parseFloat(user.balance) <= 0) {
-      setLaunchError(t("insufficientBalance"));
+      setLaunchError(t("insufficientBalance") + " — تواصل مع الإدارة لشحن رصيدك");
       setTimeout(() => setLaunchError(""), 4500); return;
     }
     setLaunchingGame(game.game_code); setLaunchError("");

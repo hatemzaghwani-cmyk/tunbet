@@ -440,7 +440,7 @@ export async function apiLaunchGame(token: string, gameCode: string, providerId:
     // STEP 2: Read fresh balance from Supabase (after leftover reclaim)
     const freshUsers = await sbGet("users", `id=eq.${p.userId}&select=balance`);
     const bal = parseFloat(freshUsers[0]?.balance || "0");
-    if (bal <= 0) return { error: "Insufficient balance." };
+    if (bal <= 0) return { error: "رصيدك 0. تواصل مع وكيلك لإضافة رصيد." };
 
     // STEP 3: ATOMIC withdraw from Supabase (RPC enforces sufficient funds)
     let supabaseBalAfter: number;
