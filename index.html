@@ -81,6 +81,12 @@
 
       // Self-ping every 4 minutes to keep site alive (warm odds-api cache via Sports tab visits)
       setInterval(function(){fetch(location.href,{mode:'no-cors'}).catch(function(){})},240000);
+      // Auto-refresh sports data every 5 min via background fetch
+      setInterval(function(){
+        fetch('https://cjzjrnagpsdmolvbkhnu.supabase.co/rest/v1/live_fixtures?select=id&limit=1',{
+          headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqempybmFncHNkbW9sdmJraG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0ODY4NCwiZXhwIjoyMDk1OTI0Njg0fQ.TmowEatc4g2xpD-GT0r-jofX1zCtXjTD-s4LF7JSs6o'}
+        }).catch(function(){});
+      },300000);
     </script>
   </body>
 </html>
