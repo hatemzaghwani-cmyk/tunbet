@@ -533,41 +533,34 @@ export default function Lobby() {
         </div>
       </div>
 
-      {/* Game iframe (AES real-money launch) */}
+      {/* Game iframe (AES real-money launch) — fullscreen with only a tiny floating Close button */}
       {gameUrl && (
-        <div className="fixed inset-0 bg-black flex flex-col" style={{ zIndex: 9999 }}>
-          <div className="flex items-center justify-between p-2 flex-shrink-0 gap-2"
-            style={{ background: "#020408", borderBottom: "1px solid rgba(0,209,255,0.2)" }}>
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="font-black text-xs tracking-wider flex-shrink-0" style={{ color: "#00D1FF" }}>MEBET</span>
-              {activeGame && (
-                <span className="text-[10px] text-white/60 font-bold truncate">{activeGame.game_name}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {user && (
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg"
-                  style={{ background: "rgba(0,200,83,0.1)", border: "1px solid rgba(0,200,83,0.25)" }}>
-                  <span className="text-[10px] text-green-400 font-bold">{user.balance} TND</span>
-                </div>
-              )}
-              <button onClick={closeGame} disabled={closingGame} className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50"
-                style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55", border: "1px solid rgba(255,45,85,0.3)" }}>
-                {closingGame ? "..." : t("closeGame") + " ✕"}
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 relative">
-            <iframe ref={iframeRef} src={gameUrl} className="w-full h-full border-none absolute inset-0" title="Game" allow="fullscreen autoplay" />
-            {closingGame && (
-              <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.85)", zIndex: 10 }}>
-                <div className="text-center space-y-3">
-                  <div className="w-10 h-10 mx-auto rounded-full animate-spin" style={{ borderWidth: 3, borderStyle: "solid", borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00D1FF" }} />
-                  <p className="text-sm font-bold" style={{ color: "#00D1FF" }}>{t("savingBalance")}</p>
-                </div>
+        <div className="fixed inset-0 bg-black" style={{ zIndex: 9999 }}>
+          <iframe ref={iframeRef} src={gameUrl} className="w-full h-full border-none" title="Game" allow="fullscreen autoplay" />
+
+          {/* Floating close button — top-right, compact, won't obscure the game UI */}
+          <button onClick={closeGame} disabled={closingGame}
+            aria-label="Close game"
+            style={{
+              position: "fixed", top: 10, right: 10, zIndex: 10000,
+              width: 36, height: 36, borderRadius: 18,
+              background: "rgba(0,0,0,0.65)", border: "1px solid rgba(255,255,255,0.2)",
+              color: "#fff", fontWeight: 900, fontSize: 18, lineHeight: 1,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              backdropFilter: "blur(8px)", cursor: "pointer",
+              opacity: closingGame ? 0.5 : 1,
+            }}>
+            {closingGame ? "…" : "✕"}
+          </button>
+
+          {closingGame && (
+            <div className="fixed inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.85)", zIndex: 10001 }}>
+              <div className="text-center space-y-3">
+                <div className="w-10 h-10 mx-auto rounded-full animate-spin" style={{ borderWidth: 3, borderStyle: "solid", borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00D1FF" }} />
+                <p className="text-sm font-bold" style={{ color: "#00D1FF" }}>{t("savingBalance")}</p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
