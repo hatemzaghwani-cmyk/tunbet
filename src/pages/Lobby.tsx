@@ -310,6 +310,78 @@ export default function Lobby() {
             </div>
           ) : (
             <>
+              {/* ========== AMATIC SECTION (160 games via CQ9/AES) ========== */}
+              {!search && activeProvider === null && (() => {
+                const AMATIC_CODES = ['19','144','197','194','47','211','215','219','22','21','204','122','67','4','46','148','139','1','83','153','89','133','64','50','10','130','142','231','230','229','228','212','223','225','226','171','209','27','32','59','96','13','80','2','132','184','76','42','221','81','17','98','86','20','66','129','44','77','70','23','38','55','135'];
+                const amaticGames = games.filter(g => g.provider_id === 2 && AMATIC_CODES.includes(g.game_code));
+                if (amaticGames.length === 0) return null;
+                const preview = amaticGames.slice(0, 9);
+                return (
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                          style={{ background: "linear-gradient(135deg,#FF2D55,#FF6B35)", boxShadow: "0 0 12px rgba(255,45,85,0.4)" }}>
+                          <span className="text-xs font-black text-white">A</span>
+                        </div>
+                        <div>
+                          <h2 className="text-sm font-black tracking-wider" style={{ color: "#FF6B35" }}>AMATIC</h2>
+                          <p className="text-[9px] text-white/30">Classic Slots • {amaticGames.length} Games</p>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black ml-1"
+                          style={{ background: "rgba(0,200,83,0.18)", color: "#00C853" }}>
+                          REAL TND ✓
+                        </span>
+                      </div>
+                      <button onClick={() => setActiveProvider(2)}
+                        className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-lg flex-shrink-0"
+                        style={{ color: "#FF6B35", background: "rgba(255,107,53,0.1)", border: "1px solid rgba(255,107,53,0.3)" }}>
+                        See all →
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2.5">
+                      {preview.map((g, i) => (
+                        <motion.div key={`amatic-${g.game_code}`}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: Math.min(i * 0.03, 0.2) }}
+                          whileHover={{ y: -3 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => launchGame(g)}
+                          className="relative rounded-xl overflow-hidden cursor-pointer group"
+                          style={{ aspectRatio: "3/4", border: "1px solid rgba(255,107,53,0.3)" }}>
+                          <img src={g.game_image_narrow || g.game_image} alt={g.game_name} loading="lazy"
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            onError={e => {
+                              const im = e.target as HTMLImageElement;
+                              if (g.game_image && im.src !== g.game_image) { im.src = g.game_image; return; }
+                              im.style.display = "none";
+                            }} />
+                          <div className="absolute inset-0"
+                            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.3) 50%, transparent 80%)" }} />
+                          <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[7px] font-black uppercase"
+                            style={{ background: "linear-gradient(135deg,#FF2D55,#FF6B35)", color: "#fff" }}>
+                            AMATIC
+                          </div>
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-11 h-11 rounded-full flex items-center justify-center"
+                              style={{ background: "#FF6B35", boxShadow: "0 0 24px rgba(255,107,53,0.8)" }}>
+                              <span className="text-black font-black text-lg ml-0.5">▶</span>
+                            </div>
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 p-1.5">
+                            <p className="text-[10px] font-black text-white leading-tight tracking-wide line-clamp-2"
+                              style={{ textShadow: "0 2px 4px rgba(0,0,0,0.95)" }}>
+                              {g.game_name}
+                            </p>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* ========== TOP: Most Popular (mixed sizes) ========== */}
               {!search && activeProvider === null && topPicks.length > 0 && (
                 <div className="mb-5">
@@ -335,7 +407,7 @@ export default function Lobby() {
                 // Color/branding per provider (fallback to PROVIDER_COLORS map)
                 const PROVIDER_META: Record<number, { label: string; grad: string; ring: string; accent: string }> = {
                   1:  { label: "Pragmatic Play",   grad: "linear-gradient(135deg,#FF6B35,#dc2626)", ring: "rgba(255,107,53,0.35)",  accent: "#FF8159" },
-                  2:  { label: "CQ9 Gaming",       grad: "linear-gradient(135deg,#00D1FF,#0284c7)", ring: "rgba(0,209,255,0.35)",   accent: "#22D3EE" },
+                  2:  { label: "CQ9 / Amatic",     grad: "linear-gradient(135deg,#FF6B35,#dc2626)", ring: "rgba(255,107,53,0.35)",  accent: "#FF8159" },
                   3:  { label: "PG Soft",          grad: "linear-gradient(135deg,#a855f7,#7c3aed)", ring: "rgba(168,85,247,0.35)",  accent: "#c084fc" },
                   4:  { label: "Booongo",          grad: "linear-gradient(135deg,#22c55e,#16a34a)", ring: "rgba(34,197,94,0.35)",   accent: "#4ade80" },
                   5:  { label: "Playson",          grad: "linear-gradient(135deg,#f59e0b,#d97706)", ring: "rgba(245,158,11,0.35)",  accent: "#fbbf24" },
@@ -350,7 +422,7 @@ export default function Lobby() {
                 };
 
                 // Featured-first ordering: Pragmatic, PG Soft, Hacksaw, Spribe, Habanero, CQ9 — then the rest by count
-                const FEATURED_ORDER = [1, 3, 16, 15, 7, 2];
+                const FEATURED_ORDER = [2, 1, 3, 16, 15, 7];
                 // Derive provider IDs from the games themselves so this works even if
                 // /v4/game/providers fetch failed or hasn't returned yet.
                 const idsWithGames = Array.from(new Set(games.map(g => g.provider_id)));
