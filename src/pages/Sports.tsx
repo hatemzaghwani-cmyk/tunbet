@@ -1,12 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Search, X, Ticket, CheckCircle, XCircle, Timer, RefreshCw, Zap, Key, AlertTriangle } from "lucide-react";
+import { Trophy, Search, X, Ticket, CheckCircle, XCircle, Timer, RefreshCw, Zap } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
-import {
-  fetchOddsMatches, hasOddsApiKey, setOddsApiKey, getOddsApiKey, pingOddsApi,
-  SPORTS, type OddsMatch,
-} from "@/lib/oddsApi";
+import { fetchOddsMatches, SPORTS, type OddsMatch } from "@/lib/oddsApi";
 
 const SU = "https://cjzjrnagpsdmolvbkhnu.supabase.co";
 const SK = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqempybmFncHNkbW9sdmJraG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0ODY4NCwiZXhwIjoyMDk1OTI0Njg0fQ.TmowEatc4g2xpD-GT0r-jofX1zCtXjTD-s4LF7JSs6o";
@@ -17,7 +14,6 @@ interface Bet { id: number; event_name: string; selection_name: string; odds: nu
 
 export default function Sports() {
   const { user, refreshBalance } = useAuth();
-  const [hasKey, setHasKey] = useState(hasOddsApiKey());
   const [matches, setMatches] = useState<OddsMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -33,12 +29,11 @@ export default function Sports() {
   const [showSlip, setShowSlip] = useState(false);
 
   useEffect(() => {
-    if (!hasKey) { setLoading(false); return; }
     setLoading(true);
     fetchOddsMatches(sport).then(d => { setMatches(d); setLoading(false); });
     const iv = setInterval(() => fetchOddsMatches(sport).then(setMatches), 35000);
     return () => clearInterval(iv);
-  }, [hasKey, sport]);
+  }, [sport]);
 
   useEffect(() => {
     if (tab !== "b" || !user) return;
@@ -108,11 +103,6 @@ export default function Sports() {
     }
   };
 
-  // ─── API Key setup screen ─────────────────────────────────────────────
-  if (!hasKey) {
-    return <KeySetup onSaved={() => setHasKey(true)} />;
-  }
-
   // ─── Main Sports UI ───────────────────────────────────────────────────
   return (
     <div className="pb-24 px-3 pt-2">
@@ -122,17 +112,10 @@ export default function Sports() {
           <Trophy className="w-5 h-5" style={{ color: "#00D1FF" }} />
           <h1 className="text-base font-black tracking-wider">SPORTS</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => { setLoading(true); fetchOddsMatches(sport).then(d => { setMatches(d); setLoading(false); }); }}
-            className="p-2 rounded-lg" style={{ background: "rgba(0,209,255,0.1)", border: "1px solid rgba(0,209,255,0.2)" }}>
-            <RefreshCw className="w-3.5 h-3.5" style={{ color: "#00D1FF" }} />
-          </button>
-          <button onClick={() => { setOddsApiKey(""); setHasKey(false); }}
-            title="Reset API key"
-            className="p-2 rounded-lg" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <Key className="w-3.5 h-3.5 text-white/40" />
-          </button>
-        </div>
+        <button onClick={() => { setLoading(true); fetchOddsMatches(sport).then(d => { setMatches(d); setLoading(false); }); }}
+          className="p-2 rounded-lg" style={{ background: "rgba(0,209,255,0.1)", border: "1px solid rgba(0,209,255,0.2)" }}>
+          <RefreshCw className="w-3.5 h-3.5" style={{ color: "#00D1FF" }} />
+        </button>
       </div>
 
       {/* Tabs */}
@@ -192,9 +175,9 @@ export default function Sports() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-16 text-white/30 text-sm">
               <Trophy className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              No matches available for this sport right now.
+              No upcoming matches in this sport right now.
               <br /><br />
-              <span className="text-[10px]">odds-api.io free tier may have limited coverage. Upgrade plan for more.</span>
+              <span className="text-[10px]">Odds refresh every 20 minutes. Check back soon.</span>
             </div>
           ) : (
             <div className="space-y-2">
@@ -373,73 +356,3 @@ function MatchRow({ m, slip, onSel }: { m: OddsMatch; slip: Slip[]; onSel: (m: O
   );
 }
 
-// ─── Setup Screen ─────────────────────────────────────────────────────────
-function KeySetup({ onSaved }: { onSaved: () => void }) {
-  const [key, setKey] = useState(getOddsApiKey());
-  const [testing, setTesting] = useState(false);
-  const [err, setErr] = useState("");
-
-  const save = async () => {
-    if (!key.trim()) { setErr("Enter your API key"); return; }
-    setTesting(true); setErr("");
-    setOddsApiKey(key.trim());
-    const r = await pingOddsApi();
-    setTesting(false);
-    if (!r.ok) { setErr(r.error || "Invalid API key"); setOddsApiKey(""); return; }
-    onSaved();
-  };
-
-  return (
-    <div className="pb-24 px-4 pt-6 min-h-screen">
-      <div className="max-w-md mx-auto">
-        <div className="flex items-center gap-2 mb-6">
-          <Trophy className="w-6 h-6" style={{ color: "#00D1FF" }} />
-          <h1 className="text-lg font-black tracking-wider">SPORTS — Setup</h1>
-        </div>
-
-        <div className="p-4 rounded-2xl mb-4"
-          style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: "#f59e0b" }} />
-            <div className="text-xs text-white/80 leading-relaxed">
-              <p className="font-bold mb-1.5" style={{ color: "#f59e0b" }}>API key required</p>
-              Sports odds are powered by <span className="font-bold">odds-api.io</span> (real bookmaker data from 265+ sportsbooks).
-              <br /><br />
-              <span className="font-bold text-white">Steps:</span>
-              <ol className="list-decimal list-inside mt-1 space-y-0.5">
-                <li>Visit <a href="https://odds-api.io/dashboard" target="_blank" rel="noopener" className="underline" style={{ color: "#00D1FF" }}>odds-api.io/dashboard</a></li>
-                <li>Sign in with: <code className="px-1 rounded bg-black/40 text-[10px]">hatemzaghwani@gmail.com</code></li>
-                <li>Copy your API key from the dashboard</li>
-                <li>Paste it below — works on free tier (100 req/h)</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2 mb-3">
-          <label className="text-xs text-white/60 font-bold uppercase">odds-api.io API Key</label>
-          <input value={key} onChange={e => setKey(e.target.value)} placeholder="paste your API key here"
-            className="w-full px-3 py-3 rounded-xl text-sm text-white bg-black/40 outline-none font-mono"
-            style={{ border: "1px solid rgba(0,209,255,0.3)" }} />
-        </div>
-
-        {err && (
-          <div className="mb-3 p-2.5 rounded-lg text-xs"
-            style={{ background: "rgba(255,45,85,0.1)", color: "#FF2D55", border: "1px solid rgba(255,45,85,0.3)" }}>
-            {err}
-          </div>
-        )}
-
-        <button onClick={save} disabled={testing}
-          className="w-full py-3 rounded-xl text-sm font-black disabled:opacity-50"
-          style={{ background: "#00D1FF", color: "#020408" }}>
-          {testing ? "Verifying…" : "Save & Connect"}
-        </button>
-
-        <p className="text-[10px] text-white/30 mt-3 text-center">
-          Your key is stored locally on this device only (localStorage).
-        </p>
-      </div>
-    </div>
-  );
-}
