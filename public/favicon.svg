@@ -11,6 +11,6 @@
   </defs>
   <rect width="180" height="180" rx="36" fill="url(#bg)"/>
   <circle cx="90" cy="90" r="68" fill="none" stroke="#00D1FF" stroke-width="3" opacity="0.4"/>
-  <text x="90" y="118" font-family="system-ui, -apple-system, sans-serif" font-size="100" font-weight="900"
-    text-anchor="middle" fill="url(#m)" letter-spacing="-2">M</text>
+  <text x="90" y="108" font-family="system-ui, -apple-system, sans-serif" font-size="68" font-weight="900"
+    text-anchor="middle" fill="url(#m)" letter-spacing="-2">TB</text>
 </svg>

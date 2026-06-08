@@ -82,7 +82,7 @@ function AgentLogin({ onLogin }: { onLogin: (t: string, u: any) => void }) {
             style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.2), rgba(168,85,247,0.05))", border: "2px solid rgba(168,85,247,0.3)" }}>
             <Shield className="w-10 h-10" style={{ color: "#a855f7" }} />
           </div>
-          <h1 className="text-2xl font-black text-white tracking-wider">MEBET</h1>
+          <h1 className="text-2xl font-black text-white tracking-wider">TUNBET</h1>
           <p className="text-white/30 text-sm mt-1">لوحة الوكيل</p>
         </div>
         <form onSubmit={submit} className="space-y-4">
@@ -164,7 +164,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
         <div>
-          <div className="font-black tracking-widest text-sm">MEBET</div>
+          <div className="font-black tracking-widest text-sm">TUNBET</div>
           <div className="text-white/40 text-xs">Agent Panel — {user?.username ?? ""}</div>
         </div>
         <div className="flex items-center gap-4">

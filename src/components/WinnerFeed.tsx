@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const NAMES = ["Ahmed★","Youssef","Sami","Nour","Khalil","Mehdi","Amine","Rania","Fatma","Omar","Ali★","Bilel","Rami","Mounir","Salma","Hichem","Karim","Leila","Zied","Ines"];
-const GAMES = ["Sweet Bonanza","Gates of Olympus","Big Bass","Sugar Rush","Starlight Princess","Dog House","Wolf Gold","Aztec Gems","Fruit Party","Wild West Gold","Madame Destiny","Book of Fallen","Floating Dragon","Hot Pepper","Cash Bonanza"];
+const NAMES = ["Ahmed★","Youssef","Sami","Nour","Khalil","Mehdi","Amine","Rania","Fatma","Omar","Ali★","Bilel","Rami","Mounir","Salma","Hichem","Karim","Leila","Zied","Ines","Mohamed","Hamza","Wassim","Firas","Saber","Nabil","Hatem","Sana","Imen","Houssem"];
+const GAMES = ["Sweet Bonanza","Gates of Olympus","Big Bass","Sugar Rush","Starlight Princess","Dog House","Wolf Gold","Aztec Gems","Fruit Party","Wild West Gold","Madame Destiny","Book of Fallen","Floating Dragon","Hot Pepper","Cash Bonanza","5 Lions Megaways","Starlight Christmas","Buffalo King","John Hunter","Release the Kraken"];
 
 function randomWin() {
   return {
     name: NAMES[Math.floor(Math.random() * NAMES.length)],
     game: GAMES[Math.floor(Math.random() * GAMES.length)],
-    amount: (Math.random() * 500 + 5).toFixed(2),
+    amount: (Math.random() * 800 + 5).toFixed(2),
     id: Date.now() + Math.random(),
   };
 }
@@ -18,8 +18,8 @@ export function WinnerFeed() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    const fire = () => { setWinner(randomWin()); setShow(true); setTimeout(() => setShow(false), 4000); };
-    setTimeout(fire, 5000);
+    const fire = () => { setWinner(randomWin()); setShow(true); setTimeout(() => setShow(false), 4500); };
+    setTimeout(fire, 4000);
     const iv = setInterval(fire, 12000);
     return () => clearInterval(iv);
   }, []);
@@ -38,7 +38,7 @@ export function WinnerFeed() {
             <span className="text-sm">🏆</span>
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] text-white/40">Just won!</p>
+            <p className="text-[10px] text-white/40">فاز للتو!</p>
             <p className="text-xs font-bold text-white truncate">{winner.name}</p>
             <p className="text-[10px] text-white/50 truncate">{winner.game}</p>
           </div>

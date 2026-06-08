@@ -1,14 +1,9 @@
 import { motion } from "framer-motion";
-import { Flame, Shield, Wifi, Clock, MessageCircle } from "lucide-react";
-import { LIVE_GAMES, LIVE_VENDORS } from "@/lib/liveGames";
-import { useState } from "react";
+import { Flame, Shield, Wifi, Clock, MessageCircle, Gamepad2 } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function Live() {
-  const [activeVendor, setActiveVendor] = useState("all");
-
-  const filteredGames = activeVendor === "all"
-    ? LIVE_GAMES
-    : LIVE_GAMES.filter(g => g.vendor === activeVendor);
+  const [, navigate] = useLocation();
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -21,7 +16,7 @@ export default function Live() {
             </div>
             <div>
               <h1 className="text-xl font-black tracking-wider">LIVE CASINO</h1>
-              <p className="text-[10px] text-white/40 font-mono">{LIVE_GAMES.length} TABLES • 6 PROVIDERS</p>
+              <p className="text-[10px] text-white/40 font-mono">142 TABLES • 6 PROVIDERS</p>
             </div>
           </div>
           <div className="flex items-center gap-1 px-2 py-1 rounded-full" style={{ background: "rgba(255,165,0,0.15)", border: "1px solid rgba(255,165,0,0.3)" }}>
@@ -39,7 +34,7 @@ export default function Live() {
             <div>
               <h3 className="text-sm font-bold text-white mb-1">Live Dealer Connection in Progress</h3>
               <p className="text-xs text-white/50 leading-relaxed">
-                We're finalizing the connection with <span className="text-orange-300 font-semibold">Pragmatic Live</span>, <span className="text-orange-300 font-semibold">Ezugi</span>, <span className="text-orange-300 font-semibold">Sa Gaming</span> and <span className="text-orange-300 font-semibold">Dream Gaming</span> live dealer servers.
+                We're finalizing the connection with <span className="text-orange-300 font-semibold">Pragmatic Live</span>, <span className="text-orange-300 font-semibold">Ezugi</span>, <span className="text-orange-300 font-semibold">SA Gaming</span> and <span className="text-orange-300 font-semibold">Dream Gaming</span> live dealer servers.
               </p>
               <div className="flex items-center gap-4 mt-3">
                 <div className="flex items-center gap-1.5">
@@ -55,63 +50,66 @@ export default function Live() {
           </div>
         </div>
 
-        {/* Vendor Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          <button onClick={() => setActiveVendor("all")}
-            className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
-            style={{ background: activeVendor === "all" ? "linear-gradient(135deg, #FF2D55, #FF6B35)" : "rgba(255,255,255,0.05)", color: activeVendor === "all" ? "#fff" : "rgba(255,255,255,0.5)" }}>
-            All ({LIVE_GAMES.length})
-          </button>
-          {LIVE_VENDORS.filter(v => v.gameCount > 0).map(v => (
-            <button key={v.code} onClick={() => setActiveVendor(v.code)}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
-              style={{ background: activeVendor === v.code ? "linear-gradient(135deg, #FF2D55, #FF6B35)" : "rgba(255,255,255,0.05)", color: activeVendor === v.code ? "#fff" : "rgba(255,255,255,0.5)" }}>
-              <img src={v.logo} alt="" className="w-4 h-4 rounded" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-              {v.name} ({v.gameCount})
-            </button>
-          ))}
-        </div>
-
-        {/* Games Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {filteredGames.slice(0, 30).map((game, i) => (
-            <motion.div key={game.id}
-              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: Math.min(i * 0.03, 0.3) }}
-              className="relative rounded-xl overflow-hidden" style={{ aspectRatio: "4/5", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <img src={game.thumb} alt={game.name} className="w-full h-full object-cover opacity-70" loading="lazy"
-                onError={e => {
-                  (e.target as HTMLImageElement).src = `https://static3.pgf-asu2nd.com/logo/${game.vendor}.png`;
-                  (e.target as HTMLImageElement).className = "w-full h-full object-contain p-6 bg-black/50 opacity-70";
-                }} />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 50%, transparent 100%)" }} />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="px-3 py-1 rounded-full text-[9px] font-black" style={{ background: "rgba(255,165,0,0.8)", color: "#000" }}>
-                  COMING SOON
+        {/* Provider Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { name: "Pragmatic Live", tables: 79, color: "#FF6B35" },
+            { name: "Ezugi", tables: 63, color: "#00D1FF" },
+            { name: "SA Gaming", tables: 0, color: "#a855f7" },
+            { name: "Dream Gaming", tables: 0, color: "#22c55e" },
+            { name: "PlayAce", tables: 0, color: "#f59e0b" },
+            { name: "Micro Gaming", tables: 0, color: "#ec4899" },
+          ].map((provider) => (
+            <div key={provider.name}
+              className="rounded-xl p-4 text-center relative overflow-hidden"
+              style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${provider.color}20` }}>
+              <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-3xl opacity-10"
+                style={{ background: provider.color, marginRight: -20, marginTop: -20 }} />
+              <div className="relative">
+                <div className="w-12 h-12 rounded-xl mx-auto mb-2 flex items-center justify-center"
+                  style={{ background: `${provider.color}15`, border: `1px solid ${provider.color}30` }}>
+                  <Flame className="w-5 h-5" style={{ color: provider.color }} />
                 </div>
+                <p className="text-xs font-bold text-white mb-1">{provider.name}</p>
+                <p className="text-[10px] text-white/40">{provider.tables} Tables</p>
+                {provider.tables === 0 && (
+                  <span className="inline-block mt-1 px-2 py-0.5 rounded text-[8px] font-bold"
+                    style={{ background: "rgba(255,165,0,0.15)", color: "#FFA500" }}>
+                    COMING SOON
+                  </span>
+                )}
               </div>
-              <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded" style={{ background: "rgba(0,0,0,0.7)" }}>
-                <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#FFA500" }} />
-                <span className="text-[8px] font-black text-orange-400">LIVE</span>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                <p className="text-[7px] font-mono text-white/30 uppercase">{game.vendorName}</p>
-                <h3 className="text-[11px] font-bold text-white/80 leading-tight line-clamp-2">{game.name}</h3>
-              </div>
-            </motion.div>
+            </div>
           ))}
         </div>
 
-        {filteredGames.length > 30 && (
-          <p className="text-center text-xs text-white/30">+{filteredGames.length - 30} more tables</p>
-        )}
+        {/* Available Games Preview */}
+        <div className="rounded-xl p-4" style={{ background: "rgba(0,209,255,0.05)", border: "1px solid rgba(0,209,255,0.15)" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <Gamepad2 className="w-4 h-4" style={{ color: "#00D1FF" }} />
+            <h3 className="text-sm font-bold text-white">Available Game Types</h3>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {["Baccarat", "Roulette", "Blackjack", "Dragon Tiger", "Sic Bo", "Mega Wheel"].map(game => (
+              <div key={game} className="py-2 px-1 rounded-lg text-center text-[10px] font-bold"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}>
+                {game}
+              </div>
+            ))}
+          </div>
+        </div>
 
-        {/* CTA */}
-        <div className="rounded-xl p-5 text-center" style={{ background: "linear-gradient(135deg, rgba(255,45,85,0.08), rgba(255,165,0,0.08))", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <MessageCircle className="w-8 h-8 mx-auto mb-2 text-white/20" />
-          <p className="text-xs text-white/40 leading-relaxed">
-            Meanwhile, enjoy <span className="text-[#00D1FF] font-semibold">1,577 slot games</span> in the Casino tab — fully playable with real balance.
+        {/* CTA to Casino */}
+        <div className="rounded-xl p-5 text-center" style={{ background: "linear-gradient(135deg, rgba(0,209,255,0.08), rgba(0,255,157,0.05))", border: "1px solid rgba(0,209,255,0.15)" }}>
+          <MessageCircle className="w-8 h-8 mx-auto mb-2" style={{ color: "#00D1FF", opacity: 0.5 }} />
+          <p className="text-xs text-white/60 leading-relaxed mb-3">
+            Meanwhile, enjoy <span className="text-[#00D1FF] font-semibold">1,577 slot games</span> in the Casino tab — fully playable with real balance in TND.
           </p>
+          <button onClick={() => navigate("/")}
+            className="px-6 py-2.5 rounded-xl text-sm font-bold"
+            style={{ background: "#00D1FF", color: "#020408" }}>
+            Play Slots Now →
+          </button>
         </div>
       </div>
     </motion.div>

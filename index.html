@@ -9,20 +9,20 @@
     <meta name="theme-color" content="#020408" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Mebet" />
+    <meta name="apple-mobile-web-app-title" content="TunBet" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>Mebet — Casino & Sports Betting</title>
-    <meta name="description" content="Mebet — Premium online casino &amp; sportsbook. 1500+ real-money slots, live dealer tables, and real bookmaker sports odds from 1xBet. Play in TND." />
+    <title>TunBet — Casino & Sports Betting | تونز</title>
+    <meta name="description" content="TunBet — Premium online casino &amp; sportsbook. 1577+ real-money slots, live dealer tables, and real sports odds. Play in TND دينار تونسي." />
     <meta name="robots" content="index, follow" />
-    <meta name="keywords" content="casino, sports betting, TND, slots, live casino, 1xbet odds, Tunisia" />
-    <meta property="og:title" content="Mebet — Casino & Sports" />
-    <meta property="og:description" content="Premium online casino &amp; sportsbook. Real-money slots, live tables, sports odds." />
+    <meta name="keywords" content="casino, sports betting, TND, دينار تونسي, slots, live casino, Tunisia, TunBet" />
+    <meta property="og:title" content="TunBet — Casino & Sports" />
+    <meta property="og:description" content="Premium online casino &amp; sportsbook. 1577+ real-money slots, live tables, real sports odds. TND." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/opengraph.jpg" />
-    <meta property="og:url" content="https://mebet.surge.sh" />
+    <meta property="og:url" content="https://tunbet.surge.sh" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Mebet — Casino & Sports" />
-    <meta name="twitter:description" content="Premium online casino & sportsbook." />
+    <meta name="twitter:title" content="TunBet — Casino & Sports" />
+    <meta name="twitter:description" content="Premium online casino & sportsbook in TND." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.json" />
@@ -35,15 +35,15 @@
       body{min-height:100vh;min-height:100dvh}
       img{content-visibility:auto}
       /* Loading screen — shown until React mounts */
-      .mebet-boot{position:fixed;inset:0;background:#020408;display:flex;align-items:center;justify-content:center;z-index:9999}
-      .mebet-boot-logo{
-        width:60px;height:60px;border-radius:50%;
-        border:2px solid #00D1FF;display:flex;align-items:center;justify-content:center;
-        color:#00D1FF;font-family:system-ui;font-weight:900;font-size:28px;
-        box-shadow:0 0 24px rgba(0,209,255,0.5);
-        animation:mebetPulse 1.4s ease-in-out infinite;
+      .tunbet-boot{position:fixed;inset:0;background:#020408;display:flex;align-items:center;justify-content:center;z-index:9999}
+      .tunbet-boot-logo{
+        width:70px;height:70px;border-radius:50%;
+        border:2.5px solid #00D1FF;display:flex;align-items:center;justify-content:center;
+        color:#00D1FF;font-family:system-ui;font-weight:900;font-size:26px;
+        box-shadow:0 0 30px rgba(0,209,255,0.5);
+        animation:tunbetPulse 1.4s ease-in-out infinite;
       }
-      @keyframes mebetPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:0.6}}
+      @keyframes tunbetPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:0.6}}
       /* Hide scrollbar */
       .scrollbar-hide{scrollbar-width:none;-ms-overflow-style:none}
       .scrollbar-hide::-webkit-scrollbar{display:none}
@@ -51,8 +51,8 @@
   </head>
   <body>
     <div id="root">
-      <div class="mebet-boot" id="mebet-boot-screen">
-        <div class="mebet-boot-logo">M</div>
+      <div class="tunbet-boot" id="tunbet-boot-screen">
+        <div class="tunbet-boot-logo">TB</div>
       </div>
     </div>
     <script>
@@ -69,7 +69,7 @@
       // Remove boot screen once React has rendered (root has children)
       var pollBoot = setInterval(function(){
         var root = document.getElementById('root');
-        var boot = document.getElementById('mebet-boot-screen');
+        var boot = document.getElementById('tunbet-boot-screen');
         if (root && root.children.length > 1 && boot) {
           boot.style.transition = 'opacity 0.25s';
           boot.style.opacity = '0';
@@ -77,7 +77,7 @@
           clearInterval(pollBoot);
         }
       }, 50);
-      setTimeout(function(){ clearInterval(pollBoot); var b=document.getElementById('mebet-boot-screen'); if(b) b.remove(); }, 8000);
+      setTimeout(function(){ clearInterval(pollBoot); var b=document.getElementById('tunbet-boot-screen'); if(b) b.remove(); }, 8000);
 
       // Self-ping every 4 minutes to keep site alive (warm odds-api cache via Sports tab visits)
       setInterval(function(){fetch(location.href,{mode:'no-cors'}).catch(function(){})},240000);

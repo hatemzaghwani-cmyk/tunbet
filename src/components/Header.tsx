@@ -53,9 +53,9 @@ export function Header() {
         <Link href="/" className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full flex items-center justify-center"
             style={{ border: "1.5px solid #00D1FF", boxShadow: "0 0 12px rgba(0,209,255,0.4)" }}>
-            <span className="font-black text-xl leading-none" style={{ color: "#00D1FF" }}>M</span>
+            <span className="font-black text-sm leading-none" style={{ color: "#00D1FF" }}>TB</span>
           </div>
-          <span className="font-black tracking-[0.18em] text-base text-white">MEBET</span>
+          <span className="font-black tracking-[0.18em] text-base text-white">TUNBET</span>
         </Link>
 
         <div className="flex items-center gap-2">

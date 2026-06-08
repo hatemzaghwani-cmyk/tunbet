@@ -21,7 +21,7 @@ const BOOKMAKERS = "1xbet,Stake";
 
 // Time between syncs (ms). Each user only checks "is it time to sync?" on Sports tab load.
 const SYNC_INTERVAL = 20 * 60_000; // 20 min — well under odds-api.io 100 req/h limit
-const LAST_SYNC_KEY = "mebet_odds_last_sync";
+const LAST_SYNC_KEY = "tunbet_odds_last_sync";
 
 export interface OddsMatch {
   id: string;
