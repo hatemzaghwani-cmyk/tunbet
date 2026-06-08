@@ -170,32 +170,35 @@ function parseBookmakerMarkets(bookmakers: any): Record<string, Record<string, n
     if (!Array.isArray(odds) || odds.length === 0) continue;
 
     if (name === "ML") {
-      const o = odds[0];
-      const m: Record<string, number> = {};
-      if (o.home) m["Home"] = parseFloat(o.home);
-      if (o.draw) m["Draw"] = parseFloat(o.draw);
-      if (o.away) m["Away"] = parseFloat(o.away);
-      if (Object.keys(m).length) out["Match Winner"] = m;
+      const o = odds[0]; const m: Record<string, number> = {};
+      if (o.home) m["1"] = parseFloat(o.home);
+      if (o.draw) m["X"] = parseFloat(o.draw);
+      if (o.away) m["2"] = parseFloat(o.away);
+      if (Object.keys(m).length) out["1X2"] = m;
     } else if (name === "Double Chance") {
-      const o = odds[0];
-      const m: Record<string, number> = {};
+      const o = odds[0]; const m: Record<string, number> = {};
       if (o["1X"]) m["1X"] = parseFloat(o["1X"]);
       if (o["12"]) m["12"] = parseFloat(o["12"]);
       if (o["X2"]) m["X2"] = parseFloat(o["X2"]);
       if (Object.keys(m).length) out["Double Chance"] = m;
     } else if (name === "Totals") {
-      let best = odds.find((o: any) => parseFloat(o.hdp) === 2.5)
-              || odds.reduce((a: any, b: any) => Math.abs(parseFloat(b.hdp) - 2.5) < Math.abs(parseFloat(a.hdp) - 2.5) ? b : a);
-      if (best?.over && best?.under) {
-        out[`O/U ${best.hdp}`] = { Over: parseFloat(best.over), Under: parseFloat(best.under) };
+      for (const line of [1.5, 2.5, 3.5]) {
+        const row = odds.find((o: any) => Math.abs(parseFloat(o.hdp) - line) < 0.01);
+        if (row?.over && row?.under) {
+          out[`O/U ${line}`] = { Over: parseFloat(row.over), Under: parseFloat(row.under) };
+        }
       }
     } else if (name === "Both Teams To Score") {
       const o = odds[0];
-      if (o?.yes && o?.no) out["Both Teams Score"] = { Yes: parseFloat(o.yes), No: parseFloat(o.no) };
+      if (o?.yes && o?.no) out["BTTS"] = { Yes: parseFloat(o.yes), No: parseFloat(o.no) };
     } else if (name === "Spread") {
       const best = odds.reduce((a: any, b: any) => Math.abs(parseFloat(b.hdp)) < Math.abs(parseFloat(a.hdp)) ? b : a);
       if (best?.home && best?.away) {
-        out[`Spread ${best.hdp}`] = { Home: parseFloat(best.home), Away: parseFloat(best.away) };
+        const hdp = parseFloat(best.hdp);
+        out[`Handicap`] = {
+          [`Home ${hdp >= 0 ? "+" : ""}${hdp}`]: parseFloat(best.home),
+          [`Away ${hdp >= 0 ? "-" : "+"}${Math.abs(hdp)}`]: parseFloat(best.away),
+        };
       }
     }
   }
