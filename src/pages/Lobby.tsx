@@ -533,28 +533,40 @@ export default function Lobby() {
         </div>
       </div>
 
-      {/* Game iframe (AES real-money launch) — fullscreen with only a tiny floating Close button */}
+      {/* Game iframe (AES real-money launch) — true fullscreen, edge to edge */}
       {gameUrl && (
-        <div className="fixed inset-0 bg-black" style={{ zIndex: 9999 }}>
-          <iframe ref={iframeRef} src={gameUrl} className="w-full h-full border-none" title="Game" allow="fullscreen autoplay" />
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999, background: "#000",
+          width: "100vw", height: "100dvh",
+        }}>
+          <iframe ref={iframeRef} src={gameUrl} title="Game" allow="fullscreen autoplay"
+            style={{
+              position: "absolute", top: 0, left: 0,
+              width: "100%", height: "100%", border: "none", display: "block",
+            }} />
 
-          {/* Floating close button — top-right, compact, won't obscure the game UI */}
+          {/* Minimal invisible close button — just an X icon with shadow, no background box */}
           <button onClick={closeGame} disabled={closingGame}
             aria-label="Close game"
             style={{
-              position: "fixed", top: 10, right: 10, zIndex: 10000,
-              width: 36, height: 36, borderRadius: 18,
-              background: "rgba(0,0,0,0.65)", border: "1px solid rgba(255,255,255,0.2)",
-              color: "#fff", fontWeight: 900, fontSize: 18, lineHeight: 1,
+              position: "fixed", top: 4, right: 6, zIndex: 10000,
+              width: 24, height: 24, borderRadius: 0,
+              background: "transparent", border: "none",
+              color: "#ffffff", fontWeight: 900, fontSize: 18, lineHeight: 1,
               display: "flex", alignItems: "center", justifyContent: "center",
-              backdropFilter: "blur(8px)", cursor: "pointer",
+              cursor: "pointer", padding: 0,
+              textShadow: "0 0 6px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,1)",
               opacity: closingGame ? 0.5 : 1,
             }}>
             {closingGame ? "…" : "✕"}
           </button>
 
           {closingGame && (
-            <div className="fixed inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.85)", zIndex: 10001 }}>
+            <div style={{
+              position: "fixed", inset: 0, zIndex: 10001,
+              background: "rgba(0,0,0,0.85)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
               <div className="text-center space-y-3">
                 <div className="w-10 h-10 mx-auto rounded-full animate-spin" style={{ borderWidth: 3, borderStyle: "solid", borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00D1FF" }} />
                 <p className="text-sm font-bold" style={{ color: "#00D1FF" }}>{t("savingBalance")}</p>
