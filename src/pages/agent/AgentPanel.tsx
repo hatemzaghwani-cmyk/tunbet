@@ -113,6 +113,7 @@ function AgentLogin({ onLogin }: { onLogin: (t: string, u: any) => void }) {
 function AgentDashboard({ user, token, logout }: { user: any; token: string; logout: () => void }) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [agentBalance, setAgentBalance] = useState<string>(user?.balance ?? "0");
   const [activeTab, setActiveTab] = useState<"players" | "transactions">("players");
   const [search, setSearch] = useState("");
   const [notification, setNotification] = useState<{ msg: string; type: "success" | "error" } | null>(null);
@@ -169,6 +170,9 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
         <div className="flex items-center gap-4">
           <div className="text-right">
             <div className="text-white/40 text-xs">Your Credit</div>
+            <div className="font-black tabular-nums" style={{ color: "#00D1FF" }}>
+              {parseFloat(agentBalance || "0").toFixed(2)} TND
+            </div>
           </div>
           <button onClick={logout} className="p-2 rounded-xl hover:bg-white/5 text-white/40 hover:text-white transition-colors">
             <LogOut className="w-4 h-4" />

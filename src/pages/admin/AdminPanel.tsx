@@ -250,8 +250,10 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
               {[
                 { l: "اللاعبين", v: stats.playerCount, c: "#00D1FF", i: Users },
                 { l: "الوكلاء", v: stats.agentCount, c: "#a855f7", i: UserCheck },
-                { l: "الأرصدة", v: `TND ${parseFloat(stats.totalBalance).toFixed(0)}`, c: "#22c55e", i: DollarSign },
+                { l: "إجمالي الأرصدة", v: `TND ${parseFloat(stats.totalBalance).toFixed(0)}`, c: "#22c55e", i: DollarSign },
                 { l: "المعاملات", v: stats.txnCount, c: "#f59e0b", i: TrendingUp },
+                { l: "رهانات معلقة", v: stats.pendingBetCount || 0, c: "#f59e0b", i: Trophy },
+                { l: "مخاطر الرهان", v: `TND ${parseFloat(stats.pendingExposure || "0").toFixed(0)}`, c: "#FF2D55", i: AlertCircle },
               ].map(c => (
                 <div key={c.l} className="p-4 rounded-2xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                   <div className="flex items-center justify-between mb-2">

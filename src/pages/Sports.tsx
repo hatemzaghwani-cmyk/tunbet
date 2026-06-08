@@ -343,12 +343,12 @@ export default function Sports() {
           {/* Time filter pills */}
           <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-3 px-3 mb-3 scrollbar-hide">
             {([
-              { id: "all", label: "All", count: matches.length },
-              { id: "live", label: "Live", count: liveCount, accent: "#FF2D55" },
-              { id: "today", label: "Today", count: todayCount },
-              { id: "tomorrow", label: "Tomorrow" },
-              { id: "week", label: "This Week" },
-            ] as const).map(f => (
+              { id: "all", label: "All", count: matches.length, accent: undefined as string | undefined },
+              { id: "live", label: "Live", count: liveCount, accent: "#FF2D55" as string | undefined },
+              { id: "today", label: "Today", count: todayCount, accent: undefined as string | undefined },
+              { id: "tomorrow", label: "Tomorrow", count: undefined as number | undefined, accent: undefined as string | undefined },
+              { id: "week", label: "This Week", count: undefined as number | undefined, accent: undefined as string | undefined },
+            ]).map(f => (
               <button key={f.id} onClick={() => setTimeFilter(f.id as TimeFilter)}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg whitespace-nowrap text-[11px] font-bold flex-shrink-0"
                 style={{
@@ -478,7 +478,7 @@ export default function Sports() {
             totalOdds={totalOdds} potentialWin={potentialWin} singleTotalWin={singleTotalWin}
             show={showSlipPanel} setShow={setShowSlipPanel}
             balance={user ? parseFloat(user.balance) : 0}
-            onRemove={id => setSlip(slip.filter(s => s.id !== id))}
+            onRemove={(id: string) => setSlip(slip.filter(s => s.id !== id))}
             onClear={() => { setSlip([]); setStake(""); }}
             onPlace={placeBet} placing={placing}
           />

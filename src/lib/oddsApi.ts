@@ -67,7 +67,7 @@ export async function fetchOddsMatches(sportSlug: string): Promise<OddsMatch[]> 
     if (!r.ok) return [];
     const rows: any[] = await r.json();
 
-    const out: OddsMatch[] = rows.map(row => {
+    const out: OddsMatch[] = rows.map((row): OddsMatch => {
       let markets: Record<string, Record<string, number>> = {};
       try {
         const parsed = typeof row.markets_data === "string" ? JSON.parse(row.markets_data) : row.markets_data;

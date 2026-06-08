@@ -2,26 +2,59 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>Mebet — Casino & Sports</title>
-    <meta name="description" content="Mebet — Casino & Sports Betting. 1500+ games, live casino, sports betting." />
+    <meta name="theme-color" content="#020408" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mebet" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Mebet — Casino & Sports Betting</title>
+    <meta name="description" content="Mebet — Premium online casino &amp; sportsbook. 1500+ real-money slots, live dealer tables, and real bookmaker sports odds from 1xBet. Play in TND." />
     <meta name="robots" content="index, follow" />
+    <meta name="keywords" content="casino, sports betting, TND, slots, live casino, 1xbet odds, Tunisia" />
     <meta property="og:title" content="Mebet — Casino & Sports" />
+    <meta property="og:description" content="Premium online casino &amp; sportsbook. Real-money slots, live tables, sports odds." />
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="/opengraph.jpg" />
+    <meta property="og:url" content="https://mebet.surge.sh" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Mebet — Casino & Sports" />
+    <meta name="twitter:description" content="Premium online casino & sportsbook." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://cdn.aesgamingasia.com" />
     <link rel="dns-prefetch" href="https://cdn.aesgamingasia.com" />
     <link rel="preconnect" href="https://cjzjrnagpsdmolvbkhnu.supabase.co" />
+    <link rel="dns-prefetch" href="https://api.aesgamingasia.com" />
     <style>
-      body{margin:0;background:#020408;overflow-x:hidden}
+      html,body{margin:0;background:#020408;overflow-x:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+      body{min-height:100vh;min-height:100dvh}
       img{content-visibility:auto}
+      /* Loading screen — shown until React mounts */
+      .mebet-boot{position:fixed;inset:0;background:#020408;display:flex;align-items:center;justify-content:center;z-index:9999}
+      .mebet-boot-logo{
+        width:60px;height:60px;border-radius:50%;
+        border:2px solid #00D1FF;display:flex;align-items:center;justify-content:center;
+        color:#00D1FF;font-family:system-ui;font-weight:900;font-size:28px;
+        box-shadow:0 0 24px rgba(0,209,255,0.5);
+        animation:mebetPulse 1.4s ease-in-out infinite;
+      }
+      @keyframes mebetPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:0.6}}
+      /* Hide scrollbar */
+      .scrollbar-hide{scrollbar-width:none;-ms-overflow-style:none}
+      .scrollbar-hide::-webkit-scrollbar{display:none}
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="mebet-boot" id="mebet-boot-screen">
+        <div class="mebet-boot-logo">M</div>
+      </div>
+    </div>
     <script>
       // Kill stale service workers + cached responses from prior deploys
       if ('serviceWorker' in navigator) {
@@ -33,7 +66,20 @@
     </script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Self-ping every 4 minutes to keep site alive
+      // Remove boot screen once React has rendered (root has children)
+      var pollBoot = setInterval(function(){
+        var root = document.getElementById('root');
+        var boot = document.getElementById('mebet-boot-screen');
+        if (root && root.children.length > 1 && boot) {
+          boot.style.transition = 'opacity 0.25s';
+          boot.style.opacity = '0';
+          setTimeout(function(){ boot.remove(); }, 280);
+          clearInterval(pollBoot);
+        }
+      }, 50);
+      setTimeout(function(){ clearInterval(pollBoot); var b=document.getElementById('mebet-boot-screen'); if(b) b.remove(); }, 8000);
+
+      // Self-ping every 4 minutes to keep site alive (warm odds-api cache via Sports tab visits)
       setInterval(function(){fetch(location.href,{mode:'no-cors'}).catch(function(){})},240000);
     </script>
   </body>

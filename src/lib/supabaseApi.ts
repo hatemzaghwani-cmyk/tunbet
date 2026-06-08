@@ -83,16 +83,24 @@ export async function apiBalance(token: string) {
 
 // ── Admin Stats ─────────────────────────────────────────────────────────────
 export async function apiAdminStats() {
-  const players = await sbGet("users", "role=eq.player&select=id,balance");
-  const agents = await sbGet("users", "role=eq.agent&select=id");
-  const txns = await sbGet("transactions", "select=id&limit=1&order=id.desc");
-  const bets = await sbGet("sports_bets", "select=id&limit=1&order=id.desc");
+  const [players, agents, txns, bets, pendingBets] = await Promise.all([
+    sbGet("users", "role=eq.player&select=id,balance"),
+    sbGet("users", "role=eq.agent&select=id"),
+    sbGet("transactions", "select=id&limit=1&order=id.desc"),
+    sbGet("sports_bets", "select=id&limit=1&order=id.desc"),
+    sbGet("sports_bets", "status=eq.pending&select=id,stake,potential_win"),
+  ]);
   const totalBal = players.reduce((s: number, u: any) => s + parseFloat(u.balance || 0), 0);
+  const pendingStake = pendingBets.reduce((s: number, b: any) => s + parseFloat(b.stake || 0), 0);
+  const pendingExposure = pendingBets.reduce((s: number, b: any) => s + parseFloat(b.potential_win || 0), 0);
   return {
     playerCount: players.length, agentCount: agents.length,
     totalBalance: totalBal.toFixed(2),
     txnCount: txns.length ? txns[0].id : 0,
     betCount: bets.length ? bets[0].id : 0,
+    pendingBetCount: pendingBets.length,
+    pendingStake: pendingStake.toFixed(2),
+    pendingExposure: pendingExposure.toFixed(2),
   };
 }
 
