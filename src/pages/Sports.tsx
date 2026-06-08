@@ -66,12 +66,14 @@ export default function Sports() {
     const endOfWeek = new Date(startOfToday); endOfWeek.setDate(endOfWeek.getDate() + 7);
 
     return matches.filter(m => {
+      // Hide matches that started >10 min ago (likely missed or finished)
+      const matchTime = new Date(m.date).getTime();
+      if (m.status !== "live" && matchTime < now - 10 * 60_000) return false;
       // Search
       if (q && !`${m.home} ${m.away} ${m.league}`.toLowerCase().includes(q.toLowerCase())) return false;
       // League filter
       if (leagueFilter !== "all" && m.league !== leagueFilter) return false;
       // Time filter
-      const matchTime = new Date(m.date).getTime();
       if (timeFilter === "live" && m.status !== "live") return false;
       if (timeFilter === "today" && (matchTime < startOfToday.getTime() || matchTime >= startOfTomorrow.getTime())) return false;
       if (timeFilter === "tomorrow" && (matchTime < startOfTomorrow.getTime() || matchTime >= endOfTomorrow.getTime())) return false;
@@ -147,24 +149,41 @@ export default function Sports() {
     if (!user) { setAuth(true); return; }
     if (!slip.length) return setMsgErr("Select at least one match");
     if (!stakeNum || stakeNum < 0.5) return setMsgErr("Min stake: 0.50 TND");
+    if (stakeNum > 5000) return setMsgErr("Max stake: 5000 TND");
+    if (!Number.isFinite(stakeNum)) return setMsgErr("Invalid stake");
 
     // Total to debit depends on mode
     const totalDebit = betMode === "single" ? stakeNum * slip.length : stakeNum;
-    if (totalDebit > parseFloat(user.balance)) return setMsgErr("Insufficient balance");
+    if (totalDebit > parseFloat(user.balance)) {
+      return setMsgErr(`Insufficient balance (need ${totalDebit.toFixed(2)} TND)`);
+    }
+
+    // Verify matches haven't started
+    const now = Date.now();
+    for (const pick of slip) {
+      const m = matches.find(x => x.id === pick.matchId);
+      if (!m) return setMsgErr(`Match no longer available: ${pick.match}`);
+      if (new Date(m.date).getTime() < now - 5 * 60_000) {
+        return setMsgErr(`Match already started: ${pick.match}`);
+      }
+    }
 
     setPlacing(true);
     try {
       if (betMode === "multi") {
-        // Single accumulator bet
+        // Single accumulator bet — one atomic debit
         const wr = await fetch(`${SU}/rest/v1/rpc/update_balance`, {
           method: "POST", headers: SH,
           body: JSON.stringify({ p_user_id: user.id, p_action: "withdraw", p_amount: stakeNum }),
         });
-        if (!wr.ok) throw new Error(`Withdraw failed (${wr.status})`);
+        if (!wr.ok) {
+          const t = await wr.text();
+          throw new Error(t.includes("Insufficient") ? "Insufficient balance" : `Bet failed (${wr.status})`);
+        }
 
         const eventName = slip.map(x => x.match).join(" + ");
         const selectionName = slip.map(x => `${x.mk}:${x.sel}@${x.odds.toFixed(2)}`).join(" | ");
-        await fetch(`${SU}/rest/v1/sports_bets`, {
+        const br = await fetch(`${SU}/rest/v1/sports_bets`, {
           method: "POST", headers: { ...SH, Prefer: "return=minimal" },
           body: JSON.stringify({
             user_id: user.id,
@@ -176,16 +195,36 @@ export default function Sports() {
             potential_win: +potentialWin.toFixed(2), status: "pending",
           }),
         });
+
+        // Rollback if bet record failed
+        if (!br.ok) {
+          await fetch(`${SU}/rest/v1/rpc/update_balance`, {
+            method: "POST", headers: SH,
+            body: JSON.stringify({ p_user_id: user.id, p_action: "add", p_amount: stakeNum }),
+          }).catch(() => {});
+          throw new Error("Failed to record bet — refunded");
+        }
       } else {
-        // Multiple single bets
+        // Multiple single bets — rollback any successful ones if one fails
+        const refundQueue: number[] = [];
         for (const pick of slip) {
           const wr = await fetch(`${SU}/rest/v1/rpc/update_balance`, {
             method: "POST", headers: SH,
             body: JSON.stringify({ p_user_id: user.id, p_action: "withdraw", p_amount: stakeNum }),
           });
-          if (!wr.ok) throw new Error(`Withdraw failed (${wr.status})`);
+          if (!wr.ok) {
+            // Rollback all prior withdraws
+            for (const _ of refundQueue) {
+              await fetch(`${SU}/rest/v1/rpc/update_balance`, {
+                method: "POST", headers: SH,
+                body: JSON.stringify({ p_user_id: user.id, p_action: "add", p_amount: stakeNum }),
+              }).catch(() => {});
+            }
+            const t = await wr.text();
+            throw new Error(t.includes("Insufficient") ? "Insufficient balance during multi-bet" : `Bet ${refundQueue.length + 1} failed — earlier bets refunded`);
+          }
 
-          await fetch(`${SU}/rest/v1/sports_bets`, {
+          const br = await fetch(`${SU}/rest/v1/sports_bets`, {
             method: "POST", headers: { ...SH, Prefer: "return=minimal" },
             body: JSON.stringify({
               user_id: user.id, event_id: pick.matchId,
@@ -196,11 +235,28 @@ export default function Sports() {
               potential_win: +(stakeNum * pick.odds).toFixed(2), status: "pending",
             }),
           });
+
+          if (!br.ok) {
+            // Refund this withdraw + all earlier
+            for (let i = 0; i < refundQueue.length + 1; i++) {
+              await fetch(`${SU}/rest/v1/rpc/update_balance`, {
+                method: "POST", headers: SH,
+                body: JSON.stringify({ p_user_id: user.id, p_action: "add", p_amount: stakeNum }),
+              }).catch(() => {});
+            }
+            throw new Error("Bet record failed — all refunded");
+          }
+          refundQueue.push(stakeNum);
         }
       }
       setSlip([]); setStake(""); setShowSlipPanel(false);
       setMsgOk(`Bet placed! Potential win: ${(betMode === "single" ? singleTotalWin : potentialWin).toFixed(2)} TND`);
       await refreshBalance();
+      // Refresh My Bets cache if user is viewing
+      if (tab === "b") {
+        const fr = await fetch(`${SU}/rest/v1/sports_bets?user_id=eq.${user.id}&select=*&order=id.desc&limit=80`, { headers: SH });
+        if (fr.ok) setBets(await fr.json());
+      }
     } catch (e: any) {
       setMsgErr(e?.message || "Bet failed");
     } finally {
@@ -421,6 +477,7 @@ export default function Sports() {
             betMode={betMode} setBetMode={setBetMode}
             totalOdds={totalOdds} potentialWin={potentialWin} singleTotalWin={singleTotalWin}
             show={showSlipPanel} setShow={setShowSlipPanel}
+            balance={user ? parseFloat(user.balance) : 0}
             onRemove={id => setSlip(slip.filter(s => s.id !== id))}
             onClear={() => { setSlip([]); setStake(""); }}
             onPlace={placeBet} placing={placing}
@@ -586,9 +643,13 @@ function OddsGrid({
 // ─── Bet Slip ─────────────────────────────────────────────────────────────
 function BetSlip({
   slip, stake, setStake, betMode, setBetMode,
-  totalOdds, potentialWin, singleTotalWin,
+  totalOdds, potentialWin, singleTotalWin, balance,
   show, setShow, onRemove, onClear, onPlace, placing,
 }: any) {
+  const stakeNum = parseFloat(stake) || 0;
+  const totalDebit = betMode === "single" ? stakeNum * slip.length : stakeNum;
+  const insufficient = stakeNum > 0 && totalDebit > balance;
+  const invalidStake = stakeNum > 0 && (stakeNum < 0.5 || stakeNum > 5000);
   return (
     <div className="rounded-2xl overflow-hidden shadow-2xl"
       style={{
@@ -678,7 +739,18 @@ function BetSlip({
 
               {betMode === "single" && slip.length > 1 && (
                 <div className="text-[10px] text-white/50 px-1">
-                  Total stake: <span className="font-bold text-white">{(parseFloat(stake || "0") * slip.length).toFixed(2)} TND</span>
+                  Total stake: <span className="font-bold text-white">{totalDebit.toFixed(2)} TND</span>
+                  {" · "}Balance: <span className="font-bold" style={{ color: insufficient ? "#FF2D55" : "#00C853" }}>{balance.toFixed(2)} TND</span>
+                </div>
+              )}
+              {insufficient && (
+                <div className="text-[10px] font-bold px-1" style={{ color: "#FF2D55" }}>
+                  Insufficient balance ({balance.toFixed(2)} / {totalDebit.toFixed(2)} TND)
+                </div>
+              )}
+              {invalidStake && (
+                <div className="text-[10px] font-bold px-1" style={{ color: "#FF2D55" }}>
+                  Stake must be between 0.50 and 5000 TND
                 </div>
               )}
             </div>
@@ -687,11 +759,18 @@ function BetSlip({
       </AnimatePresence>
 
       {/* Place button */}
-      <button onClick={onPlace} disabled={placing || !slip.length || !parseFloat(stake)}
-        className="w-full py-3 text-sm font-black tracking-wider disabled:opacity-50 flex items-center justify-center gap-1.5"
-        style={{ background: "#00D1FF", color: "#020408" }}>
+      <button onClick={onPlace} disabled={placing || !slip.length || stakeNum <= 0 || insufficient || invalidStake}
+        className="w-full py-3 text-sm font-black tracking-wider disabled:opacity-40 flex items-center justify-center gap-1.5"
+        style={{
+          background: insufficient || invalidStake ? "rgba(255,45,85,0.3)" : "#00D1FF",
+          color: insufficient || invalidStake ? "#FF2D55" : "#020408",
+        }}>
         {placing ? (
           <><span className="w-3.5 h-3.5 rounded-full border-2 border-black border-t-transparent animate-spin" /> PLACING…</>
+        ) : insufficient ? (
+          <>INSUFFICIENT BALANCE</>
+        ) : invalidStake ? (
+          <>INVALID STAKE</>
         ) : (
           <><Zap className="w-3.5 h-3.5" /> PLACE BET</>
         )}

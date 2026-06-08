@@ -1,4 +1,4 @@
-import { isOroAvailable } from "@/lib/oroClient";
+
 import { t } from "@/lib/i18n";
 import { Search, LayoutGrid, Gamepad2, Lock, RefreshCw, Flame, Crown, Sparkles, Zap } from "lucide-react";
 import { motion } from "framer-motion";
@@ -90,10 +90,6 @@ export default function Lobby() {
   const [activeGame, setActiveGame] = useState<AesGame | null>(null);
   const [closingGame, setClosingGame] = useState(false);
 
-  // (OroPlay reserved for future, no UI hooks needed in lobby)
-  useEffect(() => {
-    isOroAvailable().then(() => {});
-  }, []);
   const [showAuth, setShowAuth] = useState(false);
   const [launchError, setLaunchError] = useState("");
   const [page, setPage] = useState(1);

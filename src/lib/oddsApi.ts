@@ -231,7 +231,6 @@ function parseBookmakerMarkets(bookmakers: any): Record<string, Record<string, n
 }
 
 async function runSync(): Promise<void> {
-  console.log("[oddsApi] starting background sync…");
   let total = 0;
 
   for (const target of SYNC_LEAGUES) {
@@ -273,12 +272,7 @@ async function runSync(): Promise<void> {
         headers: { ...SH, Prefer: "resolution=merge-duplicates" },
         body: JSON.stringify(rows),
       });
-      if (r.ok) {
-        total += rows.length;
-        console.log(`[oddsApi] ${target.sport}: ${rows.length} synced`);
-      } else {
-        console.warn(`[oddsApi] ${target.sport} upsert failed:`, await r.text());
-      }
+      if (r.ok) total += rows.length;
     }
   }
 
@@ -292,11 +286,7 @@ async function runSync(): Promise<void> {
 
   // Invalidate frontend cache
   _cache.clear();
-  console.log(`[oddsApi] sync done: ${total} matches`);
+  void total;
 }
 
-// Legacy API surface (no-op — Setup screen removed)
-export function hasOddsApiKey() { return true; }
-export function setOddsApiKey(_k: string) {}
-export function getOddsApiKey() { return ""; }
-export async function pingOddsApi() { return { ok: true }; }
+
