@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>Mebet — Casino & Sports</title>
     <meta name="description" content="Mebet — Casino & Sports Betting. 1500+ games, live casino, sports betting." />
     <meta name="robots" content="index, follow" />
@@ -19,6 +22,15 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Kill stale service workers + cached responses from prior deploys
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister()})});
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k)})});
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       // Self-ping every 4 minutes to keep site alive
