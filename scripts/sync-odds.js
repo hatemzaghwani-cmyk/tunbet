@@ -1,27 +1,38 @@
-// Sync odds-api.io → Supabase live_fixtures every 20 minutes (GitHub Actions cron)
-// Or run locally: ODDS_API_KEY=... SUPABASE_URL=... SUPABASE_SERVICE_KEY=... node scripts/sync-odds.js
+// Sync odds-api.io → Supabase live_fixtures every 20 minutes
+// Strategy: prioritize TOP-tier leagues (World Cup, CL, EPL, NBA, etc.) — not random regional games
+// Rate budget: 100 req/h = ~3 runs of 30 events each → max=30 events distributed across sports
 
 const ODDS_API = "https://api.odds-api.io/v3";
 const BOOKMAKERS = "1xbet,Stake";
 const KEY = process.env.ODDS_API_KEY;
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
-if (!KEY || !SB_URL || !SB_KEY) { console.error("Missing env vars"); process.exit(1); }
+if (!KEY || !SB_URL || !SB_KEY) { console.error("Missing env"); process.exit(1); }
 
 const SH = {
   apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`,
   "Content-Type": "application/json", Prefer: "resolution=merge-duplicates",
 };
 
+// Per-sport: max events to fetch odds for, plus league priority keywords
+// (Events whose league name matches a priority keyword bubble to the top of the queue)
 const SPORTS = [
-  { slug: "football",            max: 30 },
-  { slug: "basketball",          max: 10 },
-  { slug: "tennis",              max: 8 },
-  { slug: "american-football",   max: 5 },
-  { slug: "baseball",            max: 5 },
-  { slug: "ice-hockey",          max: 5 },
-  { slug: "mixed-martial-arts",  max: 5 },
-  { slug: "esports",             max: 3 },
+  {
+    slug: "football", max: 40,
+    priorities: [
+      "world cup", "champions league", "europa league", "uefa nations",
+      "premier league", "laliga", "la liga", "serie a", "bundesliga", "ligue 1",
+      "uefa", "fifa", "international", "copa", "euros", "european championship",
+      "primeira", "eredivisie", "süper lig", "super lig", "mls",
+    ],
+  },
+  { slug: "basketball",         max: 12, priorities: ["nba", "euroleague", "wnba", "fiba", "ncaa"] },
+  { slug: "tennis",             max: 10, priorities: ["atp", "wta", "grand slam", "open", "masters", "wimbledon", "roland", "us open"] },
+  { slug: "american-football",  max: 6,  priorities: ["nfl", "ncaa", "college"] },
+  { slug: "baseball",           max: 6,  priorities: ["mlb", "kbo", "npb"] },
+  { slug: "ice-hockey",         max: 6,  priorities: ["nhl", "khl", "shl"] },
+  { slug: "mixed-martial-arts", max: 5,  priorities: ["ufc", "bellator", "one"] },
+  { slug: "esports",            max: 5,  priorities: ["counter", "cs:go", "cs2", "lol", "league of legends", "dota", "valorant"] },
 ];
 
 async function api(path) {
@@ -33,7 +44,6 @@ async function api(path) {
   } catch (e) { console.warn(`  ! ${path} → ${e.message}`); return null; }
 }
 
-// Extract all useful markets from bookmaker data
 function parseMarkets(bookmakers) {
   const out = {};
   const bm = bookmakers?.["1xbet"] || bookmakers?.["Stake"];
@@ -57,8 +67,7 @@ function parseMarkets(bookmakers) {
       if (o["X2"]) m["X2"] = parseFloat(o["X2"]);
       if (Object.keys(m).length) out["Double Chance"] = m;
     } else if (name === "Totals") {
-      // Include 1.5, 2.5, 3.5 lines (separate markets)
-      for (const line of [1.5, 2.5, 3.5]) {
+      for (const line of [1.5, 2.5, 3.5, 4.5]) {
         const row = odds.find((o) => Math.abs(parseFloat(o.hdp) - line) < 0.01);
         if (row?.over && row?.under) {
           out[`O/U ${line}`] = { Over: parseFloat(row.over), Under: parseFloat(row.under) };
@@ -68,7 +77,6 @@ function parseMarkets(bookmakers) {
       const o = odds[0];
       if (o?.yes && o?.no) out["BTTS"] = { Yes: parseFloat(o.yes), No: parseFloat(o.no) };
     } else if (name === "Spread") {
-      // Pick line closest to 0 (Asian Handicap)
       const best = odds.reduce((a, b) => Math.abs(parseFloat(b.hdp)) < Math.abs(parseFloat(a.hdp)) ? b : a);
       if (best?.home && best?.away) {
         const hdp = parseFloat(best.hdp);
@@ -77,25 +85,55 @@ function parseMarkets(bookmakers) {
           [`Away ${hdp >= 0 ? "-" : "+"}${Math.abs(hdp)}`]: parseFloat(best.away),
         };
       }
+    } else if (name === "Team Total Home") {
+      const row = odds.find((o) => parseFloat(o.hdp) === 1.5) || odds[Math.floor(odds.length / 2)];
+      if (row?.over && row?.under) {
+        out["Home Total 1.5"] = { Over: parseFloat(row.over), Under: parseFloat(row.under) };
+      }
+    } else if (name === "Team Total Away") {
+      const row = odds.find((o) => parseFloat(o.hdp) === 1.5) || odds[Math.floor(odds.length / 2)];
+      if (row?.over && row?.under) {
+        out["Away Total 1.5"] = { Over: parseFloat(row.over), Under: parseFloat(row.under) };
+      }
     }
   }
   return out;
+}
+
+// Score events: lower score = higher priority (sort ascending)
+function scoreEvent(e, priorities) {
+  const lg = (e.league?.name || "").toLowerCase();
+  for (let i = 0; i < priorities.length; i++) {
+    if (lg.includes(priorities[i])) return i;
+  }
+  return 999; // unmatched leagues go last
 }
 
 async function syncSport(sport) {
   console.log(`\n→ ${sport.slug}`);
   const events = await api(`/events?sport=${sport.slug}`);
   if (!Array.isArray(events)) { console.log("  no events"); return 0; }
+
   const now = Date.now();
-  const upcoming = events
-    .filter(e => e.status === "pending" && new Date(e.date).getTime() > now - 30 * 60_000)
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
+  // Pending events only, within next 14 days
+  const pending = events.filter(e =>
+    e.status === "pending" &&
+    new Date(e.date).getTime() > now - 30 * 60_000 &&
+    new Date(e.date).getTime() < now + 14 * 86400_000
+  );
+
+  // Sort: priority first (lower score = higher), then by date
+  const sorted = pending
+    .map(e => ({ e, score: scoreEvent(e, sport.priorities) }))
+    .sort((a, b) => a.score - b.score || new Date(a.e.date) - new Date(b.e.date))
+    .map(x => x.e)
     .slice(0, sport.max);
-  console.log(`  ${events.length} total / ${upcoming.length} target`);
-  if (!upcoming.length) return 0;
+
+  console.log(`  ${pending.length} pending / ${sorted.length} top-priority target`);
+  if (!sorted.length) return 0;
 
   const rows = [];
-  for (const e of upcoming) {
+  for (const e of sorted) {
     const od = await api(`/odds?sport=${sport.slug}&eventId=${e.id}&bookmakers=${BOOKMAKERS}`);
     if (!od) continue;
     const markets = parseMarkets(od.bookmakers);
@@ -110,8 +148,8 @@ async function syncSport(sport) {
   const r = await fetch(`${SB_URL}/rest/v1/live_fixtures?on_conflict=id`, {
     method: "POST", headers: SH, body: JSON.stringify(rows),
   });
-  if (!r.ok) { console.error(`  ✗ upsert HTTP ${r.status}`); return 0; }
-  console.log(`  ✓ ${rows.length} synced`);
+  if (!r.ok) { console.error(`  ✗ upsert HTTP ${r.status}: ${await r.text()}`); return 0; }
+  console.log(`  ✓ ${rows.length} synced (top leagues prioritized)`);
   return rows.length;
 }
 

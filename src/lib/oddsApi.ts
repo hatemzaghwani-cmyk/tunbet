@@ -35,6 +35,7 @@ export interface OddsMatch {
   awayScore?: number;
   markets: Record<string, Record<string, number>>;
   bookmakerCount: number;
+  updatedAt?: string;
 }
 
 export const SPORTS = [
@@ -92,6 +93,7 @@ export async function fetchOddsMatches(sportSlug: string): Promise<OddsMatch[]> 
         awayScore: row.away_score,
         markets,
         bookmakerCount: 2,
+        updatedAt: row.updated_at,
       };
     }).filter(m => Object.keys(m.markets).length > 0);
 
@@ -140,15 +142,30 @@ async function maybeSync(): Promise<void> {
   }
 }
 
-const SYNC_SPORTS: Array<{ slug: string; max: number }> = [
-  { slug: "football",            max: 25 },
-  { slug: "basketball",          max: 8 },
-  { slug: "tennis",              max: 8 },
-  { slug: "american-football",   max: 5 },
-  { slug: "baseball",            max: 5 },
-  { slug: "ice-hockey",          max: 5 },
-  { slug: "mixed-martial-arts",  max: 5 },
+const SYNC_SPORTS: Array<{ slug: string; max: number; priorities: string[] }> = [
+  {
+    slug: "football", max: 40,
+    priorities: [
+      "world cup", "champions league", "europa league", "uefa nations",
+      "premier league", "laliga", "la liga", "serie a", "bundesliga", "ligue 1",
+      "uefa", "fifa", "international", "copa", "euros", "european championship",
+      "primeira", "eredivisie", "süper lig", "super lig", "mls",
+    ],
+  },
+  { slug: "basketball",         max: 12, priorities: ["nba", "euroleague", "wnba", "fiba", "ncaa"] },
+  { slug: "tennis",             max: 10, priorities: ["atp", "wta", "grand slam", "open", "masters", "wimbledon", "roland", "us open"] },
+  { slug: "american-football",  max: 6,  priorities: ["nfl", "ncaa", "college"] },
+  { slug: "baseball",           max: 6,  priorities: ["mlb", "kbo", "npb"] },
+  { slug: "ice-hockey",         max: 6,  priorities: ["nhl", "khl", "shl"] },
+  { slug: "mixed-martial-arts", max: 5,  priorities: ["ufc", "bellator", "one"] },
+  { slug: "esports",            max: 5,  priorities: ["counter", "cs:go", "cs2", "lol", "league of legends", "dota", "valorant"] },
 ];
+
+function scoreEvent(e: any, priorities: string[]): number {
+  const lg = (e.league?.name || "").toLowerCase();
+  for (let i = 0; i < priorities.length; i++) if (lg.includes(priorities[i])) return i;
+  return 999;
+}
 
 async function oddsApiGet(path: string): Promise<any | null> {
   const sep = path.includes("?") ? "&" : "?";
@@ -182,7 +199,7 @@ function parseBookmakerMarkets(bookmakers: any): Record<string, Record<string, n
       if (o["X2"]) m["X2"] = parseFloat(o["X2"]);
       if (Object.keys(m).length) out["Double Chance"] = m;
     } else if (name === "Totals") {
-      for (const line of [1.5, 2.5, 3.5]) {
+      for (const line of [1.5, 2.5, 3.5, 4.5]) {
         const row = odds.find((o: any) => Math.abs(parseFloat(o.hdp) - line) < 0.01);
         if (row?.over && row?.under) {
           out[`O/U ${line}`] = { Over: parseFloat(row.over), Under: parseFloat(row.under) };
@@ -200,6 +217,16 @@ function parseBookmakerMarkets(bookmakers: any): Record<string, Record<string, n
           [`Away ${hdp >= 0 ? "-" : "+"}${Math.abs(hdp)}`]: parseFloat(best.away),
         };
       }
+    } else if (name === "Team Total Home") {
+      const row = odds.find((o: any) => parseFloat(o.hdp) === 1.5) || odds[Math.floor(odds.length / 2)];
+      if (row?.over && row?.under) {
+        out["Home Total 1.5"] = { Over: parseFloat(row.over), Under: parseFloat(row.under) };
+      }
+    } else if (name === "Team Total Away") {
+      const row = odds.find((o: any) => parseFloat(o.hdp) === 1.5) || odds[Math.floor(odds.length / 2)];
+      if (row?.over && row?.under) {
+        out["Away Total 1.5"] = { Over: parseFloat(row.over), Under: parseFloat(row.under) };
+      }
     }
   }
   return out;
@@ -214,9 +241,15 @@ async function runSync(): Promise<void> {
     if (!Array.isArray(events)) continue;
 
     const now = Date.now();
-    const upcoming = events
-      .filter((e: any) => e.status === "pending" && new Date(e.date).getTime() > now - 30 * 60_000)
-      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    const pending = events.filter((e: any) =>
+      e.status === "pending" &&
+      new Date(e.date).getTime() > now - 30 * 60_000 &&
+      new Date(e.date).getTime() < now + 14 * 86400_000
+    );
+    const upcoming = pending
+      .map((e: any) => ({ e, score: scoreEvent(e, sport.priorities) }))
+      .sort((a: any, b: any) => a.score - b.score || new Date(a.e.date).getTime() - new Date(b.e.date).getTime())
+      .map((x: any) => x.e)
       .slice(0, sport.max);
 
     const rows: any[] = [];
