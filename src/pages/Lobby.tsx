@@ -7,6 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { apiGames, apiGameProviders, apiLaunchGame, apiSyncBalance } from "@/lib/localApi";
 import { useLocation } from "wouter";
+import { SLOTOPOL_GAMES, SLOTOPOL_PROVIDER_ID } from "@/lib/slotopolGames";
+import { apiSlotopolSpin, type SlotopolSpinResult } from "@/lib/slotopolApi";
 
 
 
@@ -49,6 +51,12 @@ interface AesGame {
   game_image_narrow: string;
   launch_enable: boolean;
   category: string;
+  source?: "aes" | "slotopol";
+  slotopolAlias?: string;
+  slotopolProvider?: string;
+  slotopolDetails?: string;
+  slotopolKind?: "slot" | "keno";
+  slotopolDims?: string;
 }
 
 interface Provider {
@@ -89,6 +97,10 @@ export default function Lobby() {
   const [gameUrl, setGameUrl] = useState<string | null>(null);
   const [activeGame, setActiveGame] = useState<AesGame | null>(null);
   const [closingGame, setClosingGame] = useState(false);
+  const [slotopolGame, setSlotopolGame] = useState<AesGame | null>(null);
+  const [slotopolStake, setSlotopolStake] = useState("1");
+  const [slotopolResult, setSlotopolResult] = useState<SlotopolSpinResult | null>(null);
+  const [slotopolSpinning, setSlotopolSpinning] = useState(false);
 
   const [showAuth, setShowAuth] = useState(false);
   const [launchError, setLaunchError] = useState("");
@@ -115,14 +127,34 @@ export default function Lobby() {
   // NOTE: BGaming (20) and Amatic/CQ9 (2) are hidden from the lobby.
   const HIDDEN_PROVIDERS = new Set<number>([20, 2]);
   const games = useMemo(() => {
-    const enabled = allGames.filter(g => g.launch_enable && !HIDDEN_PROVIDERS.has(g.provider_id));
+    const aesGames = allGames
+      .filter(g => g.launch_enable && !HIDDEN_PROVIDERS.has(g.provider_id))
+      .map(g => ({ ...g, source: "aes" as const }));
+    const slotopolGames: AesGame[] = SLOTOPOL_GAMES.map(g => ({
+      provider_id: SLOTOPOL_PROVIDER_ID,
+      game_code: g.alias,
+      game_name: g.name,
+      locale_name: g.name,
+      game_image: "",
+      game_image_narrow: "",
+      launch_enable: true,
+      category: g.kind,
+      source: "slotopol" as const,
+      slotopolAlias: g.alias,
+      slotopolProvider: g.provider,
+      slotopolDetails: g.details,
+      slotopolKind: g.kind,
+      slotopolDims: g.dims,
+    }));
+    const enabled = [...slotopolGames, ...aesGames];
 
     // Score each game: popular games get high score
     const scored = enabled.map(g => {
       const name = g.game_name.toLowerCase();
       let score = 0;
       for (const p of POPULAR) { if (name.includes(p)) { score += 100; break; } }
-      // Pragmatic Play bonus
+      // Slotopol + Pragmatic Play bonus
+      if (g.provider_id === SLOTOPOL_PROVIDER_ID) score += 35;
       if (g.provider_id === 1) score += 50;
       // Hacksaw, BGaming, Spribe bonus
       if ([15, 16, 20].includes(g.provider_id)) score += 30;
@@ -192,14 +224,32 @@ export default function Lobby() {
   }, [games, activeProvider, search]);
 
   const paged = useMemo(() => filtered.slice(0, page * PAGE_SIZE), [filtered, page]);
-  const getProviderName = (id: number) => providers.find(p => p.provider_id === id)?.locale_name ?? "";
+  const allProviders = useMemo(() => {
+    const active = providers.filter(p => p.status === 1 && !HIDDEN_PROVIDERS.has(p.provider_id) && games.some(g => g.provider_id === p.provider_id));
+    return [
+      { provider_id: SLOTOPOL_PROVIDER_ID, provider_name: "slotopol", locale_name: "Slotopol API", status: 1 },
+      ...active,
+    ];
+  }, [providers, games]);
+  const getProviderName = (id: number, game?: AesGame) =>
+    id === SLOTOPOL_PROVIDER_ID ? (game?.slotopolProvider || "Slotopol API") : (allProviders.find(p => p.provider_id === id)?.locale_name ?? "");
 
   // Top picks (first 8 from scored popular)
   const topPicks = useMemo(() => games.slice(0, 8), [games]);
 
-  // Launch game via AES API (real money — uses TND balance from Supabase moved into AES wallet)
+  // Launch games via API providers (AES or Slotopol API adapter)
   const launchGame = async (game: AesGame) => {
     if (!user || !token) { setShowAuth(true); return; }
+    if (game.source === "slotopol") {
+      if (parseFloat(user.balance) < 0.2) {
+        setLaunchError(t("insufficientBalance") + " — تواصل مع الإدارة لشحن رصيدك");
+        setTimeout(() => setLaunchError(""), 4500); return;
+      }
+      setSlotopolGame(game);
+      setSlotopolResult(null);
+      setSlotopolStake("1");
+      return;
+    }
     // Strict client-side guards (server-side guard in apiLaunchGame is the source of truth)
     if (launchingGame) return;                  // prevent double-click on any card
     if (gameUrl) return;                         // can't launch while another game is open
@@ -229,6 +279,23 @@ export default function Lobby() {
     }
   };
 
+  const spinSlotopol = async () => {
+    if (!slotopolGame || !user) return;
+    const amount = parseFloat(slotopolStake);
+    if (!Number.isFinite(amount) || amount < 0.2) { setLaunchError("Min spin: 0.20 TND"); setTimeout(() => setLaunchError(""), 3000); return; }
+    if (amount > parseFloat(user.balance)) { setLaunchError("Insufficient balance"); setTimeout(() => setLaunchError(""), 3000); return; }
+    if (slotopolSpinning) return;
+    setSlotopolSpinning(true);
+    try {
+      const result = await apiSlotopolSpin(user.id, slotopolGame.slotopolAlias || slotopolGame.game_code, amount);
+      setSlotopolResult(result);
+      if (result.success) await refreshBalance();
+      else { setLaunchError(result.error || "Slotopol spin failed"); setTimeout(() => setLaunchError(""), 3500); }
+    } finally {
+      setSlotopolSpinning(false);
+    }
+  };
+
   const closeGame = async () => {
     if (!user || !token) { setGameUrl(null); setActiveGame(null); return; }
     if (closingGame) return;  // prevent double-close
@@ -252,9 +319,26 @@ export default function Lobby() {
       style={{ aspectRatio: size === "wide" ? "2/1" : size === "large" ? "1/1" : "3/4", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
       onClick={() => launchGame(game)}
     >
-      <img src={size === "wide" ? game.game_image : (game.game_image_narrow || game.game_image)} alt={game.game_name}
-        className="w-full h-full object-cover " loading="lazy" decoding="async"
-        onError={e => { const t = e.target as HTMLImageElement; if (t.src !== game.game_image) t.src = game.game_image; else t.style.display = "none"; }} />
+      {game.source === "slotopol" ? (
+        <div className="absolute inset-0 flex flex-col justify-between p-3"
+          style={{ background: "radial-gradient(circle at 30% 15%, rgba(0,209,255,0.28), transparent 35%), radial-gradient(circle at 80% 75%, rgba(255,45,85,0.22), transparent 35%), linear-gradient(135deg,#06111f,#020408)" }}>
+          <div className="flex items-center justify-between">
+            <span className="px-1.5 py-0.5 rounded text-[7px] font-black" style={{ background: "rgba(0,209,255,0.18)", color: "#00D1FF", border: "1px solid rgba(0,209,255,0.35)" }}>SLOTOPOL API</span>
+            <span className="text-[8px] text-white/45 font-mono">{game.slotopolDims || "5x3"}</span>
+          </div>
+          <div className="grid grid-cols-5 gap-1 opacity-70">
+            {["7","BAR","★","◆","🍒","🔔","W","SC","💎","🍋"].map((x, idx) => (
+              <span key={idx} className="h-7 rounded-md flex items-center justify-center text-[10px] font-black"
+                style={{ background: "rgba(0,0,0,0.35)", color: idx % 2 ? "#FF2D55" : "#00D1FF", border: "1px solid rgba(255,255,255,0.08)" }}>{x}</span>
+            ))}
+          </div>
+          <div className="text-[9px] text-white/45 uppercase tracking-wider">{game.slotopolProvider}</div>
+        </div>
+      ) : (
+        <img src={size === "wide" ? game.game_image : (game.game_image_narrow || game.game_image)} alt={game.game_name}
+          className="w-full h-full object-cover " loading="lazy" decoding="async"
+          onError={e => { const t = e.target as HTMLImageElement; if (t.src !== game.game_image) t.src = game.game_image; else t.style.display = "none"; }} />
+      )}
       <div className="absolute inset-0" style={{ background: size === "wide" ? "linear-gradient(to right, rgba(2,4,8,0.9) 0%, rgba(2,4,8,0.3) 100%)" : "linear-gradient(to top, rgba(2,4,8,0.95) 0%, rgba(2,4,8,0.1) 55%, transparent 100%)" }} />
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
         <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(0,209,255,0.9)" }}>
@@ -267,7 +351,7 @@ export default function Lobby() {
         <div className="flex items-center gap-1 mb-1">
           <div className="w-1.5 h-1.5 rounded-full" style={{ background: PROVIDER_COLORS[game.provider_id] ?? "#00D1FF" }} />
           <p className="text-[8px] font-mono truncate" style={{ color: PROVIDER_COLORS[game.provider_id] ?? "#00D1FF", opacity: 0.8 }}>
-            {getProviderName(game.provider_id)}
+            {getProviderName(game.provider_id, game)}
           </p>
         </div>
         <h3 className={`font-bold leading-tight truncate text-white ${size === "wide" ? "text-sm" : "text-[11px]"}`}>{game.game_name}</h3>
@@ -335,6 +419,7 @@ export default function Lobby() {
               {!search && activeProvider === null && (() => {
                 // Color/branding per provider (fallback to PROVIDER_COLORS map)
                 const PROVIDER_META: Record<number, { label: string; grad: string; ring: string; accent: string }> = {
+                  [SLOTOPOL_PROVIDER_ID]: { label: "Slotopol API", grad: "linear-gradient(135deg,#00D1FF,#FF2D55)", ring: "rgba(0,209,255,0.35)", accent: "#00D1FF" },
                   1:  { label: "Pragmatic Play",   grad: "linear-gradient(135deg,#FF6B35,#dc2626)", ring: "rgba(255,107,53,0.35)",  accent: "#FF8159" },
                   3:  { label: "PG Soft",          grad: "linear-gradient(135deg,#a855f7,#7c3aed)", ring: "rgba(168,85,247,0.35)",  accent: "#c084fc" },
                   4:  { label: "Booongo",          grad: "linear-gradient(135deg,#22c55e,#16a34a)", ring: "rgba(34,197,94,0.35)",   accent: "#4ade80" },
@@ -349,8 +434,8 @@ export default function Lobby() {
                   23: { label: "TADA Gaming",      grad: "linear-gradient(135deg,#e11d48,#9f1239)", ring: "rgba(225,29,72,0.35)",   accent: "#fb7185" },
                 };
 
-                // Featured-first ordering: Pragmatic, PG Soft, Hacksaw, Spribe, Habanero — then the rest by count
-                const FEATURED_ORDER = [1, 3, 16, 15, 7];
+                // Featured-first ordering: Slotopol, Pragmatic, PG Soft, Hacksaw, Spribe, Habanero — then the rest by count
+                const FEATURED_ORDER = [SLOTOPOL_PROVIDER_ID, 1, 3, 16, 15, 7];
                 // Derive provider IDs from the games themselves so this works even if
                 // /v4/game/providers fetch failed or hasn't returned yet.
                 const idsWithGames = Array.from(new Set(games.map(g => g.provider_id)));
@@ -368,7 +453,7 @@ export default function Lobby() {
                       const blockGames = games.filter(g => g.provider_id === pid);
                       if (blockGames.length === 0) return null;
                       const meta = PROVIDER_META[pid] || {
-                        label: providers.find(p => p.provider_id === pid)?.locale_name || `Provider ${pid}`,
+                        label: allProviders.find(p => p.provider_id === pid)?.locale_name || `Provider ${pid}`,
                         grad: "linear-gradient(135deg,#00D1FF,#0284c7)",
                         ring: "rgba(0,209,255,0.35)",
                         accent: PROVIDER_COLORS[pid] || "#00D1FF",
@@ -399,46 +484,7 @@ export default function Lobby() {
 
                           <div className="grid grid-cols-3 gap-2.5">
                             {preview.map((g, i) => (
-                              <motion.div key={`${pid}-${g.game_code}`}
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: Math.min(i * 0.03, 0.2) }}
-                                whileHover={{ y: -3 }}
-                                whileTap={{ scale: 0.97 }}
-                                onClick={() => launchGame(g)}
-                                className="relative rounded-xl overflow-hidden cursor-pointer group"
-                                style={{ aspectRatio: "3/4", border: `1px solid ${meta.ring}` }}>
-
-                                <img src={g.game_image_narrow || g.game_image} alt={g.game_name || g.locale_name} loading="lazy"
-                                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                  onError={e => {
-                                    const im = e.target as HTMLImageElement;
-                                    if (g.game_image && im.src !== g.game_image) { im.src = g.game_image; return; }
-                                    im.style.display = "none";
-                                  }} />
-
-                                <div className="absolute inset-0"
-                                  style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 45%, transparent 80%)" }} />
-
-                                <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[7px] font-black uppercase"
-                                  style={{ background: meta.grad, color: "#fff" }}>
-                                  {meta.label.split(" ")[0]}
-                                </div>
-
-                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <div className="w-11 h-11 rounded-full flex items-center justify-center"
-                                    style={{ background: meta.accent, boxShadow: `0 0 24px ${meta.ring}` }}>
-                                    <span className="text-black font-black text-lg ml-0.5">▶</span>
-                                  </div>
-                                </div>
-
-                                <div className="absolute bottom-0 left-0 right-0 p-1.5">
-                                  <p className="text-[10px] font-black text-white leading-tight tracking-wide line-clamp-2"
-                                    style={{ textShadow: "0 2px 4px rgba(0,0,0,0.95)" }}>
-                                    {g.game_name || g.locale_name}
-                                  </p>
-                                </div>
-                              </motion.div>
+                              <GameCard key={`${pid}-${g.game_code}`} game={g} i={i} />
                             ))}
                           </div>
                         </div>
@@ -465,7 +511,7 @@ export default function Lobby() {
                     }}>
                     <LayoutGrid className="w-3 h-3" /> {t("all")}
                   </button>
-                  {providers.sort((a, b) => {
+                  {allProviders.sort((a, b) => {
                     const ca = games.filter(g => g.provider_id === a.provider_id).length;
                     const cb = games.filter(g => g.provider_id === b.provider_id).length;
                     return cb - ca;
@@ -496,7 +542,7 @@ export default function Lobby() {
                     <Sparkles className="w-4 h-4" style={{ color: "#a855f7" }} />
                     <h2 className="text-sm font-black tracking-wider">
                       {activeProvider !== null
-                        ? providers.find(p => p.provider_id === activeProvider)?.locale_name
+                        ? allProviders.find(p => p.provider_id === activeProvider)?.locale_name
                         : t("searchResults") || `Results: "${search}"`}
                     </h2>
                     <span className="text-[10px] text-white/20 ml-auto flex items-center gap-1">
@@ -528,6 +574,73 @@ export default function Lobby() {
           )}
         </div>
       </div>
+
+
+      {/* Slotopol API spin modal */}
+      {slotopolGame && (
+        <div className="fixed inset-0 bg-black/90 flex flex-col" style={{ zIndex: 9998 }}>
+          <div className="flex items-center justify-between p-3 flex-shrink-0" style={{ background: "#020408", borderBottom: "1px solid rgba(0,209,255,0.2)" }}>
+            <div className="min-w-0">
+              <div className="text-[10px] font-black tracking-[0.18em]" style={{ color: "#00D1FF" }}>SLOTOPOL API</div>
+              <div className="text-sm font-black text-white truncate">{slotopolGame.game_name}</div>
+              <div className="text-[10px] text-white/35 truncate">{slotopolGame.slotopolProvider} · {slotopolGame.slotopolDetails}</div>
+            </div>
+            <button onClick={() => setSlotopolGame(null)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55", border: "1px solid rgba(255,45,85,0.3)" }}>Close ✕</button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="rounded-3xl p-4" style={{ background: "radial-gradient(circle at 50% 0%, rgba(0,209,255,0.18), transparent 45%), rgba(255,255,255,0.035)", border: "1px solid rgba(0,209,255,0.18)" }}>
+              <div className="grid grid-rows-3 gap-2 mb-4">
+                {(slotopolResult?.reels || [["🍒","🍋","🔔","⭐","💎"],["7","BAR","WILD","SCAT","🍒"],["💎","⭐","🔔","🍋","7"]]).map((row, r) => (
+                  <div key={r} className="grid grid-cols-5 gap-2">
+                    {row.map((sym, c) => (
+                      <div key={`${r}-${c}`} className="h-16 rounded-xl flex items-center justify-center text-xl font-black"
+                        style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.35))", border: r === 1 ? "1px solid rgba(0,209,255,0.45)" : "1px solid rgba(255,255,255,0.08)", color: sym === "WILD" || sym === "SCAT" ? "#00D1FF" : "#fff", boxShadow: r === 1 ? "0 0 16px rgba(0,209,255,0.12)" : "none" }}>
+                        {sym}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="rounded-xl p-3" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div className="text-[9px] uppercase text-white/35">Last win</div>
+                  <div className="text-lg font-black tabular-nums" style={{ color: (slotopolResult?.win || 0) > 0 ? "#00C853" : "#fff" }}>{(slotopolResult?.win || 0).toFixed(2)} TND</div>
+                </div>
+                <div className="rounded-xl p-3" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div className="text-[9px] uppercase text-white/35">Balance</div>
+                  <div className="text-lg font-black tabular-nums" style={{ color: "#00D1FF" }}>{(slotopolResult?.balance ?? parseFloat(user?.balance || "0")).toFixed(2)} TND</div>
+                </div>
+              </div>
+
+              {slotopolResult?.wins && slotopolResult.wins.length > 0 && (
+                <div className="space-y-1 mb-3">
+                  {slotopolResult.wins.map((w, i) => (
+                    <div key={i} className="flex items-center justify-between rounded-lg px-3 py-2 text-[11px]" style={{ background: "rgba(0,200,83,0.08)", border: "1px solid rgba(0,200,83,0.16)" }}>
+                      <span className="text-white/70">{w.line} · {w.count}× {w.symbol}</span>
+                      <span className="font-black" style={{ color: "#00C853" }}>+{w.amount.toFixed(2)} TND</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-1 mb-2">
+                {[0.5, 1, 2, 5, 10].map(v => (
+                  <button key={v} onClick={() => setSlotopolStake(String(v))} className="flex-1 py-2 rounded-lg text-[11px] font-bold" style={{ background: slotopolStake === String(v) ? "rgba(0,209,255,0.18)" : "rgba(255,255,255,0.06)", color: slotopolStake === String(v) ? "#00D1FF" : "rgba(255,255,255,0.6)" }}>{v}</button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input value={slotopolStake} onChange={e => setSlotopolStake(e.target.value)} type="number" min="0.2" step="0.1" className="flex-1 px-3 py-3 rounded-xl text-sm font-bold text-white outline-none" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)" }} placeholder="Stake TND" />
+                <button onClick={spinSlotopol} disabled={slotopolSpinning} className="px-6 py-3 rounded-xl text-sm font-black disabled:opacity-50 flex items-center gap-2" style={{ background: "#00D1FF", color: "#020408" }}>
+                  {slotopolSpinning ? <span className="w-4 h-4 rounded-full border-2 border-black border-t-transparent animate-spin" /> : <Zap className="w-4 h-4" />}
+                  SPIN
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Game iframe (AES real-money launch) */}
       {gameUrl && (
