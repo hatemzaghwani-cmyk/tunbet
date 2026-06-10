@@ -1,7 +1,6 @@
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Search, X, Ticket, CheckCircle, XCircle, Timer,
-  RefreshCw, Zap, Calendar, ChevronDown, Filter, TrendingUp, Radio,
+  RefreshCw, Zap, Calendar, ChevronDown, Radio,
   Globe, Swords, Plus
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -20,7 +19,6 @@ interface Bet {
 
 type TimeFilter = "all" | "today" | "tomorrow" | "week";
 
-// Generate a consistent color from a team name
 function teamColor(name: string) {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
@@ -37,7 +35,6 @@ function teamInitials(name: string) {
 function TeamBadge({ name }: { name: string }) {
   const [img, setImg] = useState<string | null>(null);
   useEffect(() => {
-    // Try to fetch logo from TheSportsDB (demo: known IDs for top teams)
     const known: Record<string, string> = {
       "Barcelona": "133739", "Real Madrid": "133738", "Arsenal": "133604", "Chelsea": "133610",
       "Liverpool": "133616", "Manchester United": "133618", "Manchester City": "133617",
@@ -232,13 +229,9 @@ export default function Sports() {
 
   return (
     <div className="pb-32 px-3 pt-2">
-      {/* Banner Image */}
+      {/* Banner */}
       <div className="relative w-full h-48 rounded-2xl overflow-hidden mb-4" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
-        <img
-          src="/assets/sports-banner.jpg"
-          alt="El Clásico Banner"
-          className="w-full h-full object-cover"
-        />
+        <img src="/assets/sports-banner.jpg" alt="El Clásico" className="w-full h-full object-cover" />
         <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(2,4,8,0.95) 0%, rgba(2,4,8,0.4) 50%, rgba(2,4,8,0.1) 100%)" }} />
         <div className="absolute bottom-3 left-3 right-3">
           <div className="flex items-center gap-2 mb-1">
@@ -267,136 +260,80 @@ export default function Sports() {
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search */}
       <div className="relative mb-3">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-        <input
-          type="text"
-          placeholder="Search teams, leagues, tournaments..."
-          value={q}
-          onChange={e => setQ(e.target.value)}
+        <input type="text" placeholder="Search teams, leagues..." value={q} onChange={e => setQ(e.target.value)}
           className="w-full rounded-xl py-2.5 pl-10 pr-10 text-sm outline-none text-white placeholder-white/30"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-        />
-        {q && (
-          <button onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2">
-            <X className="w-3.5 h-3.5 text-white/40" />
-          </button>
-        )}
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }} />
+        {q && <button onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-white/40" /></button>}
       </div>
 
       {/* Status Tabs */}
       <div className="flex gap-1.5 mb-3">
-        <button
-          onClick={() => setStatusTab("live")}
+        <button onClick={() => setStatusTab("live")}
           className="flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
-          style={{
-            background: statusTab === "live" ? "rgba(255,45,85,0.12)" : "rgba(255,255,255,0.04)",
-            border: statusTab === "live" ? "1px solid rgba(255,45,85,0.35)" : "1px solid rgba(255,255,255,0.06)",
-            color: statusTab === "live" ? "#FF2D55" : "rgba(255,255,255,0.5)",
-          }}
-        >
+          style={{ background: statusTab === "live" ? "rgba(255,45,85,0.12)" : "rgba(255,255,255,0.04)", border: statusTab === "live" ? "1px solid rgba(255,45,85,0.35)" : "1px solid rgba(255,255,255,0.06)", color: statusTab === "live" ? "#FF2D55" : "rgba(255,255,255,0.5)" }}>
           <Radio className="w-3.5 h-3.5" />
-          <span className="relative">
-            Live
-            {liveCount > 0 && (
-              <span className="absolute -top-2 -right-3 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center" style={{ background: "#FF2D55", color: "#fff" }}>{liveCount}</span>
-            )}
-          </span>
+          <span className="relative">Live {liveCount > 0 && <span className="absolute -top-2 -right-3 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center" style={{ background: "#FF2D55", color: "#fff" }}>{liveCount}</span>}</span>
         </button>
-        <button
-          onClick={() => setStatusTab("upcoming")}
+        <button onClick={() => setStatusTab("upcoming")}
           className="flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
-          style={{
-            background: statusTab === "upcoming" ? "rgba(0,209,255,0.12)" : "rgba(255,255,255,0.04)",
-            border: statusTab === "upcoming" ? "1px solid rgba(0,209,255,0.35)" : "1px solid rgba(255,255,255,0.06)",
-            color: statusTab === "upcoming" ? "#00D1FF" : "rgba(255,255,255,0.5)",
-          }}
-        >
-          <Calendar className="w-3.5 h-3.5" />
-          Upcoming
-          {upcomingCount > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(0,209,255,0.15)", color: "#00D1FF" }}>{upcomingCount}</span>
-          )}
+          style={{ background: statusTab === "upcoming" ? "rgba(0,209,255,0.12)" : "rgba(255,255,255,0.04)", border: statusTab === "upcoming" ? "1px solid rgba(0,209,255,0.35)" : "1px solid rgba(255,255,255,0.06)", color: statusTab === "upcoming" ? "#00D1FF" : "rgba(255,255,255,0.5)" }}>
+          <Calendar className="w-3.5 h-3.5" /> Upcoming {upcomingCount > 0 && <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(0,209,255,0.15)", color: "#00D1FF" }}>{upcomingCount}</span>}
         </button>
       </div>
 
-      {/* Filters row */}
+      {/* Sports */}
       <div className="flex gap-2 overflow-x-auto pb-2 -mx-3 px-3 scrollbar-hide mb-2">
         <button onClick={() => setSport("all")}
           className="px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap flex-shrink-0 flex items-center gap-1"
-          style={{
-            background: sport === "all" ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)",
-            border: sport === "all" ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)",
-            color: sport === "all" ? "#00D1FF" : "rgba(255,255,255,0.5)",
-          }}>
-          <Globe className="w-3 h-3" /> All Sports
+          style={{ background: sport === "all" ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)", border: sport === "all" ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)", color: sport === "all" ? "#00D1FF" : "rgba(255,255,255,0.5)" }}>
+          <Globe className="w-3 h-3" /> All
         </button>
         {SPORTS.filter(s => s.slug !== "all").map(s => (
           <button key={s.slug} onClick={() => setSport(s.slug === sport ? "all" : s.slug)}
-            className="px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap flex-shrink-0 flex items-center gap-1"
-            style={{
-              background: sport === s.slug ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)",
-              border: sport === s.slug ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)",
-              color: sport === s.slug ? "#00D1FF" : "rgba(255,255,255,0.5)",
-            }}>
+            className="px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap flex-shrink-0"
+            style={{ background: sport === s.slug ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)", border: sport === s.slug ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)", color: sport === s.slug ? "#00D1FF" : "rgba(255,255,255,0.5)" }}>
             {s.name}
           </button>
         ))}
       </div>
 
-      {/* Time + League filters */}
+      {/* Time + League */}
       <div className="flex items-center gap-2 mb-3 overflow-x-auto scrollbar-hide">
         {(["all", "today", "tomorrow", "week"] as TimeFilter[]).map(tf => (
           <button key={tf} onClick={() => setTimeFilter(tf)}
             className="px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap"
-            style={{
-              background: timeFilter === tf ? "rgba(255,255,255,0.08)" : "transparent",
-              border: timeFilter === tf ? "1px solid rgba(255,255,255,0.15)" : "1px solid transparent",
-              color: timeFilter === tf ? "#fff" : "rgba(255,255,255,0.35)",
-            }}>
+            style={{ background: timeFilter === tf ? "rgba(255,255,255,0.08)" : "transparent", border: timeFilter === tf ? "1px solid rgba(255,255,255,0.15)" : "1px solid transparent", color: timeFilter === tf ? "#fff" : "rgba(255,255,255,0.35)" }}>
             {tf === "all" ? "Any Time" : tf === "today" ? "Today" : tf === "tomorrow" ? "Tomorrow" : "This Week"}
           </button>
         ))}
         {leagues.length > 0 && (
-          <select
-            value={leagueFilter}
-            onChange={e => setLeagueFilter(e.target.value)}
+          <select value={leagueFilter} onChange={e => setLeagueFilter(e.target.value)}
             className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-transparent outline-none cursor-pointer"
-            style={{ border: "1px solid rgba(255,255,255,0.08)", color: leagueFilter !== "all" ? "#00D1FF" : "rgba(255,255,255,0.35)" }}
-          >
+            style={{ border: "1px solid rgba(255,255,255,0.08)", color: leagueFilter !== "all" ? "#00D1FF" : "rgba(255,255,255,0.35)" }}>
             <option value="all" style={{ background: "#020408" }}>All Leagues</option>
             {leagues.map(l => <option key={l} value={l} style={{ background: "#020408" }}>{l}</option>)}
           </select>
         )}
       </div>
 
-      {/* Tab switch: Matches / My Bets */}
+      {/* Tab switch */}
       <div className="flex items-center gap-2 mb-3">
-        <button onClick={() => setTab("m")}
-          className="px-3 py-1.5 rounded-lg text-[11px] font-bold"
-          style={{ background: tab === "m" ? "rgba(0,209,255,0.15)" : "transparent", color: tab === "m" ? "#00D1FF" : "rgba(255,255,255,0.4)" }}>
-          Matches
-        </button>
-        <button onClick={() => setTab("b")}
-          className="px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1"
-          style={{ background: tab === "b" ? "rgba(0,209,255,0.15)" : "transparent", color: tab === "b" ? "#00D1FF" : "rgba(255,255,255,0.4)" }}>
-          My Bets {bets.length > 0 && <span className="px-1 py-0.5 rounded text-[8px]" style={{ background: "rgba(0,209,255,0.2)", color: "#00D1FF" }}>{bets.length}</span>}
-        </button>
+        <button onClick={() => setTab("m")} className="px-3 py-1.5 rounded-lg text-[11px] font-bold" style={{ background: tab === "m" ? "rgba(0,209,255,0.15)" : "transparent", color: tab === "m" ? "#00D1FF" : "rgba(255,255,255,0.4)" }}>Matches</button>
+        <button onClick={() => setTab("b")} className="px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1" style={{ background: tab === "b" ? "rgba(0,209,255,0.15)" : "transparent", color: tab === "b" ? "#00D1FF" : "rgba(255,255,255,0.4)" }}>My Bets {bets.length > 0 && <span className="px-1 py-0.5 rounded text-[8px]" style={{ background: "rgba(0,209,255,0.2)", color: "#00D1FF" }}>{bets.length}</span>}</button>
       </div>
 
-      {/* Toast */}
-      <AnimatePresence>
-        {msg && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="mb-3 p-3 rounded-xl text-sm font-bold text-center"
-            style={{ background: msg.tone === "ok" ? "rgba(0,200,83,0.12)" : "rgba(255,45,85,0.12)", border: msg.tone === "ok" ? "1px solid rgba(0,200,83,0.3)" : "1px solid rgba(255,45,85,0.3)", color: msg.tone === "ok" ? "#00C853" : "#FF2D55" }}>
-            {msg.text}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Toast — lightweight CSS */}
+      {msg && (
+        <div className="mb-3 p-3 rounded-xl text-sm font-bold text-center transition-opacity duration-300"
+          style={{ background: msg.tone === "ok" ? "rgba(0,200,83,0.12)" : "rgba(255,45,85,0.12)", border: msg.tone === "ok" ? "1px solid rgba(0,200,83,0.3)" : "1px solid rgba(255,45,85,0.3)", color: msg.tone === "ok" ? "#00C853" : "#FF2D55" }}>
+          {msg.text}
+        </div>
+      )}
 
-      {/* Loading */}
+      {/* Loading skeleton */}
       {loading && (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -405,7 +342,7 @@ export default function Sports() {
         </div>
       )}
 
-      {/* Matches list */}
+      {/* Matches */}
       {tab === "m" && !loading && (
         <div className="space-y-4">
           {grouped.map(g => (
@@ -416,15 +353,12 @@ export default function Sports() {
                 <span className="text-[10px] text-white/30">{g.items.length} matches</span>
               </div>
               <div className="space-y-2">
-                {g.items.map(m => (
-                  <MatchCard key={m.id} m={m} slip={slip} onSel={toggleSel} />
-                ))}
+                {g.items.map(m => <MatchCard key={m.id} m={m} slip={slip} onSel={toggleSel} />)}
               </div>
             </div>
           ))}
           {grouped.length === 0 && (
             <div className="text-center py-16 text-white/30">
-              <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p className="text-sm mb-1">No matches available</p>
               <p className="text-[10px] opacity-70">Try changing filters or check back soon.</p>
             </div>
@@ -435,29 +369,14 @@ export default function Sports() {
       {/* My Bets */}
       {tab === "b" && (
         <div className="space-y-3">
-          {ldb && (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="rounded-xl p-4 animate-pulse" style={{ background: "rgba(255,255,255,0.04)", height: 80 }} />
-              ))}
-            </div>
-          )}
-          {!ldb && filteredBets.length === 0 && (
-            <div className="text-center py-16 text-white/30">
-              <Ticket className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No bets yet</p>
-            </div>
-          )}
+          {ldb && Array.from({ length: 3 }).map((_, i) => <div key={i} className="rounded-xl p-4 animate-pulse" style={{ background: "rgba(255,255,255,0.04)", height: 80 }} />)}
+          {!ldb && filteredBets.length === 0 && <div className="text-center py-16 text-white/30"><Ticket className="w-10 h-10 mx-auto mb-3 opacity-30" /><p className="text-sm">No bets yet</p></div>}
           {!ldb && filteredBets.map(b => <BetCard key={b.id} b={b} />)}
-          {!user && !ldb && (
-            <div className="text-center py-10">
-              <button onClick={() => setAuth(true)} className="px-6 py-2.5 rounded-xl text-sm font-bold" style={{ background: "#00D1FF", color: "#020408" }}>Login to view bets</button>
-            </div>
-          )}
+          {!user && !ldb && <div className="text-center py-10"><button onClick={() => setAuth(true)} className="px-6 py-2.5 rounded-xl text-sm font-bold" style={{ background: "#00D1FF", color: "#020408" }}>Login to view bets</button></div>}
         </div>
       )}
 
-      {/* Bet Slip sticky */}
+      {/* Sticky Bet Slip */}
       {slip.length > 0 && (
         <div className="fixed bottom-20 left-3 right-3 z-40">
           <BetSlip slip={slip} stake={stake} setStake={setStake} totalOdds={totalOdds} singleTotalWin={singleTotalWin} balance={parseFloat(user?.balance || "0")} show={showSlipPanel} setShow={setShowSlipPanel} onRemove={(id: string) => setSlip(slip.filter(s => s.id !== id))} onClear={() => { setSlip([]); setStake(""); }} onPlace={placeBet} placing={placing} />
@@ -480,52 +399,31 @@ function MatchCard({ m, slip, onSel }: { m: OddsMatch; slip: Slip[]; onSel: (m: 
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-      {/* Match header */}
       <div className="p-3 pb-2">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <span className="text-[9px] text-white/40 font-mono uppercase tracking-wider">{m.league}</span>
-            {isLive && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase" style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55" }}>
-                <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" /> Live
-              </span>
-            )}
-            {m.suspended && (
-              <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase" style={{ background: "rgba(255,165,0,0.15)", color: "#FFA500" }}>Suspended</span>
-            )}
+            {isLive && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase" style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55" }}><span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" /> Live</span>}
+            {m.suspended && <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase" style={{ background: "rgba(255,165,0,0.15)", color: "#FFA500" }}>Suspended</span>}
           </div>
           <span className="text-[9px] text-white/30 font-mono">{isLive ? m.clock || "LIVE" : `${dateStr} ${timeStr}`}</span>
         </div>
 
-        {/* Teams row with large logos */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
             <TeamBadge name={m.home} />
-            <div className="min-w-0">
-              <span className="text-sm font-bold text-white truncate block">{m.home}</span>
-            </div>
-            {isLive && m.homeScore !== undefined && (
-              <span className="text-sm font-black" style={{ color: "#FF2D55" }}>{m.homeScore}</span>
-            )}
+            <div className="min-w-0"><span className="text-sm font-bold text-white truncate block">{m.home}</span></div>
+            {isLive && m.homeScore !== undefined && <span className="text-sm font-black" style={{ color: "#FF2D55" }}>{m.homeScore}</span>}
           </div>
-
-          <div className="flex flex-col items-center mx-2 flex-shrink-0">
-            <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">vs</span>
-          </div>
-
+          <div className="flex flex-col items-center mx-2 flex-shrink-0"><span className="text-[9px] text-white/20 font-mono uppercase">vs</span></div>
           <div className="flex items-center gap-2.5 flex-1 justify-end min-w-0">
-            {isLive && m.awayScore !== undefined && (
-              <span className="text-sm font-black" style={{ color: "#FF2D55" }}>{m.awayScore}</span>
-            )}
-            <div className="min-w-0 text-right">
-              <span className="text-sm font-bold text-white truncate block">{m.away}</span>
-            </div>
+            {isLive && m.awayScore !== undefined && <span className="text-sm font-black" style={{ color: "#FF2D55" }}>{m.awayScore}</span>}
+            <div className="min-w-0 text-right"><span className="text-sm font-bold text-white truncate block">{m.away}</span></div>
             <TeamBadge name={m.away} />
           </div>
         </div>
       </div>
 
-      {/* Markets */}
       <div className="px-3 pb-3 space-y-2">
         {visibleMk.map(([mkName, mkOdds]) => (
           <div key={mkName}>
@@ -534,16 +432,8 @@ function MatchCard({ m, slip, onSel }: { m: OddsMatch; slip: Slip[]; onSel: (m: 
           </div>
         ))}
         {mkEntries.length > 5 && (
-          <button
-            onClick={() => setShowMore(!showMore)}
-            className="w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}
-          >
-            {showMore ? (
-              <><ChevronDown className="w-3 h-3 rotate-180" /> Show less markets</>
-            ) : (
-              <><Plus className="w-3 h-3" /> +{mkEntries.length - 5} more markets</>
-            )}
+          <button onClick={() => setShowMore(!showMore)} className="w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+            {showMore ? <><ChevronDown className="w-3 h-3 rotate-180" /> Less</> : <><Plus className="w-3 h-3" /> +{mkEntries.length - 5} markets</>}
           </button>
         )}
       </div>
@@ -560,13 +450,8 @@ function OddsGrid({ m, mkName, mkOdds, slip, onSel }: { m: OddsMatch; mkName: st
         const id = `${m.id}::${mkName}::${sel}`;
         const isSel = slip.some(s => s.id === id);
         return (
-          <button key={sel} onClick={() => onSel(m, mkName, sel, odds)}
-            className="py-1.5 px-1 rounded-lg transition-all"
-            style={{
-              background: isSel ? "rgba(0,209,255,0.22)" : "rgba(255,255,255,0.05)",
-              border: isSel ? "1px solid rgba(0,209,255,0.6)" : "1px solid rgba(255,255,255,0.07)",
-              color: isSel ? "#00D1FF" : "rgba(255,255,255,0.9)",
-            }}>
+          <button key={sel} onClick={() => onSel(m, mkName, sel, odds)} className="py-1.5 px-1 rounded-lg transition-all"
+            style={{ background: isSel ? "rgba(0,209,255,0.22)" : "rgba(255,255,255,0.05)", border: isSel ? "1px solid rgba(0,209,255,0.6)" : "1px solid rgba(255,255,255,0.07)", color: isSel ? "#00D1FF" : "rgba(255,255,255,0.9)" }}>
             <div className="text-[8px] uppercase opacity-60 mb-0.5 truncate px-0.5">{sel}</div>
             <div className="font-black text-xs tabular-nums">{odds.toFixed(2)}</div>
           </button>
@@ -592,62 +477,52 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
         </button>
         <button onClick={onClear} className="text-[10px] text-white/40 underline">Clear</button>
       </div>
-      <AnimatePresence>
-        {show && (
-          <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
-            {slip.length > 1 && (
-              <div className="px-3 pt-2.5">
-                <div className="px-3 py-2 rounded-lg text-[10px] font-bold flex items-center justify-between"
-                  style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.18)", color: "rgba(255,255,255,0.65)" }}>
-                  <span>Singles mode</span><span style={{ color: "#00D1FF" }}>{slip.length} tickets · stake per pick</span>
-                </div>
-              </div>
-            )}
-            <div className="px-3 py-2 space-y-1.5 max-h-48 overflow-y-auto">
-              {slip.map((s: Slip) => (
-                <div key={s.id} className="flex items-center justify-between gap-2 p-2 rounded-lg" style={{ background: "rgba(0,0,0,0.35)" }}>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-bold text-white truncate">{s.match}</div>
-                    <div className="text-[10px] text-white/50">{s.mk} · <span className="text-white/80">{s.sel}</span></div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="font-black text-sm tabular-nums" style={{ color: "#00D1FF" }}>{s.odds.toFixed(2)}</span>
-                    <button onClick={() => onRemove(s.id)}><X className="w-3.5 h-3.5 text-white/40" /></button>
-                  </div>
-                </div>
-              ))}
+      <div className={`overflow-hidden transition-all duration-300 ${show ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}>
+        {slip.length > 1 && (
+          <div className="px-3 pt-2.5">
+            <div className="px-3 py-2 rounded-lg text-[10px] font-bold flex items-center justify-between" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.18)", color: "rgba(255,255,255,0.65)" }}>
+              <span>Singles mode</span><span style={{ color: "#00D1FF" }}>{slip.length} tickets · stake per pick</span>
             </div>
-            <div className="px-3 pb-2 space-y-2">
-              <div className="flex gap-1">
-                {[5, 10, 25, 50, 100].map(v => (
-                  <button key={v} onClick={() => setStake(String(v))}
-                    className="flex-1 py-1 rounded text-[10px] font-bold"
-                    style={{ background: stake === String(v) ? "rgba(0,209,255,0.18)" : "rgba(255,255,255,0.06)", color: stake === String(v) ? "#00D1FF" : "rgba(255,255,255,0.6)" }}>
-                    {v}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="number" value={stake} onChange={e => setStake(e.target.value)} placeholder="Stake (TND)" inputMode="decimal"
-                  className="flex-1 px-3 py-2 rounded-lg text-sm font-bold text-white outline-none"
-                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)" }} />
-                <div className="text-right">
-                  <div className="text-[9px] text-white/40 uppercase">Win</div>
-                  <div className="text-sm font-black tabular-nums" style={{ color: "#00C853" }}>{singleTotalWin.toFixed(2)} TND</div>
-                </div>
-              </div>
-              {slip.length > 0 && (
-                <div className="text-[10px] text-white/50 px-1">
-                  Total stake: <span className="font-bold text-white">{totalDebit.toFixed(2)} TND</span>
-                  {" · "}Balance: <span className="font-bold" style={{ color: insufficient ? "#FF2D55" : "#00C853" }}>{balance.toFixed(2)} TND</span>
-                </div>
-              )}
-              {insufficient && <div className="text-[10px] font-bold px-1" style={{ color: "#FF2D55" }}>Insufficient balance</div>}
-              {invalid && <div className="text-[10px] font-bold px-1" style={{ color: "#FF2D55" }}>Stake must be 0.50–5000 TND</div>}
-            </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+        <div className="px-3 py-2 space-y-1.5 max-h-48 overflow-y-auto">
+          {slip.map((s: Slip) => (
+            <div key={s.id} className="flex items-center justify-between gap-2 p-2 rounded-lg" style={{ background: "rgba(0,0,0,0.35)" }}>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-bold text-white truncate">{s.match}</div>
+                <div className="text-[10px] text-white/50">{s.mk} · <span className="text-white/80">{s.sel}</span></div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="font-black text-sm tabular-nums" style={{ color: "#00D1FF" }}>{s.odds.toFixed(2)}</span>
+                <button onClick={() => onRemove(s.id)}><X className="w-3.5 h-3.5 text-white/40" /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-3 pb-2 space-y-2">
+          <div className="flex gap-1">
+            {[5, 10, 25, 50, 100].map(v => (
+              <button key={v} onClick={() => setStake(String(v))} className="flex-1 py-1 rounded text-[10px] font-bold"
+                style={{ background: stake === String(v) ? "rgba(0,209,255,0.18)" : "rgba(255,255,255,0.06)", color: stake === String(v) ? "#00D1FF" : "rgba(255,255,255,0.6)" }}>{v}</button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="number" value={stake} onChange={e => setStake(e.target.value)} placeholder="Stake (TND)" inputMode="decimal"
+              className="flex-1 px-3 py-2 rounded-lg text-sm font-bold text-white outline-none" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)" }} />
+            <div className="text-right">
+              <div className="text-[9px] text-white/40 uppercase">Win</div>
+              <div className="text-sm font-black tabular-nums" style={{ color: "#00C853" }}>{singleTotalWin.toFixed(2)} TND</div>
+            </div>
+          </div>
+          {slip.length > 0 && (
+            <div className="text-[10px] text-white/50 px-1">
+              Total stake: <span className="font-bold text-white">{totalDebit.toFixed(2)} TND</span>{" · "}Balance: <span className="font-bold" style={{ color: insufficient ? "#FF2D55" : "#00C853" }}>{balance.toFixed(2)} TND</span>
+            </div>
+          )}
+          {insufficient && <div className="text-[10px] font-bold px-1" style={{ color: "#FF2D55" }}>Insufficient balance</div>}
+          {invalid && <div className="text-[10px] font-bold px-1" style={{ color: "#FF2D55" }}>Stake must be 0.50–5000 TND</div>}
+        </div>
+      </div>
       <button onClick={onPlace} disabled={placing || !slip.length || stakeNum <= 0 || insufficient || invalid}
         className="w-full py-3 text-sm font-black tracking-wider disabled:opacity-40 flex items-center justify-center gap-1.5"
         style={{ background: insufficient || invalid ? "rgba(255,45,85,0.3)" : "#00D1FF", color: insufficient || invalid ? "#FF2D55" : "#020408" }}>
