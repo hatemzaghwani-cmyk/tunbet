@@ -1,0 +1,15 @@
+services:
+  - type: static
+    name: tunbet
+    runtime: static
+    buildCommand: npm install && VITE_BASE_PATH=/ npx vite build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_BASE_PATH
+        value: /
+      - key: VITE_SPORTSBOOK_API
+        value: https://tunbet-sportsbook.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

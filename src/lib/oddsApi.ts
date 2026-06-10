@@ -7,7 +7,10 @@ const SB_URL = "https://cjzjrnagpsdmolvbkhnu.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqempybmFncHNkbW9sdmJraG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0ODY4NCwiZXhwIjoyMDk1OTI0Njg0fQ.TmowEatc4g2xpD-GT0r-jofX1zCtXjTD-s4LF7JSs6o";
 const SH = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" };
 
-const DEFAULT_SPORTSBOOK_API = "https://males-refugees-asbestos-guests.trycloudflare.com";
+// Render.com backend (free permanent URL) — update after deploying backend
+const RENDER_BACKEND = "https://tunbet-sportsbook.onrender.com";
+
+const DEFAULT_SPORTSBOOK_API = RENDER_BACKEND;
 const FRONT_CACHE_TTL = 15_000;
 
 declare global {
