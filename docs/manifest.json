@@ -1,0 +1,12 @@
+{
+  "name": "TunBet — Casino & Sports Betting",
+  "short_name": "TunBet",
+  "description": "Premium online casino & sportsbook in TND",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020408",
+  "theme_color": "#00D1FF",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
