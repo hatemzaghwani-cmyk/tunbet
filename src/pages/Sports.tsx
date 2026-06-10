@@ -2,14 +2,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Search, X, Ticket, CheckCircle, XCircle, Timer,
   RefreshCw, Zap, Calendar, ChevronDown, Filter, TrendingUp, Radio,
-  Globe, Star, Shield, Swords, CircleDot
+  Globe, Swords, Plus
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import {
   fetchOddsMatches, SPORTS, placeSportsBetBatch, fetchMySportsBets,
-  getSportsbookApiBase, clearSportsbookCache, type OddsMatch,
+  clearSportsbookCache, type OddsMatch,
 } from "@/lib/oddsApi";
 
 interface Slip { id: string; matchId: string; match: string; mk: string; sel: string; odds: number; }
@@ -20,24 +20,62 @@ interface Bet {
 
 type TimeFilter = "all" | "today" | "tomorrow" | "week";
 
-function TeamLogo({ src, name }: { src?: string; name: string }) {
-  const [err, setErr] = useState(false);
-  if (!src || err) {
+// Generate a consistent color from a team name
+function teamColor(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return `hsl(${h}, 70%, 45%)`;
+}
+function teamInitials(name: string) {
+  return name
+    .split(/[\s\-_]/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0].toUpperCase())
+    .join("");
+}
+function TeamBadge({ name }: { name: string }) {
+  const [img, setImg] = useState<string | null>(null);
+  useEffect(() => {
+    // Try to fetch logo from TheSportsDB (demo: known IDs for top teams)
+    const known: Record<string, string> = {
+      "Barcelona": "133739", "Real Madrid": "133738", "Arsenal": "133604", "Chelsea": "133610",
+      "Liverpool": "133616", "Manchester United": "133618", "Manchester City": "133617",
+      "Tottenham Hotspur": "133621", "Bayern Munich": "133724", "Borussia Dortmund": "133731",
+      "Juventus": "133676", "Inter Milan": "133667", "AC Milan": "133661", "Napoli": "133688",
+      "Paris Saint-Germain": "133702", "Marseille": "133700", "Ajax": "133755", "Benfica": "133778",
+      "Porto": "133787", "Sporting CP": "133788", "RB Leipzig": "133665", "Atletico Madrid": "133740",
+    };
+    const id = known[name] || known[Object.keys(known).find(k => name.toLowerCase().includes(k.toLowerCase())) as any];
+    if (id) {
+      fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupteam.php?id=${id}`)
+        .then(r => r.json())
+        .then(d => {
+          const badge = d?.teams?.[0]?.strTeamBadge || d?.teams?.[0]?.strTeamLogo;
+          if (badge) setImg(badge);
+        })
+        .catch(() => {});
+    }
+  }, [name]);
+  if (img) {
     return (
-      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-        <span className="text-[10px] font-black text-white/40 uppercase">{name?.slice(0,2) || "??"}</span>
-      </div>
+      <img
+        src={img}
+        alt={name}
+        className="w-10 h-10 object-contain flex-shrink-0 rounded-full p-0.5"
+        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+        loading="lazy"
+        onError={() => setImg(null)}
+      />
     );
   }
   return (
-    <img
-      src={src}
-      alt={name}
-      className="w-9 h-9 object-contain flex-shrink-0 rounded-full p-0.5"
-      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
-      loading="lazy"
-      onError={() => setErr(true)}
-    />
+    <div
+      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-black uppercase"
+      style={{ background: teamColor(name), color: "#fff", border: "2px solid rgba(255,255,255,0.15)" }}
+    >
+      {teamInitials(name)}
+    </div>
   );
 }
 
@@ -437,6 +475,8 @@ function MatchCard({ m, slip, onSel }: { m: OddsMatch; slip: Slip[]; onSel: (m: 
   const timeStr = dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   const dateStr = dt.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   const mkEntries = Object.entries(m.markets || {});
+  const [showMore, setShowMore] = useState(false);
+  const visibleMk = showMore ? mkEntries : mkEntries.slice(0, 5);
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -460,7 +500,7 @@ function MatchCard({ m, slip, onSel }: { m: OddsMatch; slip: Slip[]; onSel: (m: 
         {/* Teams row with large logos */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <TeamLogo src={m.homeLogo} name={m.home} />
+            <TeamBadge name={m.home} />
             <div className="min-w-0">
               <span className="text-sm font-bold text-white truncate block">{m.home}</span>
             </div>
@@ -480,19 +520,32 @@ function MatchCard({ m, slip, onSel }: { m: OddsMatch; slip: Slip[]; onSel: (m: 
             <div className="min-w-0 text-right">
               <span className="text-sm font-bold text-white truncate block">{m.away}</span>
             </div>
-            <TeamLogo src={m.awayLogo} name={m.away} />
+            <TeamBadge name={m.away} />
           </div>
         </div>
       </div>
 
       {/* Markets */}
       <div className="px-3 pb-3 space-y-2">
-        {mkEntries.slice(0, 3).map(([mkName, mkOdds]) => (
+        {visibleMk.map(([mkName, mkOdds]) => (
           <div key={mkName}>
             <div className="text-[9px] text-white/30 uppercase tracking-wider mb-1">{mkName}</div>
             <OddsGrid m={m} mkName={mkName} mkOdds={mkOdds} slip={slip} onSel={onSel} />
           </div>
         ))}
+        {mkEntries.length > 5 && (
+          <button
+            onClick={() => setShowMore(!showMore)}
+            className="w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}
+          >
+            {showMore ? (
+              <><ChevronDown className="w-3 h-3 rotate-180" /> Show less markets</>
+            ) : (
+              <><Plus className="w-3 h-3" /> +{mkEntries.length - 5} more markets</>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
