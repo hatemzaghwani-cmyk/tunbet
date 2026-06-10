@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const NAMES = ["Ahmed★","Youssef","Sami","Nour","Khalil","Mehdi","Amine","Rania","Fatma","Omar","Ali★","Bilel","Rami","Mounir","Salma","Hichem","Karim","Leila","Zied","Ines","Mohamed","Hamza","Wassim","Firas","Saber","Nabil","Hatem","Sana","Imen","Houssem"];
+const NAMES = ["Ahmed","Youssef","Sami","Nour","Khalil","Mehdi","Amine","Rania","Fatma","Omar","Ali","Bilel","Rami","Mounir","Salma","Hichem","Karim","Leila","Zied","Ines","Mohamed","Hamza","Wassim","Firas","Saber","Nabil","Hatem","Sana","Imen","Houssem"];
 const GAMES = ["Sweet Bonanza","Gates of Olympus","Big Bass","Sugar Rush","Starlight Princess","Dog House","Wolf Gold","Aztec Gems","Fruit Party","Wild West Gold","Madame Destiny","Book of Fallen","Floating Dragon","Hot Pepper","Cash Bonanza","5 Lions Megaways","Starlight Christmas","Buffalo King","John Hunter","Release the Kraken"];
 
 function randomWin() {
@@ -35,7 +35,7 @@ export function WinnerFeed() {
           className="fixed top-16 right-3 z-50 rounded-xl p-3 flex items-center gap-2.5 max-w-[280px]"
           style={{ background: "rgba(0,0,0,0.92)", border: "1px solid rgba(255,215,0,0.25)", backdropFilter: "blur(20px)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
           <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #FFD700, #FF8C00)" }}>
-            <span className="text-sm">🏆</span>
+            <span className="text-xs font-black" style={{ color: "#020408" }}>WIN</span>
           </div>
           <div className="min-w-0">
             <p className="text-[10px] text-white/40">فاز للتو!</p>

@@ -1,117 +1,236 @@
 import { motion } from "framer-motion";
-import { Flame, Shield, Wifi, Clock, MessageCircle, Gamepad2 } from "lucide-react";
-import { useLocation } from "wouter";
+import { Flame, Search, Wifi, Play, Lock, Crown, X } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "@/components/AuthModal";
+import { LIVE_GAMES } from "@/lib/liveGames";
+import { t } from "@/lib/i18n";
+
+const VENDOR_META: Record<string, { color: string; label: string }> = {
+  "casino-pragmatic": { color: "#FF6B35", label: "Pragmatic Live",  },
+  "casino-ezugi": { color: "#00D1FF", label: "Ezugi",  },
+};
+
+const CATEGORIES = [
+  { key: "all", label: "All",  },
+  { key: "roulette", label: "Roulette",  },
+  { key: "baccarat", label: "Baccarat",  },
+  { key: "dragon", label: "Dragon Tiger",  },
+  { key: "andar", label: "Andar Bahar",  },
+  { key: "sic", label: "Sic Bo",  },
+  { key: "lucky", label: "Lucky 7",  },
+  { key: "xoc", label: "Xoc Dia",  },
+];
+
+function detectCategory(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes("roulette")) return "roulette";
+  if (n.includes("baccarat")) return "baccarat";
+  if (n.includes("dragon tiger")) return "dragon";
+  if (n.includes("andar bahar")) return "andar";
+  if (n.includes("sic bo")) return "sic";
+  if (n.includes("lucky 7")) return "lucky";
+  if (n.includes("xoc dia")) return "xoc";
+  return "other";
+}
 
 export default function Live() {
-  const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const [showAuth, setShowAuth] = useState(false);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
+  const [vendor, setVendor] = useState<string>("all");
+  const [launching, setLaunching] = useState<string | null>(null);
+
+  const filtered = useMemo(() => {
+    return LIVE_GAMES.filter(g => {
+      const matchSearch = !search || g.name.toLowerCase().includes(search.toLowerCase());
+      const cat = detectCategory(g.name);
+      const matchCat = category === "all" || cat === category || (category === "all" && true);
+      const matchVendor = vendor === "all" || g.vendor === vendor;
+      return matchSearch && matchCat && matchVendor;
+    });
+  }, [search, category, vendor]);
+
+  const vendors = useMemo(() => {
+    const s = new Set<string>();
+    LIVE_GAMES.forEach(g => s.add(g.vendor));
+    return Array.from(s);
+  }, []);
+
+  const handlePlay = (game: typeof LIVE_GAMES[0]) => {
+    if (!user) { setShowAuth(true); return; }
+    setLaunching(game.code);
+    setTimeout(() => setLaunching(null), 2000);
+    // In real deployment, integrate AES live game launch here
+  };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <div className="p-4 pb-24 space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-24">
+      {/* Header */}
+      <div className="p-4 pb-2">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #FF2D55, #FF6B35)" }}>
               <Flame className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-wider">LIVE CASINO</h1>
-              <p className="text-[10px] text-white/40 font-mono">142 TABLES • 6 PROVIDERS</p>
+              <h1 className="text-lg font-black tracking-wider">LIVE CASINO</h1>
+              <p className="text-[10px] text-white/40 font-mono">{LIVE_GAMES.length} TABLES • {vendors.length} PROVIDERS</p>
             </div>
           </div>
-          <div className="flex items-center gap-1 px-2 py-1 rounded-full" style={{ background: "rgba(255,165,0,0.15)", border: "1px solid rgba(255,165,0,0.3)" }}>
-            <Clock className="w-3 h-3 text-orange-400" />
-            <span className="text-[10px] font-bold text-orange-400">SOON</span>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-full" style={{ background: "rgba(0,200,83,0.12)", border: "1px solid rgba(0,200,83,0.3)" }}>
+            <Wifi className="w-3 h-3 text-green-400" />
+            <span className="text-[10px] font-bold text-green-400">LIVE</span>
           </div>
         </div>
 
-        {/* Status Banner */}
-        <div className="rounded-xl p-4" style={{ background: "linear-gradient(135deg, rgba(255,165,0,0.08), rgba(255,45,85,0.08))", border: "1px solid rgba(255,165,0,0.2)" }}>
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: "rgba(255,165,0,0.15)" }}>
-              <Wifi className="w-5 h-5 text-orange-400" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-white mb-1">Live Dealer Connection in Progress</h3>
-              <p className="text-xs text-white/50 leading-relaxed">
-                We're finalizing the connection with <span className="text-orange-300 font-semibold">Pragmatic Live</span>, <span className="text-orange-300 font-semibold">Ezugi</span>, <span className="text-orange-300 font-semibold">SA Gaming</span> and <span className="text-orange-300 font-semibold">Dream Gaming</span> live dealer servers.
-              </p>
-              <div className="flex items-center gap-4 mt-3">
-                <div className="flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-green-400" />
-                  <span className="text-[10px] text-green-400 font-medium">142 Tables Ready</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Flame className="w-3.5 h-3.5 text-orange-400" />
-                  <span className="text-[10px] text-orange-400 font-medium">6 Providers</span>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Search */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <input
+            type="text"
+            placeholder="Search tables..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none text-white placeholder-white/30"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+          />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
+              <X className="w-3.5 h-3.5 text-white/40" />
+            </button>
+          )}
         </div>
 
-        {/* Provider Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { name: "Pragmatic Live", tables: 79, color: "#FF6B35" },
-            { name: "Ezugi", tables: 63, color: "#00D1FF" },
-            { name: "SA Gaming", tables: 0, color: "#a855f7" },
-            { name: "Dream Gaming", tables: 0, color: "#22c55e" },
-            { name: "PlayAce", tables: 0, color: "#f59e0b" },
-            { name: "Micro Gaming", tables: 0, color: "#ec4899" },
-          ].map((provider) => (
-            <div key={provider.name}
-              className="rounded-xl p-4 text-center relative overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${provider.color}20` }}>
-              <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-3xl opacity-10"
-                style={{ background: provider.color, marginRight: -20, marginTop: -20 }} />
-              <div className="relative">
-                <div className="w-12 h-12 rounded-xl mx-auto mb-2 flex items-center justify-center"
-                  style={{ background: `${provider.color}15`, border: `1px solid ${provider.color}30` }}>
-                  <Flame className="w-5 h-5" style={{ color: provider.color }} />
-                </div>
-                <p className="text-xs font-bold text-white mb-1">{provider.name}</p>
-                <p className="text-[10px] text-white/40">{provider.tables} Tables</p>
-                {provider.tables === 0 && (
-                  <span className="inline-block mt-1 px-2 py-0.5 rounded text-[8px] font-bold"
-                    style={{ background: "rgba(255,165,0,0.15)", color: "#FFA500" }}>
-                    COMING SOON
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Available Games Preview */}
-        <div className="rounded-xl p-4" style={{ background: "rgba(0,209,255,0.05)", border: "1px solid rgba(0,209,255,0.15)" }}>
-          <div className="flex items-center gap-2 mb-3">
-            <Gamepad2 className="w-4 h-4" style={{ color: "#00D1FF" }} />
-            <h3 className="text-sm font-bold text-white">Available Game Types</h3>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {["Baccarat", "Roulette", "Blackjack", "Dragon Tiger", "Sic Bo", "Mega Wheel"].map(game => (
-              <div key={game} className="py-2 px-1 rounded-lg text-center text-[10px] font-bold"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}>
-                {game}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* CTA to Casino */}
-        <div className="rounded-xl p-5 text-center" style={{ background: "linear-gradient(135deg, rgba(0,209,255,0.08), rgba(0,255,157,0.05))", border: "1px solid rgba(0,209,255,0.15)" }}>
-          <MessageCircle className="w-8 h-8 mx-auto mb-2" style={{ color: "#00D1FF", opacity: 0.5 }} />
-          <p className="text-xs text-white/60 leading-relaxed mb-3">
-            Meanwhile, enjoy <span className="text-[#00D1FF] font-semibold">1,577 slot games</span> in the Casino tab — fully playable with real balance in TND.
-          </p>
-          <button onClick={() => navigate("/")}
-            className="px-6 py-2.5 rounded-xl text-sm font-bold"
-            style={{ background: "#00D1FF", color: "#020408" }}>
-            Play Slots Now →
+        {/* Vendor filter */}
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide mb-2">
+          <button
+            onClick={() => setVendor("all")}
+            className="px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap flex-shrink-0"
+            style={{
+              background: vendor === "all" ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)",
+              border: vendor === "all" ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)",
+              color: vendor === "all" ? "#00D1FF" : "rgba(255,255,255,0.5)",
+            }}
+          >
+            All Providers
           </button>
+          {vendors.map(v => {
+            const meta = VENDOR_META[v] || { color: "#00D1FF", label: v,  };
+            const active = vendor === v;
+            return (
+              <button
+                key={v}
+                onClick={() => setVendor(active ? "all" : v)}
+                className="px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap flex-shrink-0 flex items-center gap-1"
+                style={{
+                  background: active ? `${meta.color}20` : "rgba(255,255,255,0.04)",
+                  border: active ? `1px solid ${meta.color}60` : "1px solid rgba(255,255,255,0.06)",
+                  color: active ? meta.color : "rgba(255,255,255,0.5)",
+                }}
+              >
+                {meta.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Category filter */}
+        <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          {CATEGORIES.map(c => {
+            const active = category === c.key;
+            return (
+              <button
+                key={c.key}
+                onClick={() => setCategory(c.key)}
+                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap flex-shrink-0"
+                style={{
+                  background: active ? "rgba(255,45,85,0.15)" : "rgba(255,255,255,0.04)",
+                  border: active ? "1px solid rgba(255,45,85,0.4)" : "1px solid rgba(255,255,255,0.06)",
+                  color: active ? "#FF2D55" : "rgba(255,255,255,0.5)",
+                }}
+              >
+                {c.label}
+              </button>
+            );
+          })}
         </div>
       </div>
+
+      {/* Games Grid */}
+      <div className="px-4">
+        {filtered.length === 0 ? (
+          <div className="text-center py-16 text-white/30">
+            <Crown className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">No tables found</p>
+            <p className="text-[10px] mt-1">Try another search or category</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {filtered.map((game, i) => {
+              const meta = VENDOR_META[game.vendor] || { color: "#00D1FF", label: game.vendor,  };
+              const isLaunching = launching === game.code;
+              return (
+                <motion.div
+                  key={game.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(i * 0.02, 0.3) }}
+                  className="relative rounded-xl overflow-hidden cursor-pointer group"
+                  style={{
+                    aspectRatio: "16/10",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                  }}
+                  onClick={() => handlePlay(game)}
+                >
+                  <img
+                    src={game.thumb}
+                    alt={game.name}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                    style={{ filter: "brightness(0.85)" }}
+                    onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                  {/* Live badge */}
+                  <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase"
+                    style={{ background: "rgba(0,200,83,0.9)", color: "#fff" }}>
+                    <span className="w-1 h-1 rounded-full bg-white animate-pulse" />
+                    LIVE
+                  </div>
+                  {/* Vendor badge */}
+                  <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[7px] font-black"
+                    style={{ background: "rgba(0,0,0,0.6)", color: meta.color, border: `1px solid ${meta.color}40` }}>
+                    {meta.label}
+                  </div>
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(2,4,8,0.95) 0%, rgba(2,4,8,0.3) 50%, transparent 100%)" }} />
+                  {/* Play button */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(0,209,255,0.9)" }}>
+                      {isLaunching ? (
+                        <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "rgba(2,4,8,0.4)", borderTopColor: "#020408" }} />
+                      ) : user ? (
+                        <Play className="w-4 h-4 text-[#020408] fill-current" />
+                      ) : (
+                        <Lock className="w-4 h-4 text-[#020408]" />
+                      )}
+                    </div>
+                  </div>
+                  {/* Title */}
+                  <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                    <p className="text-[10px] font-bold text-white leading-tight truncate">{game.name}</p>
+                    <p className="text-[8px] text-white/40 mt-0.5 truncate">{meta.label}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </motion.div>
   );
 }

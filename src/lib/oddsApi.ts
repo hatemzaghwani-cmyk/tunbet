@@ -58,14 +58,14 @@ export interface PlaceBetResult {
 }
 
 export const SPORTS = [
-  { slug: "all",                  name: "All",          icon: "🏆" },
-  { slug: "football",             name: "Football",     icon: "⚽" },
-  { slug: "basketball",           name: "Basketball",   icon: "🏀" },
-  { slug: "baseball",             name: "Baseball",     icon: "⚾" },
-  { slug: "american-football",    name: "NFL",          icon: "🏈" },
-  { slug: "ice-hockey",           name: "Ice Hockey",   icon: "🏒" },
-  { slug: "mixed-martial-arts",   name: "UFC",          icon: "🥊" },
-  { slug: "tennis",               name: "Tennis",       icon: "🎾" },
+  { slug: "all",                  name: "All" },
+  { slug: "football",             name: "Football" },
+  { slug: "basketball",           name: "Basketball" },
+  { slug: "baseball",             name: "Baseball" },
+  { slug: "american-football",    name: "NFL" },
+  { slug: "ice-hockey",           name: "Ice Hockey" },
+  { slug: "mixed-martial-arts",   name: "UFC" },
+  { slug: "tennis",               name: "Tennis" },
 ] as const;
 
 const _cache = new Map<string, { t: number; d: OddsMatch[] }>();
