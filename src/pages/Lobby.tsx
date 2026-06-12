@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { apiGames, apiGameProviders, apiLaunchGame, apiSyncBalance } from "@/lib/localApi";
+import { ORO_GAMES } from "@/lib/oroGames";
 import { useLocation } from "wouter";
 
 
@@ -77,6 +78,42 @@ const FIRST_GAME_CODE = 'vswayslions'; // 5 Lions Megaways
 // Pin these games at top after first
 const PINNED_CODES = ['vswayslions', 'vs20olympgate', 'bg25plinko'];
 
+// ── OroPlay games (Amatic, NoLimit City, Hacksaw, PGSoft, …) ──
+// Assign each OroPlay vendor a synthetic provider_id (1000+) so it never clashes with AES ids.
+// game_code is encoded as "oro:{vendorCode}:{gameCode}" so launchGame can route it to OroPlay.
+const ORO_PROVIDER_BASE = 1000;
+const _oroVendorIds: Record<string, number> = {};
+let _oroNextId = ORO_PROVIDER_BASE;
+function oroProviderId(vendorCode: string): number {
+  if (!(vendorCode in _oroVendorIds)) _oroVendorIds[vendorCode] = _oroNextId++;
+  return _oroVendorIds[vendorCode];
+}
+// Vendors already covered elsewhere (live casino tables) — skip to avoid duplicates in slots lobby.
+const ORO_SKIP_VENDORS = new Set(["casino-ezugi", "casino-pragmatic", "casino-dream", "casino-micro", "casino-sa", "casino-playace", "live-ezugi", "live-pragmatic"]);
+
+const ORO_AES_GAMES: AesGame[] = ORO_GAMES
+  .filter(g => g.thumb && !ORO_SKIP_VENDORS.has(g.vendorCode))
+  .map(g => ({
+    provider_id: oroProviderId(g.vendorCode),
+    game_code: `oro:${g.vendorCode}:${g.gameCode}`,
+    game_name: g.name,
+    locale_name: g.name,
+    game_image: g.thumb,
+    game_image_narrow: g.thumb,
+    launch_enable: true,
+    category: "slot",
+  }));
+
+const ORO_PROVIDERS: Provider[] = Object.entries(
+  ORO_GAMES.filter(g => g.thumb && !ORO_SKIP_VENDORS.has(g.vendorCode))
+    .reduce((acc, g) => { acc[g.vendorCode] = g.vendorName; return acc; }, {} as Record<string, string>)
+).map(([vendorCode, vendorName]) => ({
+  provider_id: oroProviderId(vendorCode),
+  provider_name: vendorName,
+  locale_name: vendorName,
+  status: 1,
+}));
+
 export default function Lobby() {
   const { user, token, refreshBalance } = useAuth();
   const [, navigate] = useLocation();
@@ -105,8 +142,11 @@ export default function Lobby() {
       .then(([gData, pData]) => {
         const gd = gData as { code?: number; data?: AesGame[] };
         const pd = pData as { code?: number; data?: Provider[] };
-        if (gd.code === 0 && Array.isArray(gd.data)) setAllGames(gd.data);
-        if (pd.code === 0 && Array.isArray(pd.data)) setProviders(pd.data.filter(p => p.status === 1));
+        const aes = (gd.code === 0 && Array.isArray(gd.data)) ? gd.data : [];
+        // Merge AES games with the full OroPlay catalogue (Amatic, NoLimit City, …).
+        setAllGames([...aes, ...ORO_AES_GAMES]);
+        const aesProv = (pd.code === 0 && Array.isArray(pd.data)) ? pd.data.filter(p => p.status === 1) : [];
+        setProviders([...aesProv, ...ORO_PROVIDERS]);
       })
       .catch(() => {}).finally(() => setLoadingGames(false));
   }, []);
@@ -206,6 +246,30 @@ export default function Lobby() {
   // Top picks (first 8 from scored popular)
   const topPicks = useMemo(() => games.slice(0, 8), [games]);
 
+  // Launch an OroPlay game (seamless wallet — no balance transfer needed).
+  // game_code format: "oro:{vendorCode}:{gameCode}"
+  const launchOroGame = async (encoded: string): Promise<{ url?: string; error?: string }> => {
+    if (!user) return { error: "Unauthorized" };
+    const parts = encoded.split(":");
+    const vendorCode = parts[1];
+    const gameCode = parts.slice(2).join(":");
+    const apiBase = (typeof window !== "undefined" && (window as any).__TUNBET_SPORTSBOOK_API__) || "https://tunbet-sportsbook.onrender.com";
+    try {
+      const r = await fetch(`${apiBase}/api/oro/launch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userCode: `tb_${user.id}`, gameCode, vendorCode, language: "en" }),
+      });
+      const d = await r.json().catch(() => ({}));
+      const url = d?.url || d?.data?.url || d?.gameUrl || d?.launchUrl || d?.data?.launchUrl;
+      if (url) return { url };
+      // OroPlay API not activated yet → friendly message.
+      return { error: d?.error ? "هذه اللعبة ستتفعّل قريباً (OroPlay قيد التفعيل)" : "هذه اللعبة ستتفعّل قريباً" };
+    } catch {
+      return { error: "تعذّر تشغيل اللعبة — حاول لاحقاً" };
+    }
+  };
+
   const launchGame = async (game: AesGame) => {
     if (!user || !token) { setShowAuth(true); return; }
     // Strict client-side guards (server-side guard in apiLaunchGame is the source of truth)
@@ -218,7 +282,10 @@ export default function Lobby() {
     }
     setLaunchingGame(game.game_code); setLaunchError("");
     try {
-      const result = await apiLaunchGame(token, game.game_code, game.provider_id);
+      // OroPlay games use a seamless wallet — launch via the OroPlay backend.
+      const result = game.game_code.startsWith("oro:")
+        ? await launchOroGame(game.game_code)
+        : await apiLaunchGame(token, game.game_code, game.provider_id);
       if (result.url) {
         setGameUrl(result.url);
         setActiveGame(game);
