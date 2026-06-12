@@ -25,36 +25,53 @@ function teamColor(name: string) {
   return `hsl(${h}, 70%, 45%)`;
 }
 function teamInitials(name: string) {
-  return name
-    .split(/[\s\-_]/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(w => w[0].toUpperCase())
-    .join("");
+  const clean = name.replace(/\b(FC|SC|CF|AC|AFC|CD|SK|FK|BK|U\d+|II|B)\b/gi, " ").trim() || name;
+  const words = clean.split(/[\s\-_.]/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "?";
 }
-function TeamBadge({ name }: { name: string }) {
-  const [img, setImg] = useState<string | null>(null);
+
+// In-memory + localStorage cache so we never re-fetch the same team badge.
+const _badgeCache = new Map<string, string | null>();
+function readBadgeCache(name: string): string | null | undefined {
+  if (_badgeCache.has(name)) return _badgeCache.get(name);
+  try {
+    const raw = localStorage.getItem("tb_badge_" + name);
+    if (raw !== null) { const v = raw === "" ? null : raw; _badgeCache.set(name, v); return v; }
+  } catch {}
+  return undefined;
+}
+function writeBadgeCache(name: string, url: string | null) {
+  _badgeCache.set(name, url);
+  try { localStorage.setItem("tb_badge_" + name, url || ""); } catch {}
+}
+
+function TeamBadge({ name, logo }: { name: string; logo?: string }) {
+  // 1) Direct logo from the backend/ESPN feed always wins.
+  const initial = logo || readBadgeCache(name) || null;
+  const [img, setImg] = useState<string | null>(initial);
+  const [failed, setFailed] = useState(false);
+
   useEffect(() => {
-    const known: Record<string, string> = {
-      "Barcelona": "133739", "Real Madrid": "133738", "Arsenal": "133604", "Chelsea": "133610",
-      "Liverpool": "133616", "Manchester United": "133618", "Manchester City": "133617",
-      "Tottenham Hotspur": "133621", "Bayern Munich": "133724", "Borussia Dortmund": "133731",
-      "Juventus": "133676", "Inter Milan": "133667", "AC Milan": "133661", "Napoli": "133688",
-      "Paris Saint-Germain": "133702", "Marseille": "133700", "Ajax": "133755", "Benfica": "133778",
-      "Porto": "133787", "Sporting CP": "133788", "RB Leipzig": "133665", "Atletico Madrid": "133740",
-    };
-    const id = known[name] || known[Object.keys(known).find(k => name.toLowerCase().includes(k.toLowerCase())) as any];
-    if (id) {
-      fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupteam.php?id=${id}`)
-        .then(r => r.json())
-        .then(d => {
-          const badge = d?.teams?.[0]?.strTeamBadge || d?.teams?.[0]?.strTeamLogo;
-          if (badge) setImg(badge);
-        })
-        .catch(() => {});
-    }
-  }, [name]);
-  if (img) {
+    setFailed(false);
+    if (logo) { setImg(logo); return; }
+    const cached = readBadgeCache(name);
+    if (cached !== undefined) { setImg(cached); return; }
+    // 2) Resolve badge by team name via TheSportsDB free search.
+    let alive = true;
+    const query = encodeURIComponent(name.replace(/\b(U\d+|II)\b/gi, "").trim() || name);
+    fetch(`https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${query}`)
+      .then(r => r.json())
+      .then(d => {
+        const badge = d?.teams?.[0]?.strBadge || d?.teams?.[0]?.strTeamBadge || d?.teams?.[0]?.strTeamLogo || null;
+        writeBadgeCache(name, badge);
+        if (alive && badge) setImg(badge);
+      })
+      .catch(() => { if (alive) writeBadgeCache(name, null); });
+    return () => { alive = false; };
+  }, [name, logo]);
+
+  if (img && !failed) {
     return (
       <img
         src={img}
@@ -62,16 +79,25 @@ function TeamBadge({ name }: { name: string }) {
         className="w-10 h-10 object-contain flex-shrink-0 rounded-full p-0.5"
         style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
         loading="lazy"
-        onError={() => setImg(null)}
+        onError={() => setFailed(true)}
       />
     );
   }
+  // 3) Premium generated crest — guaranteed, never blank.
+  const base = teamColor(name);
   return (
     <div
-      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-black uppercase"
-      style={{ background: teamColor(name), color: "#fff", border: "2px solid rgba(255,255,255,0.15)" }}
+      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-black uppercase relative overflow-hidden"
+      style={{
+        background: `radial-gradient(circle at 30% 25%, ${base}, rgba(0,0,0,0.55))`,
+        color: "#fff",
+        border: "2px solid rgba(255,255,255,0.18)",
+        boxShadow: "inset 0 1px 2px rgba(255,255,255,0.25), 0 2px 6px rgba(0,0,0,0.4)",
+        textShadow: "0 1px 2px rgba(0,0,0,0.6)",
+      }}
     >
-      {teamInitials(name)}
+      <span style={{ position: "absolute", top: 0, left: 0, right: 0, height: "45%", background: "linear-gradient(rgba(255,255,255,0.22), transparent)" }} />
+      <span className="relative z-10">{teamInitials(name)}</span>
     </div>
   );
 }
@@ -429,7 +455,7 @@ function MatchCard({ m, slip, onSel }: { m: OddsMatch; slip: Slip[]; onSel: (m: 
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <TeamBadge name={m.home} />
+            <TeamBadge name={m.home} logo={m.homeLogo} />
             <div className="min-w-0"><span className="text-sm font-bold text-white truncate block">{m.home}</span></div>
             {isLive && m.homeScore !== undefined && <span className="text-sm font-black" style={{ color: "#FF2D55" }}>{m.homeScore}</span>}
           </div>
@@ -437,7 +463,7 @@ function MatchCard({ m, slip, onSel }: { m: OddsMatch; slip: Slip[]; onSel: (m: 
           <div className="flex items-center gap-2.5 flex-1 justify-end min-w-0">
             {isLive && m.awayScore !== undefined && <span className="text-sm font-black" style={{ color: "#FF2D55" }}>{m.awayScore}</span>}
             <div className="min-w-0 text-right"><span className="text-sm font-bold text-white truncate block">{m.away}</span></div>
-            <TeamBadge name={m.away} />
+            <TeamBadge name={m.away} logo={m.awayLogo} />
           </div>
         </div>
       </div>
