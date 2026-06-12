@@ -332,6 +332,12 @@ export default function Lobby() {
         className="w-full h-full object-cover " loading="lazy" decoding="async"
         onError={e => { const t = e.target as HTMLImageElement; if (t.src !== game.game_image) t.src = game.game_image; else t.style.display = "none"; }} />
       <div className="absolute inset-0" style={{ background: size === "wide" ? "linear-gradient(to right, rgba(2,4,8,0.9) 0%, rgba(2,4,8,0.3) 100%)" : "linear-gradient(to top, rgba(2,4,8,0.95) 0%, rgba(2,4,8,0.1) 55%, transparent 100%)" }} />
+      {game.game_code.startsWith("oro:") && (
+        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[7px] font-black tracking-wider"
+          style={{ background: "rgba(245,158,11,0.92)", color: "#1a1206", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+          SOON
+        </div>
+      )}
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
         <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(0,209,255,0.9)" }}>
           {launchingGame === game.game_code
