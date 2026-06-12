@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
 import { Flame, Search, Wifi, Play, Lock, Crown, X } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { LIVE_GAMES } from "@/lib/liveGames";
 import { t } from "@/lib/i18n";
+import { apiLaunchGame } from "@/lib/localApi";
 
 const VENDOR_META: Record<string, { color: string; label: string }> = {
   "casino-pragmatic": { color: "#FF6B35", label: "Pragmatic Live",  },
@@ -35,12 +36,14 @@ function detectCategory(name: string): string {
 }
 
 export default function Live() {
-  const { user } = useAuth();
+  const { user, token, refreshBalance } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [vendor, setVendor] = useState<string>("all");
   const [launching, setLaunching] = useState<string | null>(null);
+  const [gameUrl, setGameUrl] = useState<string | null>(null);
+  const [activeGame, setActiveGame] = useState<any>(null);
 
   const filtered = useMemo(() => {
     return LIVE_GAMES.filter(g => {
@@ -58,11 +61,23 @@ export default function Live() {
     return Array.from(s);
   }, []);
 
-  const handlePlay = (game: typeof LIVE_GAMES[0]) => {
-    if (!user) { setShowAuth(true); return; }
+  const handlePlay = async (game: typeof LIVE_GAMES[0]) => {
+    if (!user || !token) { setShowAuth(true); return; }
     setLaunching(game.code);
-    setTimeout(() => setLaunching(null), 2000);
-    // In real deployment, integrate AES live game launch here
+    try {
+      const result = await apiLaunchGame(token, game.code, 1);
+      if (result.url) {
+        setGameUrl(result.url);
+        setActiveGame(game);
+        await refreshBalance();
+      } else {
+        alert(result.error || t("noGames") || "الطاولة غير متاحة حالياً");
+      }
+    } catch {
+      alert("خطأ في الاتصال بمزود البث المباشر");
+    } finally {
+      setLaunching(null);
+    }
   };
 
   return (
@@ -229,6 +244,28 @@ export default function Live() {
           </div>
         )}
       </div>
+
+      {/* Live Table iframe overlay */}
+      {gameUrl && (
+        <div className="fixed inset-0 bg-black flex flex-col" style={{ zIndex: 9999 }}>
+          <div className="flex items-center justify-between p-2 flex-shrink-0 gap-2"
+            style={{ background: "#020408", borderBottom: "1px solid rgba(0,209,255,0.2)" }}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-black text-xs tracking-wider flex-shrink-0" style={{ color: "#FF2D55" }}>TUNBET LIVE</span>
+              {activeGame && (
+                <span className="text-[10px] text-white/60 font-bold truncate">{activeGame.name}</span>
+              )}
+            </div>
+            <button onClick={() => setGameUrl(null)} className="px-3 py-1.5 rounded-lg text-xs font-bold"
+              style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55", border: "1px solid rgba(255,45,85,0.3)" }}>
+              {t("closeGame") || "Close"} ✕
+            </button>
+          </div>
+          <div className="flex-1 relative">
+            <iframe src={gameUrl} className="w-full h-full border-none absolute inset-0" title="Live Game" allow="fullscreen autoplay" />
+          </div>
+        </div>
+      )}
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </motion.div>

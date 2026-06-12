@@ -88,8 +88,10 @@ function oroProviderId(vendorCode: string): number {
   if (!(vendorCode in _oroVendorIds)) _oroVendorIds[vendorCode] = _oroNextId++;
   return _oroVendorIds[vendorCode];
 }
-// Vendors already covered elsewhere (live casino tables) — skip to avoid duplicates in slots lobby.
-const ORO_SKIP_VENDORS = new Set(["casino-ezugi", "casino-pragmatic", "casino-dream", "casino-micro", "casino-sa", "casino-playace", "live-ezugi", "live-pragmatic"]);
+// Strict launch path: pure live external API routing
+const ORO_SKIP_VENDORS = new Set([
+  "slot-pragmatic", "slot-pgsoft", "slot-booongo", "slot-playson", "slot-habanero", "slot-cq9", "slot-jili", "slot-hacksaw", "slot-tada", "mini-spribe"
+]);
 
 const ORO_AES_GAMES: AesGame[] = ORO_GAMES
   .filter(g => g.thumb && !ORO_SKIP_VENDORS.has(g.vendorCode))
@@ -132,28 +134,43 @@ export default function Lobby() {
   const [page, setPage] = useState(1);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  useEffect(() => {
-    // Removed auto-sync to prevent balance issues
-  }, []);
+
 
   useEffect(() => {
     setLoadingGames(true);
-    Promise.all([apiGames(), apiGameProviders()])
-      .then(([gData, pData]) => {
+    apiGameProviders().then(pData => {
+      const pd = pData as { code?: number; data?: Provider[] };
+      const aesProv = (pd?.code === 0 && Array.isArray(pd.data)) ? pd.data.filter(p => p.status === 1) : [];
+      setProviders([...aesProv, ...ORO_PROVIDERS]);
+    }).catch(() => {});
+
+    apiGames()
+      .then(gData => {
         const gd = gData as { code?: number; data?: AesGame[] };
-        const pd = pData as { code?: number; data?: Provider[] };
-        const aes = (gd.code === 0 && Array.isArray(gd.data)) ? gd.data : [];
-        // Merge AES games with the full OroPlay catalogue (Amatic, NoLimit City, …).
-        setAllGames([...aes, ...ORO_AES_GAMES]);
-        const aesProv = (pd.code === 0 && Array.isArray(pd.data)) ? pd.data.filter(p => p.status === 1) : [];
-        setProviders([...aesProv, ...ORO_PROVIDERS]);
+        const aes = (gd?.code === 0 && Array.isArray(gd.data)) ? gd.data : [];
+        
+        // Strict Deduplication: build a Set of existing AES game names
+        const aesNames = new Set<string>();
+        for (const g of aes) {
+          const clean = g.game_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          aesNames.add(clean);
+        }
+        
+        // Only add OroPlay games whose normalized name does not exist in AES
+        const uniqueOroGames = ORO_AES_GAMES.filter(og => {
+          const clean = og.game_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return !aesNames.has(clean);
+        });
+
+        // Merge AES games with unique OroPlay catalogue
+        setAllGames([...aes, ...uniqueOroGames]);
       })
       .catch(() => {}).finally(() => setLoadingGames(false));
   }, []);
 
   // Smart sort: popular first, then interleave providers so no same-provider clusters
-  // NOTE: BGaming (20) and Amatic/CQ9 (2) are hidden from the lobby.
-  const HIDDEN_PROVIDERS = new Set<number>([20, 2]);
+  // All AES providers are visible now (including BGaming and Amatic/CQ9).
+  const HIDDEN_PROVIDERS = new Set<number>();
   const games = useMemo(() => {
     const aesGames = allGames
       .filter(g => g.launch_enable && !HIDDEN_PROVIDERS.has(g.provider_id))
@@ -248,12 +265,13 @@ export default function Lobby() {
 
   // Launch an OroPlay game (seamless wallet — no balance transfer needed).
   // game_code format: "oro:{vendorCode}:{gameCode}"
-  const launchOroGame = async (encoded: string): Promise<{ url?: string; error?: string }> => {
-    if (!user) return { error: "Unauthorized" };
+  const launchOroGame = async (encoded: string, _game?: AesGame): Promise<{ url?: string; error?: string }> => {
+    if (!user) return { error: t("loginRequired") || "Unauthorized" };
     const parts = encoded.split(":");
     const vendorCode = parts[1];
     const gameCode = parts.slice(2).join(":");
     const apiBase = (typeof window !== "undefined" && (window as any).__TUNBET_SPORTSBOOK_API__) || "https://tunbet-sportsbook.onrender.com";
+
     try {
       const r = await fetch(`${apiBase}/api/oro/launch`, {
         method: "POST",
@@ -261,13 +279,14 @@ export default function Lobby() {
         body: JSON.stringify({ userCode: `tb_${user.id}`, gameCode, vendorCode, language: "en" }),
       });
       const d = await r.json().catch(() => ({}));
-      const url = d?.url || d?.data?.url || d?.gameUrl || d?.launchUrl || d?.data?.launchUrl;
-      if (url) return { url };
-      // OroPlay API not activated yet → friendly message.
-      return { error: d?.error ? "هذه اللعبة ستتفعّل قريباً (OroPlay قيد التفعيل)" : "هذه اللعبة ستتفعّل قريباً" };
-    } catch {
-      return { error: "تعذّر تشغيل اللعبة — حاول لاحقاً" };
-    }
+      if (d?.success || d?.url) {
+        const url = d.url || d.data?.url || d.gameUrl || d.launchUrl || d.data?.launchUrl;
+        if (url && /^https?:\/\//.test(url)) return { url };
+      }
+      if (d?.error || d?.message) return { error: d.error || d.message };
+    } catch {}
+
+    return { error: "السيرفر الخارجي للألعاب قيد التحديث حالياً، يرجى المحاولة لاحقاً" };
   };
 
   const launchGame = async (game: AesGame) => {
@@ -284,7 +303,7 @@ export default function Lobby() {
     try {
       // OroPlay games use a seamless wallet — launch via the OroPlay backend.
       const result = game.game_code.startsWith("oro:")
-        ? await launchOroGame(game.game_code)
+        ? await launchOroGame(game.game_code, game)
         : await apiLaunchGame(token, game.game_code, game.provider_id);
       if (result.url) {
         setGameUrl(result.url);
@@ -347,8 +366,8 @@ export default function Lobby() {
       <div className="absolute inset-0" style={{ background: size === "wide" ? "linear-gradient(to right, rgba(2,4,8,0.9) 0%, rgba(2,4,8,0.3) 100%)" : "linear-gradient(to top, rgba(2,4,8,0.95) 0%, rgba(2,4,8,0.1) 55%, transparent 100%)" }} />
       {game.game_code.startsWith("oro:") && (
         <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[7px] font-black tracking-wider"
-          style={{ background: "rgba(245,158,11,0.92)", color: "#1a1206", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
-          SOON
+          style={{ background: "rgba(0,209,255,0.92)", color: "#020408", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+          NEW ⭐
         </div>
       )}
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
