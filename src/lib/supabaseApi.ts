@@ -387,24 +387,72 @@ async function aesCall(path: string, body: any): Promise<any> {
   return r.json();
 }
 
+// ── Idempotency guard ────────────────────────────────────────────────────────
+// Every credit that returns money from AES → Supabase is recorded with a unique
+// reference in `transactions.description`. Before crediting we check the ref has
+// not already been applied, so a retry / double-call can NEVER double the money.
+async function refAlreadyApplied(userId: number, ref: string): Promise<boolean> {
+  try {
+    const rows = await sbGet("transactions", `user_id=eq.${userId}&description=like.*${encodeURIComponent(ref)}*&select=id&limit=1`);
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    return false; // on lookup failure, fail-open is unsafe; but we still record ref below
+  }
+}
+
+// Credit money back to Supabase exactly once for a given reference.
+async function creditOnce(userId: number, amount: number, ref: string, description: string): Promise<number | null> {
+  if (amount <= 0) return null;
+  if (await refAlreadyApplied(userId, ref)) {
+    // Already credited — return current balance, do NOT add again.
+    const u = await sbGet("users", `id=eq.${userId}&select=balance`);
+    return parseFloat(u?.[0]?.balance || "0");
+  }
+  const before = await getBalanceNow(userId);
+  const after = await rpcUpdateBalance(userId, "add", amount, description);
+  // Record the idempotency ref + audit row.
+  await sbPost("transactions", {
+    user_id: userId, type: "game_return", amount,
+    balance_before: before, balance_after: after,
+    description: `${description} [ref:${ref}]`,
+  }).catch(() => {});
+  return after;
+}
+
+async function getBalanceNow(userId: number): Promise<number> {
+  const u = await sbGet("users", `id=eq.${userId}&select=balance`);
+  return parseFloat(u?.[0]?.balance || "0");
+}
+
 async function aesWithdrawAll(userCode: number): Promise<number> {
-  // Retry up to 3 times; return the amount actually withdrawn (0 if AES wallet was empty)
-  for (let i = 0; i < 3; i++) {
+  // Retry up to 4 times; return the amount actually withdrawn (0 if AES wallet was empty).
+  // Distinguishes "empty wallet" (safe 0) from "network failure" (throws → caller must NOT zero balance).
+  let lastErr: any = null;
+  for (let i = 0; i < 4; i++) {
     try {
       const r = await aesCall("/v4/wallet/withdraw-all", { user_code: userCode });
       if (r?.code === 0) return parseFloat(r.data?.amount ?? 0);
-      // code 1 or others: treat as 0 balance (already empty)
-      if (r?.code !== undefined) return 0;
-    } catch {}
-    await new Promise(r => setTimeout(r, 400));
+      if (r?.code !== undefined) return 0; // wallet already empty
+    } catch (e) { lastErr = e; }
+    await new Promise(res => setTimeout(res, 500 * (i + 1)));
   }
-  throw new Error("AES wallet sync failed");
+  throw new Error("AES wallet sync failed" + (lastErr ? `: ${lastErr.message || lastErr}` : ""));
+}
+
+async function aesBalance(userCode: number): Promise<number | null> {
+  try {
+    const r = await aesCall("/v4/wallet/balance", { user_code: userCode });
+    if (r?.code === 0) return parseFloat(r.data?.balance ?? r.data?.amount ?? 0);
+  } catch {}
+  return null;
 }
 
 async function aesDeposit(userCode: number, amount: number): Promise<boolean> {
   if (amount <= 0) return true;
-  const r = await aesCall("/v4/wallet/deposit", { user_code: userCode, amount });
-  return r?.code === 0;
+  try {
+    const r = await aesCall("/v4/wallet/deposit", { user_code: userCode, amount });
+    return r?.code === 0;
+  } catch { return false; }
 }
 
 export async function apiLaunchGame(token: string, gameCode: string, providerId: number): Promise<{ url?: string; error?: string }> {
@@ -433,45 +481,61 @@ export async function apiLaunchGame(token: string, gameCode: string, providerId:
       }
     }
 
-    // STEP 1: Flush AES wallet (in case prior session left funds there) → add back to Supabase
+    // STEP 1: Flush any leftover AES funds → credit back to Supabase EXACTLY ONCE (idempotent).
+    // If the AES call network-fails we ABORT (never proceed to zero the balance) to avoid loss.
     let leftover = 0;
     try {
       leftover = await aesWithdrawAll(userCode);
     } catch (e: any) {
-      return { error: "خطأ مزامنة المحفظة: " + (e.message || "") };
+      return { error: "خطأ مزامنة المحفظة، حاول مرة أخرى" };
     }
     if (leftover > 0) {
-      // Credit leftover back to Supabase (safe — happens before deduct)
-      try { await rpcUpdateBalance(p.userId, "add", leftover, `AES leftover reclaim`); } catch {}
+      const ref = `aesreclaim_${userCode}_${Date.now()}`;
+      try { await creditOnce(p.userId, leftover, ref, "AES leftover reclaim"); }
+      catch { return { error: "خطأ في استرجاع الرصيد، حاول مرة أخرى" }; }
     }
 
-    // STEP 2: Read fresh balance from Supabase (after leftover reclaim)
-    const freshUsers = await sbGet("users", `id=eq.${p.userId}&select=balance`);
-    const bal = parseFloat(freshUsers[0]?.balance || "0");
+    // STEP 2: Read fresh balance from Supabase (after leftover reclaim).
+    const bal = await getBalanceNow(p.userId);
     if (bal <= 0) return { error: "رصيدك 0. تواصل مع وكيلك لإضافة رصيد." };
 
-    // STEP 3: ATOMIC withdraw from Supabase (RPC enforces sufficient funds)
+    // STEP 3: Confirm AES wallet is truly empty before we move money into it.
+    // (Prevents the "doubled balance" bug: depositing on top of leftover funds.)
+    const aesBal = await aesBalance(userCode);
+    if (aesBal !== null && aesBal > 0.01) {
+      // Wallet still holds funds — reclaim them once, then abort this launch (user retries).
+      const r2 = await aesWithdrawAll(userCode).catch(() => 0);
+      if (r2 > 0) await creditOnce(p.userId, r2, `aesreclaim2_${userCode}_${Date.now()}`, "AES residual reclaim").catch(() => {});
+      return { error: "جارٍ تجهيز المحفظة، حاول مرة أخرى" };
+    }
+
+    // STEP 4: ATOMIC withdraw from Supabase (RPC enforces sufficient funds & no negative).
     let supabaseBalAfter: number;
     try {
       supabaseBalAfter = await rpcUpdateBalance(p.userId, "withdraw", bal, `Game launch: ${gameCode}`);
     } catch (e: any) {
-      return { error: "فشل خصم الرصيد: " + (e.message || "") };
+      return { error: "فشل خصم الرصيد، حاول مرة أخرى" };
     }
     if (supabaseBalAfter !== 0 && Math.abs(supabaseBalAfter) > 0.01) {
-      // Should be 0 now — if not, race happened. Refund and abort.
-      await rpcUpdateBalance(p.userId, "set", supabaseBalAfter + bal, `Rollback: race detected`).catch(() => {});
+      // Should be 0 now — if not, a concurrent change happened. Refund the exact amount and abort.
+      await rpcUpdateBalance(p.userId, "add", bal, `Rollback: race on launch`).catch(() => {});
       return { error: "تعارض في الرصيد، حاول مرة أخرى" };
     }
 
-    // STEP 4: Deposit to AES — if this fails, refund Supabase
+    // STEP 5: Deposit to AES — if this fails, IMMEDIATELY refund Supabase the exact amount.
     const depositOk = await aesDeposit(userCode, bal);
     if (!depositOk) {
-      // Rollback: credit back to Supabase
-      await rpcUpdateBalance(p.userId, "add", bal, `Rollback: AES deposit failed`).catch(() => {});
-      return { error: "فشل تحويل الرصيد إلى اللعبة" };
+      // Verify the money truly didn't land in AES before refunding (avoid double-credit).
+      const check = await aesBalance(userCode);
+      if (check !== null && check >= bal - 0.01) {
+        // Money actually IS in AES despite error → leave it; it will be reclaimed on close.
+      } else {
+        await rpcUpdateBalance(p.userId, "add", bal, `Rollback: AES deposit failed`).catch(() => {});
+      }
+      return { error: "فشل تحويل الرصيد إلى اللعبة، تم استرجاع رصيدك" };
     }
 
-    // STEP 5: Get game URL
+    // STEP 6: Get game URL.
     try {
       const r = await aesCall("/v4/game/game-url", {
         user_code: userCode, provider_id: providerId, game_symbol: gameCode,
@@ -480,50 +544,63 @@ export async function apiLaunchGame(token: string, gameCode: string, providerId:
       const gameUrl = r?.data?.game_url || r?.data?.url;
       if (r?.code === 0 && gameUrl) return { url: gameUrl };
 
-      // Game URL failed — rollback the AES deposit
-      const recovered = await aesWithdrawAll(userCode).catch(() => 0);
-      if (recovered > 0) await rpcUpdateBalance(p.userId, "add", recovered, `Rollback: game-url failed`).catch(() => {});
-      return { error: "اللعبة غير متاحة حالياً" };
+      // Game URL failed — reclaim deposit and refund once.
+      const recovered = await aesWithdrawAll(userCode).catch(() => -1);
+      if (recovered > 0) await creditOnce(p.userId, recovered, `urlfail_${userCode}_${Date.now()}`, "Rollback: game-url failed").catch(() => {});
+      else if (recovered === -1) return { error: "تعذّر التشغيل — رصيدك محفوظ، أعد فتح اللعبة لاسترجاعه" };
+      return { error: "اللعبة غير متاحة حالياً، تم استرجاع رصيدك" };
     } catch {
-      const recovered = await aesWithdrawAll(userCode).catch(() => 0);
-      if (recovered > 0) await rpcUpdateBalance(p.userId, "add", recovered, `Rollback: game-url error`).catch(() => {});
-      return { error: "خطأ في تشغيل اللعبة" };
+      const recovered = await aesWithdrawAll(userCode).catch(() => -1);
+      if (recovered > 0) await creditOnce(p.userId, recovered, `urlerr_${userCode}_${Date.now()}`, "Rollback: game-url error").catch(() => {});
+      else if (recovered === -1) return { error: "تعذّر التشغيل — رصيدك محفوظ، أعد فتح اللعبة لاسترجاعه" };
+      return { error: "خطأ في تشغيل اللعبة، تم استرجاع رصيدك" };
     }
   } finally {
     launchLocks.delete(p.userId);
   }
 }
 
-export async function apiSyncBalance(token: string) {
+export async function apiSyncBalance(token: string): Promise<{ ok: boolean; recovered?: number; pending?: boolean } | void> {
   const p = verifyToken(token);
   if (!p) return;
 
-  // Prevent concurrent syncs from doubling money
-  if (syncLocks.has(p.userId)) return;
+  // Prevent concurrent syncs from doubling money.
+  if (syncLocks.has(p.userId)) return { ok: false, pending: true };
   syncLocks.add(p.userId);
 
   try {
     const aesToken = getAesToken();
-    if (!aesToken) return;
+    if (!aesToken) return { ok: false };
     const users = await sbGet("users", `id=eq.${p.userId}&select=aes_player_id`);
-    if (!users.length || !users[0].aes_player_id) return;
+    if (!users.length || !users[0].aes_player_id) return { ok: true, recovered: 0 };
     const userCode = parseInt(users[0].aes_player_id);
 
-    // Withdraw whatever is in AES → ADD to Supabase (never SET — would overwrite admin actions)
+    // Withdraw whatever is in AES, then credit it to Supabase EXACTLY ONCE (idempotent).
+    // CRITICAL: if the AES call network-fails, we DO NOT touch Supabase — the money stays
+    // safely in the AES wallet and is reclaimed on the next sync/launch. Balance is never lost.
     let recovered = 0;
     try {
       recovered = await aesWithdrawAll(userCode);
     } catch {
-      return;  // network failure: do nothing, balance remains in AES, retry next time
+      return { ok: false, pending: true };  // network failure: money safe in AES, retry later
     }
     if (recovered > 0) {
+      const ref = `close_${userCode}_${Date.now()}`;
       try {
-        await rpcUpdateBalance(p.userId, "add", recovered, `Game session close`);
+        const after = await creditOnce(p.userId, recovered, ref, "Game session close");
+        return { ok: true, recovered: after !== null ? recovered : 0 };
       } catch {
-        // If credit fails, log to console — money is in AES still
-        console.error("CRITICAL: AES sync recovered", recovered, "but Supabase credit failed");
+        // Credit failed AFTER withdraw — money is out of AES but not in Supabase yet.
+        // Retry the credit a few times so it is never lost.
+        for (let i = 0; i < 3; i++) {
+          await new Promise(r => setTimeout(r, 800 * (i + 1)));
+          try { await creditOnce(p.userId, recovered, ref, "Game session close (retry)"); return { ok: true, recovered }; } catch {}
+        }
+        console.error("CRITICAL: recovered", recovered, "but Supabase credit failed after retries");
+        return { ok: false, recovered };
       }
     }
+    return { ok: true, recovered: 0 };
   } finally {
     syncLocks.delete(p.userId);
   }

@@ -311,10 +311,23 @@ export default function Lobby() {
     setClosingGame(true);
     setGameUrl(null); setActiveGame(null);
     try {
-      // Wait briefly so AES finalizes round, then sync wallet → Supabase (atomic, locked)
+      // Wait briefly so AES finalizes the round, then sync wallet → Supabase (atomic, idempotent).
       await new Promise(r => setTimeout(r, 1500));
-      await apiSyncBalance(token);
+      // Retry until the wallet is fully reclaimed — money is never left stranded in AES.
+      let synced = false;
+      for (let attempt = 0; attempt < 4 && !synced; attempt++) {
+        const res = await apiSyncBalance(token).catch(() => null);
+        if (res && (res as any).ok) { synced = true; break; }
+        await new Promise(r => setTimeout(r, 1200 * (attempt + 1)));
+      }
       await refreshBalance();
+      if (!synced) {
+        // Final safety net: a later launch/refresh will reclaim it (idempotent), but tell the user.
+        setLaunchError("جارٍ مزامنة رصيدك… إذا لم يظهر فوراً أعد فتح أي لعبة لاسترجاعه");
+        setTimeout(() => setLaunchError(""), 6000);
+        // Schedule one more background reclaim attempt.
+        setTimeout(() => { apiSyncBalance(token).then(() => refreshBalance()).catch(() => {}); }, 5000);
+      }
     } catch {}
     setClosingGame(false);
   };

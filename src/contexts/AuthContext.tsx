@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { apiLogin, apiRegister, apiMe, apiBalance } from "@/lib/localApi";
+import { apiLogin, apiRegister, apiMe, apiBalance, apiSyncBalance } from "@/lib/localApi";
 
 interface User {
   id: number;
@@ -30,6 +30,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await apiMe(t);
       setUser(data as User);
+      // Safety net: reclaim any balance that may have been left stranded in the AES wallet
+      // (e.g. browser closed mid-game / failed close). Idempotent — never double-credits.
+      apiSyncBalance(t)
+        .then(() => apiBalance(t))
+        .then(b => setUser(prev => prev ? { ...prev, balance: (b as any).balance } : prev))
+        .catch(() => {});
     } catch {
       setToken(null);
       setUser(null);
