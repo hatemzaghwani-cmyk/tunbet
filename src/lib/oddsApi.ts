@@ -148,6 +148,8 @@ function numericOrUndefined(v: any): number | undefined {
 function sortMatches(out: OddsMatch[]): OddsMatch[] {
   return out
     .filter(m => Object.keys(m.markets).length > 0)
+    // Strict logo policy: only show matches where BOTH teams have a real logo.
+    .filter(m => !!m.homeLogo && !!m.awayLogo)
     .filter(m => m.status !== "finished")
     .sort((a, b) => {
       if (a.status === "live" && b.status !== "live") return -1;
