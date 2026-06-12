@@ -119,11 +119,14 @@ export default function Sports() {
   useEffect(() => {
     if (tab !== "b" || !user) return;
     setLdb(true);
-    fetchMySportsBets(user.id)
+    const fetchBets = () => fetchMySportsBets(user.id)
       .then(d => { if (Array.isArray(d)) setBets(d); })
-      .catch(() => {})
-      .finally(() => setLdb(false));
-  }, [tab, user]);
+      .catch(() => {});
+    fetchBets().finally(() => setLdb(false));
+    // Auto-refresh so auto-settled (won/lost) bets appear without manual reload.
+    const iv = setInterval(() => { fetchBets(); refreshBalance().catch(() => {}); }, 20000);
+    return () => clearInterval(iv);
+  }, [tab, user, refreshBalance]);
 
   const filtered = useMemo(() => {
     const now = Date.now();
@@ -251,11 +254,15 @@ export default function Sports() {
           <span className="px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(0,209,255,0.15)", color: "#00D1FF", border: "1px solid rgba(0,209,255,0.35)" }}>GLOBAL</span>
         </div>
         <div className="flex items-center gap-1.5">
-          {!apiConnected && (
+          {apiConnected ? (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(0,200,83,0.12)", color: "#00C853" }}>
+              <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: "#00C853" }} /> LIVE DATA
+            </span>
+          ) : (
             <span className="px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55" }}>OFFLINE</span>
           )}
-          <button onClick={() => { clearSportsbookCache(); load(); }} className="p-1.5 rounded-lg" style={{ background: "rgba(255,255,255,0.04)" }}>
-            <RefreshCw className="w-3.5 h-3.5 text-white/50" />
+          <button onClick={() => { clearSportsbookCache(); load(); }} className="p-1.5 rounded-lg" style={{ background: "rgba(255,255,255,0.04)" }} title="Refresh odds">
+            <RefreshCw className={`w-3.5 h-3.5 text-white/50 ${loading ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
@@ -369,6 +376,16 @@ export default function Sports() {
       {/* My Bets */}
       {tab === "b" && (
         <div className="space-y-3">
+          {user && (
+            <div className="flex gap-1.5">
+              {([["all", "All"], ["open", "Open"], ["settled", "Settled"]] as [typeof betFilter, string][]).map(([f, label]) => (
+                <button key={f} onClick={() => setBetFilter(f)} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold"
+                  style={{ background: betFilter === f ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)", border: betFilter === f ? "1px solid rgba(0,209,255,0.35)" : "1px solid rgba(255,255,255,0.06)", color: betFilter === f ? "#00D1FF" : "rgba(255,255,255,0.5)" }}>
+                  {label} {f === "open" && bets.filter(b => b.status === "pending").length > 0 ? `(${bets.filter(b => b.status === "pending").length})` : ""}
+                </button>
+              ))}
+            </div>
+          )}
           {ldb && Array.from({ length: 3 }).map((_, i) => <div key={i} className="rounded-xl p-4 animate-pulse" style={{ background: "rgba(255,255,255,0.04)", height: 80 }} />)}
           {!ldb && filteredBets.length === 0 && <div className="text-center py-16 text-white/30"><Ticket className="w-10 h-10 mx-auto mb-3 opacity-30" /><p className="text-sm">No bets yet</p></div>}
           {!ldb && filteredBets.map(b => <BetCard key={b.id} b={b} />)}
@@ -401,10 +418,11 @@ function MatchCard({ m, slip, onSel }: { m: OddsMatch; slip: Slip[]; onSel: (m: 
     <div className="rounded-xl overflow-hidden" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="p-3 pb-2">
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] text-white/40 font-mono uppercase tracking-wider">{m.league}</span>
-            {isLive && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase" style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55" }}><span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" /> Live</span>}
-            {m.suspended && <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase" style={{ background: "rgba(255,165,0,0.15)", color: "#FFA500" }}>Suspended</span>}
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[9px] text-white/40 font-mono uppercase tracking-wider truncate">{m.league}</span>
+            {isLive && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex-shrink-0" style={{ background: "rgba(255,45,85,0.15)", color: "#FF2D55" }}><span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" /> Live</span>}
+            {m.hasRealOdds && <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex-shrink-0" style={{ background: "rgba(0,200,83,0.12)", color: "#00C853" }} title={m.oddsSource}>★ Real</span>}
+            {m.suspended && <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex-shrink-0" style={{ background: "rgba(255,165,0,0.15)", color: "#FFA500" }}>Suspended</span>}
           </div>
           <span className="text-[9px] text-white/30 font-mono">{isLive ? m.clock || "LIVE" : `${dateStr} ${timeStr}`}</span>
         </div>
@@ -435,6 +453,12 @@ function MatchCard({ m, slip, onSel }: { m: OddsMatch; slip: Slip[]; onSel: (m: 
           <button onClick={() => setShowMore(!showMore)} className="w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
             {showMore ? <><ChevronDown className="w-3 h-3 rotate-180" /> Less</> : <><Plus className="w-3 h-3" /> +{mkEntries.length - 5} markets</>}
           </button>
+        )}
+        {m.oddsSource && (
+          <div className="flex items-center justify-between pt-0.5">
+            <span className="text-[8px] text-white/25 font-mono">{mkEntries.length} markets</span>
+            <span className="text-[8px] text-white/25 font-mono truncate ml-2" title={m.oddsSource}>Odds: {m.oddsSource}</span>
+          </div>
         )}
       </div>
     </div>
