@@ -421,7 +421,7 @@ export default function Sports() {
 
       {/* Sticky Bet Slip */}
       {slip.length > 0 && (
-        <div className="fixed bottom-20 left-3 right-3 z-40">
+        <div className="fixed bottom-20 left-3 right-3 z-40 flex flex-col" style={{ maxHeight: "calc(100vh - 6rem)" }}>
           <BetSlip slip={slip} stake={stake} setStake={setStake} totalOdds={totalOdds} singleTotalWin={singleTotalWin} balance={parseFloat(user?.balance || "0")} show={showSlipPanel} setShow={setShowSlipPanel} onRemove={(id: string) => setSlip(slip.filter(s => s.id !== id))} onClear={() => { setSlip([]); setStake(""); }} onPlace={placeBet} placing={placing} />
         </div>
       )}
@@ -517,9 +517,9 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
   const insufficient = stakeNum > 0 && totalDebit > balance;
   const invalid = stakeNum > 0 && (stakeNum < 0.5 || stakeNum > 5000);
   return (
-    <div className="rounded-2xl overflow-hidden shadow-2xl"
+    <div className="rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[75vh]"
       style={{ background: "rgba(2,4,8,0.97)", border: "1px solid rgba(0,209,255,0.4)", backdropFilter: "blur(20px)", boxShadow: "0 -8px 24px rgba(0,209,255,0.25)" }}>
-      <div className="px-3 py-2 flex items-center justify-between" style={{ background: "rgba(0,209,255,0.08)" }}>
+      <div className="px-3 py-2 flex items-center justify-between flex-shrink-0" style={{ background: "rgba(0,209,255,0.08)" }}>
         <button onClick={() => setShow(!show)} className="flex items-center gap-2">
           <Ticket className="w-4 h-4" style={{ color: "#00D1FF" }} />
           <span className="text-xs font-black uppercase" style={{ color: "#00D1FF" }}>Bet Slip ({slip.length})</span>
@@ -527,20 +527,20 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
         </button>
         <button onClick={onClear} className="text-[10px] text-white/40 underline">Clear</button>
       </div>
-      <div className={`overflow-hidden transition-all duration-300 ${show ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}>
+      <div className={`flex flex-col min-h-0 transition-all duration-300 ${show ? "flex-1 opacity-100" : "max-h-0 flex-none opacity-0 overflow-hidden"}`}>
         {slip.length > 1 && (
-          <div className="px-3 pt-2.5">
+          <div className="px-3 pt-2.5 flex-shrink-0">
             <div className="px-3 py-2 rounded-lg text-[10px] font-bold flex items-center justify-between" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.18)", color: "rgba(255,255,255,0.65)" }}>
               <span>Singles mode</span><span style={{ color: "#00D1FF" }}>{slip.length} tickets · stake per pick</span>
             </div>
           </div>
         )}
-        <div className="px-3 py-2 space-y-1.5 max-h-48 overflow-y-auto">
+        <div className="px-3 py-2 space-y-1.5 flex-1 min-h-0 overflow-y-auto">
           {slip.map((s: Slip) => (
             <div key={s.id} className="flex items-center justify-between gap-2 p-2 rounded-lg" style={{ background: "rgba(0,0,0,0.35)" }}>
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] font-bold text-white truncate">{s.match}</div>
-                <div className="text-[10px] text-white/50">{s.mk} · <span className="text-white/80">{s.sel}</span></div>
+                <div className="text-[10px] text-white/50 truncate">{s.mk} · <span className="text-white/80">{s.sel}</span></div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="font-black text-sm tabular-nums" style={{ color: "#00D1FF" }}>{s.odds.toFixed(2)}</span>
@@ -549,7 +549,7 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
             </div>
           ))}
         </div>
-        <div className="px-3 pb-2 space-y-2">
+        <div className="px-3 pb-2 pt-1 space-y-2 flex-shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex gap-1">
             {[5, 10, 25, 50, 100].map(v => (
               <button key={v} onClick={() => setStake(String(v))} className="flex-1 py-1 rounded text-[10px] font-bold"
@@ -574,7 +574,7 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
         </div>
       </div>
       <button onClick={onPlace} disabled={placing || !slip.length || stakeNum <= 0 || insufficient || invalid}
-        className="w-full py-3 text-sm font-black tracking-wider disabled:opacity-40 flex items-center justify-center gap-1.5"
+        className="w-full py-3 text-sm font-black tracking-wider disabled:opacity-40 flex items-center justify-center gap-1.5 flex-shrink-0"
         style={{ background: insufficient || invalid ? "rgba(255,45,85,0.3)" : "#00D1FF", color: insufficient || invalid ? "#FF2D55" : "#020408" }}>
         {placing ? <><span className="w-3.5 h-3.5 rounded-full border-2 border-black border-t-transparent animate-spin" /> PLACING…</>
           : insufficient ? <>INSUFFICIENT BALANCE</>
