@@ -5,11 +5,11 @@ import { WinnerFeed } from "./WinnerFeed";
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="min-h-[100dvh] w-full flex justify-center"
-      style={{ background: "#010204" }}
+      className="min-h-[100dvh] w-full"
+      style={{ background: "#020408" }}
     >
       <div
-        className="w-full max-w-[430px] relative flex flex-col min-h-[100dvh]"
+        className="w-full relative flex flex-col min-h-[100dvh]"
         style={{ background: "#020408" }}
       >
         <Header />

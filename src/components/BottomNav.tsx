@@ -19,7 +19,7 @@ export function BottomNav() {
       dir={isRTL() ? "rtl" : "ltr"}
       style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 8px)" }}
     >
-      <div className="w-full max-w-[430px] pointer-events-auto px-3 pb-3">
+      <div className="w-full pointer-events-auto px-3 pb-3">
         <nav
           className="flex justify-around items-center rounded-2xl relative"
           style={{
