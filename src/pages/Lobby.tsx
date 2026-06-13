@@ -242,6 +242,33 @@ export default function Lobby() {
 
   useEffect(() => { setPage(1); }, [activeProvider, search]);
 
+  // ── Hardware back button (Android) / browser back gesture (iOS) ──
+  // When a game iframe is open, intercept the back navigation:
+  //   1. push a sentinel history entry the moment we open the game
+  //   2. on popstate, close the game instead of leaving the site
+  // This keeps the player inside TunBet — Back goes to the lobby, not exits.
+  useEffect(() => {
+    if (!gameUrl) return;
+    // Push a sentinel so the first Back press triggers popstate (instead of going to the previous URL).
+    window.history.pushState({ tunbetGame: true }, "");
+    const onPop = (e: PopStateEvent) => {
+      // Some browsers fire popstate with our sentinel state, others with null — either way we close.
+      e.preventDefault?.();
+      closeGame();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      // If the game closes by other means (close button), pop the sentinel back off so
+      // the user doesn't have to press Back twice to leave the site later.
+      if (window.history.state && (window.history.state as { tunbetGame?: boolean }).tunbetGame) {
+        try { window.history.back(); } catch {}
+      }
+    };
+    // closeGame is stable enough — we only re-bind when gameUrl flips on/off.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameUrl]);
+
   const filtered = useMemo(() => {
     return games.filter(g => {
       const matchProv = activeProvider === null || g.provider_id === activeProvider;
