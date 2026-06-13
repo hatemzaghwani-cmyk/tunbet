@@ -24,7 +24,7 @@ export function BottomNav() {
           className="flex justify-around items-center rounded-2xl relative"
           style={{
             background: "rgba(2,4,8,0.94)",
-            border: "1px solid rgba(155,80,255,0.18)",
+            border: "1px solid rgba(0,209,255,0.18)",
             backdropFilter: "blur(24px)",
             padding: "12px 6px",
           }}
@@ -37,22 +37,22 @@ export function BottomNav() {
                 style={{ minWidth: 76, paddingTop: 4, paddingBottom: 2 }}>
                 {isActive && (
                   <motion.div layoutId="nav-active-bg" className="absolute inset-0 rounded-xl -z-10"
-                    style={{ background: "rgba(155,80,255,0.13)" }} initial={false}
+                    style={{ background: "rgba(0,209,255,0.13)" }} initial={false}
                     transition={{ type: "spring", stiffness: 350, damping: 30 }} />
                 )}
                 {isActive && (
                   <div className="absolute -top-px left-1/2 -translate-x-1/2 rounded-b-full"
-                    style={{ width: 36, height: 3, background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", boxShadow: "0 0 12px rgba(155,80,255,0.9)" }} />
+                    style={{ width: 36, height: 3, background: "linear-gradient(135deg, #00D1FF 0%, #00D1FF 100%)", boxShadow: "0 0 12px rgba(0,209,255,0.9)" }} />
                 )}
                 <item.icon style={{
                   width: 30, height: 30, marginBottom: 5,
-                  color: isActive ? "#9B50FF" : "rgba(255,255,255,0.35)",
-                  filter: isActive ? "drop-shadow(0 0 8px rgba(155,80,255,0.8))" : "none",
+                  color: isActive ? "#00D1FF" : "rgba(255,255,255,0.35)",
+                  filter: isActive ? "drop-shadow(0 0 8px rgba(0,209,255,0.8))" : "none",
                   transition: "all 0.3s",
                 }} />
                 <span style={{
                   fontSize: 12, fontWeight: isActive ? 700 : 500,
-                  color: isActive ? "#9B50FF" : "rgba(255,255,255,0.35)",
+                  color: isActive ? "#00D1FF" : "rgba(255,255,255,0.35)",
                   transition: "all 0.3s", letterSpacing: "0.03em",
                 }}>
                   {item.label}

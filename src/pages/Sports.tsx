@@ -264,8 +264,8 @@ export default function Sports() {
         <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(2,4,8,0.95) 0%, rgba(2,4,8,0.4) 50%, rgba(2,4,8,0.1) 100%)" }} />
         <div className="absolute bottom-3 left-3 right-3">
           <div className="flex items-center gap-2 mb-1">
-            <Swords className="w-4 h-4" style={{ color: "#9B50FF" }} />
-            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#9B50FF" }}>El Clásico Special</span>
+            <Swords className="w-4 h-4" style={{ color: "#00D1FF" }} />
+            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#00D1FF" }}>El Clásico Special</span>
           </div>
           <h2 className="text-xl font-black text-white leading-tight">Barcelona vs Real Madrid</h2>
           <p className="text-[10px] text-white/50 mt-0.5">Premium odds · Global leagues · Live betting</p>
@@ -275,9 +275,9 @@ export default function Sports() {
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Trophy className="w-5 h-5" style={{ color: "#9B50FF" }} />
+          <Trophy className="w-5 h-5" style={{ color: "#00D1FF" }} />
           <h1 className="text-lg font-black tracking-wider">SPORTSBOOK</h1>
-          <span className="px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(155,80,255,0.15)", color: "#9B50FF", border: "1px solid rgba(155,80,255,0.35)" }}>GLOBAL</span>
+          <span className="px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(0,209,255,0.15)", color: "#00D1FF", border: "1px solid rgba(0,209,255,0.35)" }}>GLOBAL</span>
         </div>
         <div className="flex items-center gap-1.5">
           {apiConnected ? (
@@ -312,8 +312,8 @@ export default function Sports() {
         </button>
         <button onClick={() => setStatusTab("upcoming")}
           className="flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
-          style={{ background: statusTab === "upcoming" ? "rgba(155,80,255,0.12)" : "rgba(255,255,255,0.04)", border: statusTab === "upcoming" ? "1px solid rgba(155,80,255,0.35)" : "1px solid rgba(255,255,255,0.06)", color: statusTab === "upcoming" ? "#9B50FF" : "rgba(255,255,255,0.5)" }}>
-          <Calendar className="w-3.5 h-3.5" /> Upcoming {upcomingCount > 0 && <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(155,80,255,0.15)", color: "#9B50FF" }}>{upcomingCount}</span>}
+          style={{ background: statusTab === "upcoming" ? "rgba(0,209,255,0.12)" : "rgba(255,255,255,0.04)", border: statusTab === "upcoming" ? "1px solid rgba(0,209,255,0.35)" : "1px solid rgba(255,255,255,0.06)", color: statusTab === "upcoming" ? "#00D1FF" : "rgba(255,255,255,0.5)" }}>
+          <Calendar className="w-3.5 h-3.5" /> Upcoming {upcomingCount > 0 && <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-black" style={{ background: "rgba(0,209,255,0.15)", color: "#00D1FF" }}>{upcomingCount}</span>}
         </button>
       </div>
 
@@ -321,13 +321,13 @@ export default function Sports() {
       <div className="flex gap-2 overflow-x-auto pb-2 -mx-3 px-3 scrollbar-hide mb-2">
         <button onClick={() => setSport("all")}
           className="px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap flex-shrink-0 flex items-center gap-1"
-          style={{ background: sport === "all" ? "rgba(155,80,255,0.15)" : "rgba(255,255,255,0.04)", border: sport === "all" ? "1px solid rgba(155,80,255,0.4)" : "1px solid rgba(255,255,255,0.06)", color: sport === "all" ? "#9B50FF" : "rgba(255,255,255,0.5)" }}>
+          style={{ background: sport === "all" ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)", border: sport === "all" ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)", color: sport === "all" ? "#00D1FF" : "rgba(255,255,255,0.5)" }}>
           <Globe className="w-3 h-3" /> All
         </button>
         {SPORTS.filter(s => s.slug !== "all").map(s => (
           <button key={s.slug} onClick={() => setSport(s.slug === sport ? "all" : s.slug)}
             className="px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap flex-shrink-0"
-            style={{ background: sport === s.slug ? "rgba(155,80,255,0.15)" : "rgba(255,255,255,0.04)", border: sport === s.slug ? "1px solid rgba(155,80,255,0.4)" : "1px solid rgba(255,255,255,0.06)", color: sport === s.slug ? "#9B50FF" : "rgba(255,255,255,0.5)" }}>
+            style={{ background: sport === s.slug ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)", border: sport === s.slug ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)", color: sport === s.slug ? "#00D1FF" : "rgba(255,255,255,0.5)" }}>
             {s.name}
           </button>
         ))}
@@ -345,7 +345,7 @@ export default function Sports() {
         {leagues.length > 0 && (
           <select value={leagueFilter} onChange={e => setLeagueFilter(e.target.value)}
             className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-transparent outline-none cursor-pointer"
-            style={{ border: "1px solid rgba(255,255,255,0.08)", color: leagueFilter !== "all" ? "#9B50FF" : "rgba(255,255,255,0.35)" }}>
+            style={{ border: "1px solid rgba(255,255,255,0.08)", color: leagueFilter !== "all" ? "#00D1FF" : "rgba(255,255,255,0.35)" }}>
             <option value="all" style={{ background: "#020408" }}>All Leagues</option>
             {leagues.map(l => <option key={l} value={l} style={{ background: "#020408" }}>{l}</option>)}
           </select>
@@ -354,8 +354,8 @@ export default function Sports() {
 
       {/* Tab switch */}
       <div className="flex items-center gap-2 mb-3">
-        <button onClick={() => setTab("m")} className="px-3 py-1.5 rounded-lg text-[11px] font-bold" style={{ background: tab === "m" ? "rgba(155,80,255,0.15)" : "transparent", color: tab === "m" ? "#9B50FF" : "rgba(255,255,255,0.4)" }}>Matches</button>
-        <button onClick={() => setTab("b")} className="px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1" style={{ background: tab === "b" ? "rgba(155,80,255,0.15)" : "transparent", color: tab === "b" ? "#9B50FF" : "rgba(255,255,255,0.4)" }}>My Bets {bets.length > 0 && <span className="px-1 py-0.5 rounded text-[8px]" style={{ background: "rgba(155,80,255,0.2)", color: "#9B50FF" }}>{bets.length}</span>}</button>
+        <button onClick={() => setTab("m")} className="px-3 py-1.5 rounded-lg text-[11px] font-bold" style={{ background: tab === "m" ? "rgba(0,209,255,0.15)" : "transparent", color: tab === "m" ? "#00D1FF" : "rgba(255,255,255,0.4)" }}>Matches</button>
+        <button onClick={() => setTab("b")} className="px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1" style={{ background: tab === "b" ? "rgba(0,209,255,0.15)" : "transparent", color: tab === "b" ? "#00D1FF" : "rgba(255,255,255,0.4)" }}>My Bets {bets.length > 0 && <span className="px-1 py-0.5 rounded text-[8px]" style={{ background: "rgba(0,209,255,0.2)", color: "#00D1FF" }}>{bets.length}</span>}</button>
       </div>
 
       {/* Toast — lightweight CSS */}
@@ -381,7 +381,7 @@ export default function Sports() {
           {grouped.map(g => (
             <div key={g.label}>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-1 h-3 rounded-full" style={{ background: g.label.includes("Live") ? "#FF2D55" : "#9B50FF" }} />
+                <div className="w-1 h-3 rounded-full" style={{ background: g.label.includes("Live") ? "#FF2D55" : "#00D1FF" }} />
                 <h2 className="text-xs font-black uppercase tracking-wider text-white/70">{g.label}</h2>
                 <span className="text-[10px] text-white/30">{g.items.length} matches</span>
               </div>
@@ -406,7 +406,7 @@ export default function Sports() {
             <div className="flex gap-1.5">
               {([["all", "All"], ["open", "Open"], ["settled", "Settled"]] as [typeof betFilter, string][]).map(([f, label]) => (
                 <button key={f} onClick={() => setBetFilter(f)} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold"
-                  style={{ background: betFilter === f ? "rgba(155,80,255,0.15)" : "rgba(255,255,255,0.04)", border: betFilter === f ? "1px solid rgba(155,80,255,0.35)" : "1px solid rgba(255,255,255,0.06)", color: betFilter === f ? "#9B50FF" : "rgba(255,255,255,0.5)" }}>
+                  style={{ background: betFilter === f ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)", border: betFilter === f ? "1px solid rgba(0,209,255,0.35)" : "1px solid rgba(255,255,255,0.06)", color: betFilter === f ? "#00D1FF" : "rgba(255,255,255,0.5)" }}>
                   {label} {f === "open" && bets.filter(b => b.status === "pending").length > 0 ? `(${bets.filter(b => b.status === "pending").length})` : ""}
                 </button>
               ))}
@@ -415,7 +415,7 @@ export default function Sports() {
           {ldb && Array.from({ length: 3 }).map((_, i) => <div key={i} className="rounded-xl p-4 animate-pulse" style={{ background: "rgba(255,255,255,0.04)", height: 80 }} />)}
           {!ldb && filteredBets.length === 0 && <div className="text-center py-16 text-white/30"><Ticket className="w-10 h-10 mx-auto mb-3 opacity-30" /><p className="text-sm">No bets yet</p></div>}
           {!ldb && filteredBets.map(b => <BetCard key={b.id} b={b} />)}
-          {!user && !ldb && <div className="text-center py-10"><button onClick={() => setAuth(true)} className="px-6 py-2.5 rounded-xl text-sm font-bold" style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", color: "#020408" }}>Login to view bets</button></div>}
+          {!user && !ldb && <div className="text-center py-10"><button onClick={() => setAuth(true)} className="px-6 py-2.5 rounded-xl text-sm font-bold" style={{ background: "linear-gradient(135deg, #00D1FF 0%, #00D1FF 100%)", color: "#020408" }}>Login to view bets</button></div>}
         </div>
       )}
 
@@ -426,8 +426,8 @@ export default function Sports() {
           className="fixed bottom-24 right-4 z-40 flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-transform"
           style={{
             width: 60, height: 60,
-            background: "linear-gradient(135deg, #9B50FF, #0090c8)",
-            boxShadow: "0 6px 24px rgba(155,80,255,0.5), 0 0 0 4px rgba(155,80,255,0.15)",
+            background: "linear-gradient(135deg, #00D1FF, #0090c8)",
+            boxShadow: "0 6px 24px rgba(0,209,255,0.5), 0 0 0 4px rgba(0,209,255,0.15)",
           }}
           aria-label="Open bet slip"
         >
@@ -526,7 +526,7 @@ function OddsGrid({ m, mkName, mkOdds, slip, onSel }: { m: OddsMatch; mkName: st
         const isSel = slip.some(s => s.id === id);
         return (
           <button key={sel} onClick={() => onSel(m, mkName, sel, odds)} className="py-1.5 px-1 rounded-lg transition-all"
-            style={{ background: isSel ? "rgba(155,80,255,0.22)" : "rgba(255,255,255,0.05)", border: isSel ? "1px solid rgba(155,80,255,0.6)" : "1px solid rgba(255,255,255,0.07)", color: isSel ? "#9B50FF" : "rgba(255,255,255,0.9)" }}>
+            style={{ background: isSel ? "rgba(0,209,255,0.22)" : "rgba(255,255,255,0.05)", border: isSel ? "1px solid rgba(0,209,255,0.6)" : "1px solid rgba(255,255,255,0.07)", color: isSel ? "#00D1FF" : "rgba(255,255,255,0.9)" }}>
             <div className="text-[8px] uppercase opacity-60 mb-0.5 truncate px-0.5">{sel}</div>
             <div className="font-black text-xs tabular-nums">{odds.toFixed(2)}</div>
           </button>
@@ -543,12 +543,12 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
   const invalid = stakeNum > 0 && (stakeNum < 0.5 || stakeNum > 5000);
   return (
     <div className="rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[75vh]"
-      style={{ background: "rgba(2,4,8,0.97)", border: "1px solid rgba(155,80,255,0.4)", backdropFilter: "blur(20px)", boxShadow: "0 -8px 24px rgba(155,80,255,0.25)" }}>
-      <div className="px-3 py-2 flex items-center justify-between flex-shrink-0" style={{ background: "rgba(155,80,255,0.08)" }}>
+      style={{ background: "rgba(2,4,8,0.97)", border: "1px solid rgba(0,209,255,0.4)", backdropFilter: "blur(20px)", boxShadow: "0 -8px 24px rgba(0,209,255,0.25)" }}>
+      <div className="px-3 py-2 flex items-center justify-between flex-shrink-0" style={{ background: "rgba(0,209,255,0.08)" }}>
         <button onClick={() => setShow(false)} className="flex items-center gap-2" aria-label="Close bet slip">
           <ChevronDown className="w-4 h-4 text-white/60" />
-          <Ticket className="w-4 h-4" style={{ color: "#9B50FF" }} />
-          <span className="text-xs font-black uppercase" style={{ color: "#9B50FF" }}>Bet Slip ({slip.length})</span>
+          <Ticket className="w-4 h-4" style={{ color: "#00D1FF" }} />
+          <span className="text-xs font-black uppercase" style={{ color: "#00D1FF" }}>Bet Slip ({slip.length})</span>
         </button>
         <div className="flex items-center gap-3">
           <button onClick={onClear} className="text-[10px] text-white/40 underline">Clear</button>
@@ -560,8 +560,8 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
       <div className="flex flex-col min-h-0 flex-1 opacity-100">
         {slip.length > 1 && (
           <div className="px-3 pt-2.5 flex-shrink-0">
-            <div className="px-3 py-2 rounded-lg text-[10px] font-bold flex items-center justify-between" style={{ background: "rgba(155,80,255,0.08)", border: "1px solid rgba(155,80,255,0.18)", color: "rgba(255,255,255,0.65)" }}>
-              <span>Singles mode</span><span style={{ color: "#9B50FF" }}>{slip.length} tickets · stake per pick</span>
+            <div className="px-3 py-2 rounded-lg text-[10px] font-bold flex items-center justify-between" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.18)", color: "rgba(255,255,255,0.65)" }}>
+              <span>Singles mode</span><span style={{ color: "#00D1FF" }}>{slip.length} tickets · stake per pick</span>
             </div>
           </div>
         )}
@@ -573,7 +573,7 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
                 <div className="text-[10px] text-white/50 truncate">{s.mk} · <span className="text-white/80">{s.sel}</span></div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="font-black text-sm tabular-nums" style={{ color: "#9B50FF" }}>{s.odds.toFixed(2)}</span>
+                <span className="font-black text-sm tabular-nums" style={{ color: "#00D1FF" }}>{s.odds.toFixed(2)}</span>
                 <button onClick={() => onRemove(s.id)}><X className="w-3.5 h-3.5 text-white/40" /></button>
               </div>
             </div>
@@ -583,7 +583,7 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
           <div className="flex gap-1">
             {[5, 10, 25, 50, 100].map(v => (
               <button key={v} onClick={() => setStake(String(v))} className="flex-1 py-1 rounded text-[10px] font-bold"
-                style={{ background: stake === String(v) ? "rgba(155,80,255,0.18)" : "rgba(255,255,255,0.06)", color: stake === String(v) ? "#9B50FF" : "rgba(255,255,255,0.6)" }}>{v}</button>
+                style={{ background: stake === String(v) ? "rgba(0,209,255,0.18)" : "rgba(255,255,255,0.06)", color: stake === String(v) ? "#00D1FF" : "rgba(255,255,255,0.6)" }}>{v}</button>
             ))}
           </div>
           <div className="flex items-center gap-2">
@@ -605,7 +605,7 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
       </div>
       <button onClick={onPlace} disabled={placing || !slip.length || stakeNum <= 0 || insufficient || invalid}
         className="w-full py-3 text-sm font-black tracking-wider disabled:opacity-40 flex items-center justify-center gap-1.5 flex-shrink-0"
-        style={{ background: insufficient || invalid ? "rgba(255,45,85,0.3)" : "#9B50FF", color: insufficient || invalid ? "#FF2D55" : "#020408" }}>
+        style={{ background: insufficient || invalid ? "rgba(255,45,85,0.3)" : "#00D1FF", color: insufficient || invalid ? "#FF2D55" : "#020408" }}>
         {placing ? <><span className="w-3.5 h-3.5 rounded-full border-2 border-black border-t-transparent animate-spin" /> PLACING…</>
           : insufficient ? <>INSUFFICIENT BALANCE</>
           : invalid ? <>INVALID STAKE</>

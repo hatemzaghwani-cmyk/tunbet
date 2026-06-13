@@ -33,7 +33,7 @@ export default function Vault() {
   }, [token]);
 
   const typeColor = (type: string) => {
-    if (["deposit", "win"].includes(type)) return "#9B50FF";
+    if (["deposit", "win"].includes(type)) return "#00D1FF";
     if (["withdraw", "loss", "bet", "reset"].includes(type)) return "#FF2D55";
     return "rgba(255,255,255,0.5)";
   };
@@ -51,18 +51,18 @@ export default function Vault() {
     >
       <div className="p-4 space-y-5">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5" style={{ color: "#9B50FF" }} />
+          <ShieldCheck className="w-5 h-5" style={{ color: "#00D1FF" }} />
           <h1 className="text-xl font-black tracking-wider">YOUR VAULT</h1>
         </div>
 
         {!user ? (
           <div className="rounded-3xl p-8 text-center glass-card">
-            <ShieldCheck className="w-12 h-12 mx-auto mb-3" style={{ color: "#9B50FF", opacity: 0.4 }} />
+            <ShieldCheck className="w-12 h-12 mx-auto mb-3" style={{ color: "#00D1FF", opacity: 0.4 }} />
             <p className="text-white/50 mb-4">Sign in to view your vault</p>
             <button
               onClick={() => setShowAuth(true)}
               className="px-6 py-3 rounded-xl font-bold text-sm"
-              style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", color: "#020408" }}
+              style={{ background: "linear-gradient(135deg, #00D1FF 0%, #00D1FF 100%)", color: "#020408" }}
             >
               Sign In
             </button>
@@ -72,12 +72,12 @@ export default function Vault() {
             {/* Balance Card */}
             <div
               className="rounded-3xl p-6 relative overflow-hidden"
-              style={{ background: "rgba(155,80,255,0.06)", border: "1px solid rgba(155,80,255,0.25)", boxShadow: "0 0 40px rgba(155,80,255,0.08)" }}
+              style={{ background: "rgba(0,209,255,0.06)", border: "1px solid rgba(0,209,255,0.25)", boxShadow: "0 0 40px rgba(0,209,255,0.08)" }}
             >
-              <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl opacity-20" style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", marginRight: -40, marginTop: -40 }} />
+              <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl opacity-20" style={{ background: "linear-gradient(135deg, #00D1FF 0%, #00D1FF 100%)", marginRight: -40, marginTop: -40 }} />
               <p className="text-sm font-medium text-white/50 mb-1">Total Balance</p>
               <div className="flex items-baseline gap-2 mb-6">
-                <span className="text-4xl font-black font-mono" style={{ color: "#9B50FF" }}>
+                <span className="text-4xl font-black font-mono" style={{ color: "#00D1FF" }}>
                   {parseFloat(user.balance).toFixed(2)} TND
                 </span>
               </div>
@@ -91,12 +91,12 @@ export default function Vault() {
               <div className="flex justify-between items-center mb-4">
                 <div>
                   <p className="text-xs text-white/40 uppercase tracking-wider font-bold mb-1">VIP STATUS</p>
-                  <p className="font-black text-lg" style={{ background: "linear-gradient(to right, #9B50FF, #00ff9d)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                  <p className="font-black text-lg" style={{ background: "linear-gradient(to right, #00D1FF, #00ff9d)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                     {parseFloat(user.balance) >= 10000 ? "DIAMOND" : parseFloat(user.balance) >= 1000 ? "GOLD" : parseFloat(user.balance) >= 100 ? "SILVER" : "BRONZE"}
                   </p>
                 </div>
-                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(155,80,255,0.12)", border: "1px solid rgba(155,80,255,0.3)" }}>
-                  <TrendingUp className="w-6 h-6" style={{ color: "#9B50FF" }} />
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(0,209,255,0.12)", border: "1px solid rgba(0,209,255,0.3)" }}>
+                  <TrendingUp className="w-6 h-6" style={{ color: "#00D1FF" }} />
                 </div>
               </div>
               <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
@@ -104,8 +104,8 @@ export default function Vault() {
                   className="h-full rounded-full"
                   style={{
                     width: `${Math.min(100, (parseFloat(user.balance) / 10000) * 100)}%`,
-                    background: "linear-gradient(to right, rgba(155,80,255,0.7), #9B50FF)",
-                    boxShadow: "0 0 10px rgba(155,80,255,0.5)"
+                    background: "linear-gradient(to right, rgba(0,209,255,0.7), #00D1FF)",
+                    boxShadow: "0 0 10px rgba(0,209,255,0.5)"
                   }}
                 />
               </div>
@@ -133,7 +133,7 @@ export default function Vault() {
                     style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: isPositive ? "rgba(155,80,255,0.1)" : "rgba(255,45,85,0.1)" }}>
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: isPositive ? "rgba(0,209,255,0.1)" : "rgba(255,45,85,0.1)" }}>
                         <Icon className="w-5 h-5" style={{ color: typeColor(tx.type) }} />
                       </div>
                       <div>
