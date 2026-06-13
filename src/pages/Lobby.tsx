@@ -295,10 +295,8 @@ export default function Lobby() {
     if (launchingGame) return;                  // prevent double-click on any card
     if (gameUrl) return;                         // can't launch while another game is open
     if (closingGame) return;                     // can't launch while closing previous
-    if (parseFloat(user.balance) <= 0) {
-      setLaunchError(t("insufficientBalance") + " — تواصل مع الإدارة لشحن رصيدك");
-      setTimeout(() => setLaunchError(""), 4500); return;
-    }
+    // No client-side balance gate — the AES/OroPlay backend handles low-balance UX itself.
+    // (Removed the agent-contact prompt by request.)
     setLaunchingGame(game.game_code); setLaunchError("");
     try {
       // OroPlay games use a seamless wallet — launch via the OroPlay backend.

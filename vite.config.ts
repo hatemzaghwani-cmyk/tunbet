@@ -20,5 +20,27 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
+    // ── Performance optimizations ───────────────────────────────────
+    target: "es2020",                      // smaller bundles on modern mobiles
+    minify: "esbuild",                     // fastest minifier
+    cssMinify: true,
+    chunkSizeWarningLimit: 1024,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Pre-split heavy libs so first paint is fast
+          "react-vendor": ["react", "react-dom", "wouter"],
+          "ui-vendor": ["framer-motion", "lucide-react"],
+          "query-vendor": ["@tanstack/react-query"],
+          // Lazy-loaded game catalogues — split so they don't bloat the entry chunk
+          "games-aes": ["@/lib/aesGamesList", "@/lib/aesProvidersList"],
+          "games-live": ["@/lib/liveGames"],
+          "games-oro": ["@/lib/oroGames"],
+        },
+      },
+    },
+  },
+  server: {
+    headers: { "Cache-Control": "no-store" },  // hot-reload friendliness
   },
 });

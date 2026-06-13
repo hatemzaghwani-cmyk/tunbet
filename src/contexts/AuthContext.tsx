@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { apiLogin, apiRegister, apiMe, apiBalance, apiSyncBalance } from "@/lib/localApi";
 
 interface User {
@@ -26,22 +26,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("casino_token"));
   const [isLoading, setIsLoading] = useState(true);
 
+  // ── Race-condition guard ──────────────────────────────────────────
+  // Every balance read/write gets a monotonically-increasing sequence
+  // number. We ONLY apply a balance update if it carries the highest
+  // seq we've seen. This prevents an old refreshBalance() response from
+  // overwriting a freshly-credited balance after a win.
+  const seqRef = useRef(0);
+  const latestAppliedRef = useRef(0);
+
+  const applyBalance = useCallback((newBalance: string | number, mySeq: number) => {
+    if (mySeq < latestAppliedRef.current) return;     // stale read — discard
+    latestAppliedRef.current = mySeq;
+    setUser(prev => prev ? { ...prev, balance: String(newBalance) } : null);
+  }, []);
+
   const fetchMe = useCallback(async (t: string) => {
     try {
       const data = await apiMe(t);
       setUser(data as User);
+      latestAppliedRef.current = ++seqRef.current;     // anchor the seq to login balance
       // Safety net: reclaim any balance that may have been left stranded in the AES wallet
       // (e.g. browser closed mid-game / failed close). Idempotent — never double-credits.
+      const mySeq = ++seqRef.current;
       apiSyncBalance(t)
         .then(() => apiBalance(t))
-        .then(b => setUser(prev => prev ? { ...prev, balance: (b as any).balance } : prev))
+        .then(b => applyBalance((b as { balance: string }).balance, mySeq))
         .catch(() => {});
     } catch {
       setToken(null);
       setUser(null);
       localStorage.removeItem("casino_token");
     }
-  }, []);
+  }, [applyBalance]);
 
   useEffect(() => {
     if (token) {
@@ -56,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("casino_token", data.token);
     setToken(data.token);
     setUser(data.user as User);
+    latestAppliedRef.current = ++seqRef.current;
   };
 
   const register = async (username: string, password: string, email?: string) => {
@@ -63,21 +80,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("casino_token", data.token);
     setToken(data.token);
     setUser(data.user as User);
+    latestAppliedRef.current = ++seqRef.current;
   };
 
   const logout = () => {
     setToken(null);
     setUser(null);
     localStorage.removeItem("casino_token");
+    latestAppliedRef.current = 0;
+    seqRef.current = 0;
   };
 
-  const refreshBalance = async () => {
+  const refreshBalance = useCallback(async () => {
     if (!token) return;
+    const mySeq = ++seqRef.current;
     try {
       const data = await apiBalance(token);
-      setUser(prev => prev ? { ...prev, balance: data.balance } : null);
+      applyBalance((data as { balance: string }).balance, mySeq);
     } catch {}
-  };
+  }, [token, applyBalance]);
 
   return (
     <AuthContext.Provider value={{ user, token, login, register, logout, refreshBalance, isLoading }}>
