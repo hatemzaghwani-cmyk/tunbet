@@ -55,7 +55,11 @@ export interface PlaceBetResult {
   newBalance?: number;
   bets?: any[];
   currentOdds?: number;
+  isCombo?: boolean;
+  comboOdds?: number | null;
 }
+
+export type BetType = "singles" | "combo";
 
 export const SPORTS = [
   { slug: "all",                  name: "All" },
@@ -200,12 +204,17 @@ export async function fetchOddsMatches(sportSlug: string): Promise<OddsMatch[]> 
   }
 }
 
-export async function placeSportsBetBatch(userId: number, picks: SportsBetPick[], stake: number): Promise<PlaceBetResult> {
+export async function placeSportsBetBatch(
+  userId: number,
+  picks: SportsBetPick[],
+  stake: number,
+  betType: BetType = "singles",
+): Promise<PlaceBetResult> {
   try {
     const r = await fetch(`${apiBase()}/api/betbatch`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, picks, stake }),
+      body: JSON.stringify({ userId, picks, stake, betType }),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return { error: data?.error || `Bet failed (${r.status})` };

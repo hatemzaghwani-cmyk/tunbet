@@ -122,6 +122,7 @@ export default function Sports() {
   const [ldb, setLdb] = useState(false);
   const [showSlipPanel, setShowSlipPanel] = useState(false);
   const [apiConnected, setApiConnected] = useState(true);
+  const [betMode, setBetMode] = useState<"singles" | "combo">("combo");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -220,14 +221,20 @@ export default function Sports() {
 
   const totalOdds = slip.reduce((a, b) => a * b.odds, 1);
   const stakeNum = parseFloat(stake) || 0;
+  // Combo mode only makes sense for ≥ 2 picks; auto-fallback to singles for 1 pick.
+  const effectiveMode: "singles" | "combo" = slip.length >= 2 ? betMode : "singles";
+  const isCombo = effectiveMode === "combo";
   const singleTotalWin = slip.reduce((sum, s) => sum + (stakeNum * s.odds), 0);
+  const comboPotentialWin = stakeNum * totalOdds;
+  const potentialWin = isCombo ? comboPotentialWin : singleTotalWin;
+  const totalDebitDisplay = isCombo ? stakeNum : stakeNum * slip.length;
 
   const placeBet = async () => {
     if (!user) { setAuth(true); return; }
     if (!slip.length) return setMsgErr("Select at least one match");
     if (!stakeNum || stakeNum < 0.5) return setMsgErr("Min stake: 0.50 TND");
     if (stakeNum > 5000) return setMsgErr("Max stake: 5000 TND");
-    const totalDebit = stakeNum * slip.length;
+    const totalDebit = isCombo ? stakeNum : stakeNum * slip.length;
     if (totalDebit > parseFloat(user.balance)) return setMsgErr(`Insufficient balance (need ${totalDebit.toFixed(2)} TND)`);
     const now = Date.now();
     for (const pick of slip) {
@@ -238,10 +245,18 @@ export default function Sports() {
     }
     setPlacing(true);
     try {
-      const result = await placeSportsBetBatch(user.id, slip.map(pick => ({ eventId: pick.matchId, market: pick.mk, selection: pick.sel, odds: pick.odds })), stakeNum);
+      const result = await placeSportsBetBatch(
+        user.id,
+        slip.map(pick => ({ eventId: pick.matchId, market: pick.mk, selection: pick.sel, odds: pick.odds })),
+        stakeNum,
+        effectiveMode,
+      );
       if (!result.success) throw new Error(result.currentOdds ? `Odds changed — current: ${Number(result.currentOdds).toFixed(2)}` : (result.error || "Bet failed"));
       setSlip([]); setStake(""); setShowSlipPanel(false);
-      setMsgOk(`${result.count || slip.length} bet${(result.count || slip.length) > 1 ? "s" : ""} placed! Potential win: ${singleTotalWin.toFixed(2)} TND`);
+      const msg = isCombo
+        ? `Combo ${slip.length}× placed @ ${totalOdds.toFixed(2)} — potential win: ${comboPotentialWin.toFixed(2)} TND`
+        : `${result.count || slip.length} bet${(result.count || slip.length) > 1 ? "s" : ""} placed! Potential win: ${singleTotalWin.toFixed(2)} TND`;
+      setMsgOk(msg);
       await refreshBalance();
       if (tab === "b") { const fresh = await fetchMySportsBets(user.id); if (Array.isArray(fresh)) setBets(fresh); }
     } catch (e: any) { setMsgErr(e?.message || "Bet failed"); } finally { setPlacing(false); }
@@ -446,7 +461,26 @@ export default function Sports() {
         <>
           <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }} onClick={() => setShowSlipPanel(false)} />
           <div className="fixed bottom-20 left-3 right-3 z-50 flex flex-col" style={{ maxHeight: "calc(100vh - 6rem)" }}>
-            <BetSlip slip={slip} stake={stake} setStake={setStake} totalOdds={totalOdds} singleTotalWin={singleTotalWin} balance={parseFloat(user?.balance || "0")} show={showSlipPanel} setShow={setShowSlipPanel} onRemove={(id: string) => setSlip(slip.filter(s => s.id !== id))} onClear={() => { setSlip([]); setStake(""); setShowSlipPanel(false); }} onPlace={placeBet} placing={placing} />
+            <BetSlip
+              slip={slip}
+              stake={stake}
+              setStake={setStake}
+              totalOdds={totalOdds}
+              singleTotalWin={singleTotalWin}
+              comboPotentialWin={comboPotentialWin}
+              potentialWin={potentialWin}
+              totalDebitDisplay={totalDebitDisplay}
+              isCombo={isCombo}
+              betMode={betMode}
+              setBetMode={setBetMode}
+              balance={parseFloat(user?.balance || "0")}
+              show={showSlipPanel}
+              setShow={setShowSlipPanel}
+              onRemove={(id: string) => setSlip(slip.filter(s => s.id !== id))}
+              onClear={() => { setSlip([]); setStake(""); setShowSlipPanel(false); }}
+              onPlace={placeBet}
+              placing={placing}
+            />
           </div>
         </>
       )}
@@ -536,13 +570,18 @@ function OddsGrid({ m, mkName, mkOdds, slip, onSel }: { m: OddsMatch; mkName: st
   );
 }
 
-function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, show, setShow, onRemove, onClear, onPlace, placing }: any) {
+function BetSlip({
+  slip, stake, setStake, totalOdds, singleTotalWin, comboPotentialWin, potentialWin,
+  totalDebitDisplay, isCombo, betMode, setBetMode,
+  balance, show, setShow, onRemove, onClear, onPlace, placing,
+}: any) {
   const stakeNum = parseFloat(stake) || 0;
-  const totalDebit = stakeNum * slip.length;
+  const totalDebit = totalDebitDisplay;
   const insufficient = stakeNum > 0 && totalDebit > balance;
   const invalid = stakeNum > 0 && (stakeNum < 0.5 || stakeNum > 5000);
+  const showModeToggle = slip.length >= 2;
   return (
-    <div className="rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[75vh]"
+    <div className="rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[78vh]"
       style={{ background: "rgba(2,4,8,0.97)", border: "1px solid rgba(0,209,255,0.4)", backdropFilter: "blur(20px)", boxShadow: "0 -8px 24px rgba(0,209,255,0.25)" }}>
       <div className="px-3 py-2 flex items-center justify-between flex-shrink-0" style={{ background: "rgba(0,209,255,0.08)" }}>
         <button onClick={() => setShow(false)} className="flex items-center gap-2" aria-label="Close bet slip">
@@ -558,16 +597,63 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
         </div>
       </div>
       <div className="flex flex-col min-h-0 flex-1 opacity-100">
-        {slip.length > 1 && (
+
+        {/* ── BET MODE SWITCH (only when ≥ 2 picks) ── */}
+        {showModeToggle && (
           <div className="px-3 pt-2.5 flex-shrink-0">
-            <div className="px-3 py-2 rounded-lg text-[10px] font-bold flex items-center justify-between" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.18)", color: "rgba(255,255,255,0.65)" }}>
-              <span>Singles mode</span><span style={{ color: "#00D1FF" }}>{slip.length} tickets · stake per pick</span>
+            <div className="flex p-0.5 rounded-xl" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <button
+                onClick={() => setBetMode("combo")}
+                className="flex-1 py-2 px-3 rounded-lg text-[11px] font-black tracking-wider transition-all"
+                style={{
+                  background: isCombo ? "linear-gradient(135deg, #00D1FF, #0099CC)" : "transparent",
+                  color: isCombo ? "#020408" : "rgba(255,255,255,0.55)",
+                  boxShadow: isCombo ? "0 0 12px rgba(0,209,255,0.4)" : "none",
+                }}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  COMBO <span className="text-[13px] leading-none">×</span> {totalOdds.toFixed(2)}
+                </span>
+              </button>
+              <button
+                onClick={() => setBetMode("singles")}
+                className="flex-1 py-2 px-3 rounded-lg text-[11px] font-black tracking-wider transition-all"
+                style={{
+                  background: !isCombo ? "linear-gradient(135deg, #00D1FF, #0099CC)" : "transparent",
+                  color: !isCombo ? "#020408" : "rgba(255,255,255,0.55)",
+                  boxShadow: !isCombo ? "0 0 12px rgba(0,209,255,0.4)" : "none",
+                }}
+              >
+                SINGLES ({slip.length})
+              </button>
+            </div>
+            <div className="mt-2 px-3 py-1.5 rounded-lg text-[10px]"
+              style={{ background: isCombo ? "rgba(255,215,0,0.08)" : "rgba(0,209,255,0.06)",
+                       border: `1px solid ${isCombo ? "rgba(255,215,0,0.20)" : "rgba(0,209,255,0.15)"}`,
+                       color: "rgba(255,255,255,0.7)" }}>
+              {isCombo ? (
+                <span>
+                  <span style={{ color: "#FFD700", fontWeight: 800 }}>Combo</span> — one ticket · all picks must win · stake taken once
+                </span>
+              ) : (
+                <span>
+                  <span style={{ color: "#00D1FF", fontWeight: 800 }}>Singles</span> — {slip.length} tickets · stake per pick · settled independently
+                </span>
+              )}
             </div>
           </div>
         )}
+
         <div className="px-3 py-2 space-y-1.5 flex-1 min-h-0 overflow-y-auto">
-          {slip.map((s: Slip) => (
-            <div key={s.id} className="flex items-center justify-between gap-2 p-2 rounded-lg" style={{ background: "rgba(0,0,0,0.35)" }}>
+          {slip.map((s: Slip, idx: number) => (
+            <div key={s.id} className="relative flex items-center justify-between gap-2 p-2 rounded-lg" style={{ background: "rgba(0,0,0,0.35)" }}>
+              {/* Combo connector (× between picks) */}
+              {isCombo && idx > 0 && (
+                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full text-[9px] font-black tracking-wider z-10"
+                  style={{ background: "#020408", border: "1px solid rgba(255,215,0,0.35)", color: "#FFD700" }}>
+                  ×
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] font-bold text-white truncate">{s.match}</div>
                 <div className="text-[10px] text-white/50 truncate">{s.mk} · <span className="text-white/80">{s.sel}</span></div>
@@ -579,7 +665,22 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
             </div>
           ))}
         </div>
+
         <div className="px-3 pb-2 pt-1 space-y-2 flex-shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          {/* Total odds banner (combo only) */}
+          {isCombo && (
+            <div className="px-3 py-2 rounded-lg flex items-center justify-between"
+              style={{ background: "linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,140,0,0.06))",
+                       border: "1px solid rgba(255,215,0,0.30)" }}>
+              <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#FFD700" }}>
+                Total Odds <span className="text-white/40">(× {slip.length})</span>
+              </div>
+              <div className="text-base font-black tabular-nums" style={{ color: "#FFD700" }}>
+                {totalOdds.toFixed(2)}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-1">
             {[5, 10, 25, 50, 100].map(v => (
               <button key={v} onClick={() => setStake(String(v))} className="flex-1 py-1 rounded text-[10px] font-bold"
@@ -590,13 +691,14 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
             <input type="number" value={stake} onChange={e => setStake(e.target.value)} placeholder="Stake (TND)" inputMode="decimal"
               className="flex-1 px-3 py-2 rounded-lg text-sm font-bold text-white outline-none" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)" }} />
             <div className="text-right">
-              <div className="text-[9px] text-white/40 uppercase">Win</div>
-              <div className="text-sm font-black tabular-nums" style={{ color: "#00C853" }}>{singleTotalWin.toFixed(2)} TND</div>
+              <div className="text-[9px] text-white/40 uppercase">{isCombo ? "Combo Win" : "Total Win"}</div>
+              <div className="text-sm font-black tabular-nums" style={{ color: "#00C853" }}>{potentialWin.toFixed(2)} TND</div>
             </div>
           </div>
           {slip.length > 0 && (
             <div className="text-[10px] text-white/50 px-1">
-              Total stake: <span className="font-bold text-white">{totalDebit.toFixed(2)} TND</span>{" · "}Balance: <span className="font-bold" style={{ color: insufficient ? "#FF2D55" : "#00C853" }}>{balance.toFixed(2)} TND</span>
+              {isCombo ? "Stake" : "Total stake"}: <span className="font-bold text-white">{totalDebit.toFixed(2)} TND</span>
+              {" · "}Balance: <span className="font-bold" style={{ color: insufficient ? "#FF2D55" : "#00C853" }}>{balance.toFixed(2)} TND</span>
             </div>
           )}
           {insufficient && <div className="text-[10px] font-bold px-1" style={{ color: "#FF2D55" }}>Insufficient balance</div>}
@@ -609,6 +711,7 @@ function BetSlip({ slip, stake, setStake, totalOdds, singleTotalWin, balance, sh
         {placing ? <><span className="w-3.5 h-3.5 rounded-full border-2 border-black border-t-transparent animate-spin" /> PLACING…</>
           : insufficient ? <>INSUFFICIENT BALANCE</>
           : invalid ? <>INVALID STAKE</>
+          : isCombo ? <><Zap className="w-3.5 h-3.5" /> PLACE COMBO ({totalOdds.toFixed(2)}×)</>
           : <><Zap className="w-3.5 h-3.5" /> PLACE {slip.length > 1 ? `${slip.length} BETS` : "BET"}</>}
       </button>
     </div>
