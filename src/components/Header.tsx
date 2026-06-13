@@ -73,7 +73,17 @@ export function Header() {
               style={{ background: "#FFB800", boxShadow: "0 0 8px #FFB800" }}
             />
           </div>
-          <span className="font-black tracking-[0.18em] text-base text-white">TUNBET</span>
+          <span
+            className="font-black tracking-[0.18em] text-base"
+            style={{
+              background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            TUNBET
+          </span>
         </Link>
 
         <div className="flex items-center gap-2">
@@ -88,10 +98,18 @@ export function Header() {
                 <button onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center gap-2 px-2 py-2 rounded-r-xl">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                    style={{ background: "#9B50FF", color: "#020408" }}>
+                    style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", color: "#020408" }}>
                     {user.username[0].toUpperCase()}
                   </div>
-                  <span className="text-xs font-semibold tabular-nums" style={{ color: "#9B50FF" }}>
+                  <span
+                    className="text-xs font-semibold tabular-nums"
+                    style={{
+                      background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}
+                  >
                     {parseFloat(user.balance).toFixed(2)} TND
                   </span>
                   <ChevronDown className={`w-3 h-3 text-white/40 transition-transform ${showUserMenu ? "rotate-180" : ""}`} />
@@ -102,7 +120,15 @@ export function Header() {
                   style={{ background: "rgba(2,4,8,0.98)", border: "1px solid rgba(155,80,255,0.2)", backdropFilter: "blur(20px)" }}>
                   <div className="px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
                     <div className="text-[10px] text-white/40 uppercase tracking-wider">{user.username}</div>
-                    <div className="font-black text-base tabular-nums" style={{ color: "#9B50FF" }}>
+                    <div
+                      className="font-black text-base tabular-nums"
+                      style={{
+                        background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                      }}
+                    >
                       {parseFloat(user.balance).toFixed(2)} TND
                     </div>
                   </div>

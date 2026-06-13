@@ -292,7 +292,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-black">اللاعبين</h2>
-              <button onClick={() => setModal({ type: "create", role: "player" })} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold" style={{ background: "#9B50FF", color: "#020408" }}>
+              <button onClick={() => setModal({ type: "create", role: "player" })} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold" style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", color: "#020408" }}>
                 <Plus className="w-3.5 h-3.5" /> إضافة
               </button>
             </div>

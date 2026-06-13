@@ -415,7 +415,7 @@ export default function Sports() {
           {ldb && Array.from({ length: 3 }).map((_, i) => <div key={i} className="rounded-xl p-4 animate-pulse" style={{ background: "rgba(255,255,255,0.04)", height: 80 }} />)}
           {!ldb && filteredBets.length === 0 && <div className="text-center py-16 text-white/30"><Ticket className="w-10 h-10 mx-auto mb-3 opacity-30" /><p className="text-sm">No bets yet</p></div>}
           {!ldb && filteredBets.map(b => <BetCard key={b.id} b={b} />)}
-          {!user && !ldb && <div className="text-center py-10"><button onClick={() => setAuth(true)} className="px-6 py-2.5 rounded-xl text-sm font-bold" style={{ background: "#9B50FF", color: "#020408" }}>Login to view bets</button></div>}
+          {!user && !ldb && <div className="text-center py-10"><button onClick={() => setAuth(true)} className="px-6 py-2.5 rounded-xl text-sm font-bold" style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", color: "#020408" }}>Login to view bets</button></div>}
         </div>
       )}
 

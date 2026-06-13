@@ -42,7 +42,7 @@ export function BottomNav() {
                 )}
                 {isActive && (
                   <div className="absolute -top-px left-1/2 -translate-x-1/2 rounded-b-full"
-                    style={{ width: 36, height: 3, background: "#9B50FF", boxShadow: "0 0 12px rgba(155,80,255,0.9)" }} />
+                    style={{ width: 36, height: 3, background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", boxShadow: "0 0 12px rgba(155,80,255,0.9)" }} />
                 )}
                 <item.icon style={{
                   width: 30, height: 30, marginBottom: 5,

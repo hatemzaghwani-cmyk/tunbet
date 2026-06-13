@@ -75,7 +75,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
                   key={m}
                   onClick={() => { setMode(m); setError(""); }}
                   className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
-                  style={mode === m ? { background: "#9B50FF", color: "#020408" } : { color: "rgba(255,255,255,0.5)" }}
+                  style={mode === m ? { background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", color: "#020408" } : { color: "rgba(255,255,255,0.5)" }}
                 >
                   {m === "login" ? t("loginBtn") : t("register")}
                 </button>
@@ -139,7 +139,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
                 type="submit"
                 disabled={loading}
                 className="w-full py-3 rounded-xl font-semibold text-sm transition-all mt-2"
-                style={{ background: "#9B50FF", color: "#020408" }}
+                style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", color: "#020408" }}
                 data-testid="button-submit-auth"
               >
                 {loading ? "..." : mode === "login" ? t("loginBtn") : t("register")}

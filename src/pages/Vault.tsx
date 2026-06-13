@@ -62,7 +62,7 @@ export default function Vault() {
             <button
               onClick={() => setShowAuth(true)}
               className="px-6 py-3 rounded-xl font-bold text-sm"
-              style={{ background: "#9B50FF", color: "#020408" }}
+              style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", color: "#020408" }}
             >
               Sign In
             </button>
@@ -74,7 +74,7 @@ export default function Vault() {
               className="rounded-3xl p-6 relative overflow-hidden"
               style={{ background: "rgba(155,80,255,0.06)", border: "1px solid rgba(155,80,255,0.25)", boxShadow: "0 0 40px rgba(155,80,255,0.08)" }}
             >
-              <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl opacity-20" style={{ background: "#9B50FF", marginRight: -40, marginTop: -40 }} />
+              <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl opacity-20" style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", marginRight: -40, marginTop: -40 }} />
               <p className="text-sm font-medium text-white/50 mb-1">Total Balance</p>
               <div className="flex items-baseline gap-2 mb-6">
                 <span className="text-4xl font-black font-mono" style={{ color: "#9B50FF" }}>

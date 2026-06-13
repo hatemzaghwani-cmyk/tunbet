@@ -211,7 +211,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
               <button
                 onClick={() => setShowCreate(true)}
                 className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold flex-shrink-0"
-                style={{ background: "#9B50FF", color: "#020408" }}
+                style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", color: "#020408" }}
               >
                 <Plus className="w-4 h-4" /> Add Player
               </button>
@@ -358,7 +358,7 @@ function CreatePlayerModal({ token, onClose, onDone }: { token: string; onClose:
           <input type="password" placeholder="Password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
           <input type="email" placeholder="Email (optional)" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
           {error && <p className="text-sm" style={{ color: "#FF2D55" }}>{error}</p>}
-          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: "#9B50FF", color: "#020408" }}>
+          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", color: "#020408" }}>
             {loading ? "Creating..." : "Create Player"}
           </button>
         </form>
@@ -396,7 +396,7 @@ function ChangePasswordModal({ player, token, onClose, onDone }: { player: Playe
         <form onSubmit={handleSubmit} className="space-y-3">
           <input type="password" placeholder="New password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
           {error && <p className="text-sm" style={{ color: "#FF2D55" }}>{error}</p>}
-          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: "#9B50FF", color: "#020408" }}>
+          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)", color: "#020408" }}>
             {loading ? "Saving..." : "Change Password"}
           </button>
         </form>
