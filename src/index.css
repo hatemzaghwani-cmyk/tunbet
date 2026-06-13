@@ -151,6 +151,14 @@
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
+/* When a game iframe is open, hide the site chrome (Header, BottomNav, WinnerFeed)
+   so the iframe truly fills the screen — no black bars above or below. */
+body.tunbet-game-open header,
+body.tunbet-game-open nav,
+body.tunbet-game-open [class*="bottom-0"][class*="z-50"] {
+  display: none !important;
+}
+
 /* Shimmer effect for logo + login button */
 @keyframes tunbet-shimmer {
   0%   { background-position: -200% 0; }
