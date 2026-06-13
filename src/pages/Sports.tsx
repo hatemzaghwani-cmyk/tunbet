@@ -438,9 +438,10 @@ export default function Sports() {
       {slip.length > 0 && !showSlipPanel && (
         <button
           onClick={() => setShowSlipPanel(true)}
-          className="fixed bottom-24 right-4 z-40 flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-transform"
+          className="fixed right-4 z-40 flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-transform"
           style={{
             width: 60, height: 60,
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 110px)",
             background: "linear-gradient(135deg, #00D1FF, #0090c8)",
             boxShadow: "0 6px 24px rgba(0,209,255,0.5), 0 0 0 4px rgba(0,209,255,0.15)",
           }}
@@ -459,8 +460,20 @@ export default function Sports() {
       {/* Bet Slip bottom sheet (opens from the floating button) */}
       {slip.length > 0 && showSlipPanel && (
         <>
-          <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }} onClick={() => setShowSlipPanel(false)} />
-          <div className="fixed bottom-20 left-3 right-3 z-50 flex flex-col" style={{ maxHeight: "calc(100vh - 6rem)" }}>
+          {/* Backdrop — covers everything including BottomNav so taps elsewhere close the slip */}
+          <div
+            className="fixed inset-0 z-[55]"
+            style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(3px)" }}
+            onClick={() => setShowSlipPanel(false)}
+          />
+          {/* Bottom sheet — sits on top of BottomNav (z-50) so PLACE button stays tappable */}
+          <div
+            className="fixed left-2 right-2 z-[60] flex flex-col"
+            style={{
+              bottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+              maxHeight: "calc(100dvh - env(safe-area-inset-bottom, 0px) - 24px)",
+            }}
+          >
             <BetSlip
               slip={slip}
               stake={stake}
@@ -581,7 +594,7 @@ function BetSlip({
   const invalid = stakeNum > 0 && (stakeNum < 0.5 || stakeNum > 5000);
   const showModeToggle = slip.length >= 2;
   return (
-    <div className="rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[78vh]"
+    <div className="rounded-2xl overflow-hidden shadow-2xl flex flex-col flex-1 min-h-0"
       style={{ background: "rgba(2,4,8,0.97)", border: "1px solid rgba(0,209,255,0.4)", backdropFilter: "blur(20px)", boxShadow: "0 -8px 24px rgba(0,209,255,0.25)" }}>
       <div className="px-3 py-2 flex items-center justify-between flex-shrink-0" style={{ background: "rgba(0,209,255,0.08)" }}>
         <button onClick={() => setShow(false)} className="flex items-center gap-2" aria-label="Close bet slip">
