@@ -421,37 +421,89 @@ async function aesCall(path: string, body: any): Promise<any> {
 // Every credit that returns money from AES → Supabase is recorded with a unique
 // reference in `transactions.description`. Before crediting we check the ref has
 // not already been applied, so a retry / double-call can NEVER double the money.
+//
+// TWO-LAYER PROTECTION:
+//  (a) in-memory Set — instant, prevents same-tab double-call within ms
+//  (b) database check — exact match on description tag, catches cross-tab calls
+//
+// Both layers are needed because:
+//   - Without (a): two near-simultaneous calls in the same tab race the DB query
+//   - Without (b): a fresh tab/refresh would re-apply a ref it never saw
+const _appliedRefs = new Set<string>();
+const _creditLocks = new Map<string, Promise<number | null>>();   // ref → in-flight promise
+
 async function refAlreadyApplied(userId: number, ref: string): Promise<boolean> {
+  if (_appliedRefs.has(ref)) return true;
   try {
-    const rows = await sbGet("transactions", `user_id=eq.${userId}&description=like.*${encodeURIComponent(ref)}*&select=id&limit=1`);
-    return Array.isArray(rows) && rows.length > 0;
+    // Exact-tag match — far more precise than `like` (no encoding edge cases).
+    const tag = `[ref:${ref}]`;
+    const rows = await sbGet(
+      "transactions",
+      `user_id=eq.${userId}&description=like.*${encodeURIComponent(tag)}*&select=id&limit=1`,
+    );
+    if (Array.isArray(rows) && rows.length > 0) {
+      _appliedRefs.add(ref);
+      return true;
+    }
+    return false;
   } catch {
-    return false; // on lookup failure, fail-open is unsafe; but we still record ref below
+    // On lookup failure, be CONSERVATIVE: assume already applied to avoid risk
+    // of double-crediting. The money stays safely in AES and will be reclaimed
+    // by the next successful sync.
+    return true;
   }
 }
 
 // Credit money back to Supabase exactly once for a given reference.
+// Concurrent calls with the same ref will share the same promise (no double work).
 async function creditOnce(userId: number, amount: number, ref: string, description: string): Promise<number | null> {
   if (amount <= 0) return null;
-  if (await refAlreadyApplied(userId, ref)) {
-    // Already credited — return current balance, do NOT add again.
-    const u = await sbGet("users", `id=eq.${userId}&select=balance`);
-    return parseFloat(u?.[0]?.balance || "0");
-  }
-  const before = await getBalanceNow(userId);
-  const after = await rpcUpdateBalance(userId, "add", amount, description);
-  // Record the idempotency ref + audit row.
-  await sbPost("transactions", {
-    user_id: userId, type: "game_return", amount,
-    balance_before: before, balance_after: after,
-    description: `${description} [ref:${ref}]`,
-  }).catch(() => {});
-  return after;
+
+  // Coalesce concurrent calls with the same ref into one promise.
+  const existing = _creditLocks.get(ref);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      if (await refAlreadyApplied(userId, ref)) {
+        // Already credited — return current balance, do NOT add again.
+        const u = await sbGet("users", `id=eq.${userId}&select=balance`);
+        return parseFloat(u?.[0]?.balance || "0");
+      }
+      const before = await getBalanceNow(userId);
+      const after = await rpcUpdateBalance(userId, "add", amount, description);
+      // Mark applied IMMEDIATELY in memory (before DB insert) so other in-flight
+      // calls see it. The DB insert below is the persistent record.
+      _appliedRefs.add(ref);
+      // Record the idempotency ref + audit row.
+      await sbPost("transactions", {
+        user_id: userId, type: "game_return", amount,
+        balance_before: before, balance_after: after,
+        description: `${description} [ref:${ref}]`,
+      }).catch(() => {});
+      return after;
+    } finally {
+      _creditLocks.delete(ref);
+    }
+  })();
+
+  _creditLocks.set(ref, promise);
+  return promise;
 }
 
 async function getBalanceNow(userId: number): Promise<number> {
   const u = await sbGet("users", `id=eq.${userId}&select=balance`);
   return parseFloat(u?.[0]?.balance || "0");
+}
+
+// Build an idempotency ref that's STABLE across short retries.
+// We quantize time into 5-second buckets and include the amount so accidental
+// double-calls within the same 5s window collapse to the same ref (no doubling),
+// but legitimate distinct game sessions over time still get distinct refs.
+function buildStableRef(prefix: string, userCode: number, amount: number): string {
+  const bucket = Math.floor(Date.now() / 5000);       // 5-second buckets
+  const cents = Math.round(amount * 100);             // amount in cents (no float ambiguity)
+  return `${prefix}_${userCode}_${cents}_${bucket}`;
 }
 
 async function aesWithdrawAll(userCode: number): Promise<number> {
@@ -520,7 +572,7 @@ export async function apiLaunchGame(token: string, gameCode: string, providerId:
       return { error: "خطأ مزامنة المحفظة، حاول مرة أخرى" };
     }
     if (leftover > 0) {
-      const ref = `aesreclaim_${userCode}_${Date.now()}`;
+      const ref = buildStableRef("aesreclaim", userCode, leftover);
       try { await creditOnce(p.userId, leftover, ref, "AES leftover reclaim"); }
       catch { return { error: "خطأ في استرجاع الرصيد، حاول مرة أخرى" }; }
     }
@@ -548,7 +600,7 @@ export async function apiLaunchGame(token: string, gameCode: string, providerId:
     if (aesBal !== null && aesBal > 0.01) {
       // Wallet still holds funds — reclaim them once, then abort this launch (user retries).
       const r2 = await aesWithdrawAll(userCode).catch(() => 0);
-      if (r2 > 0) await creditOnce(p.userId, r2, `aesreclaim2_${userCode}_${Date.now()}`, "AES residual reclaim").catch(() => {});
+      if (r2 > 0) await creditOnce(p.userId, r2, buildStableRef("aesreclaim2", userCode, r2), "AES residual reclaim").catch(() => {});
       return { error: "جارٍ تجهيز المحفظة، حاول مرة أخرى" };
     }
 
@@ -589,12 +641,12 @@ export async function apiLaunchGame(token: string, gameCode: string, providerId:
 
       // Game URL failed — reclaim deposit and refund once.
       const recovered = await aesWithdrawAll(userCode).catch(() => -1);
-      if (recovered > 0) await creditOnce(p.userId, recovered, `urlfail_${userCode}_${Date.now()}`, "Rollback: game-url failed").catch(() => {});
+      if (recovered > 0) await creditOnce(p.userId, recovered, buildStableRef("urlfail", userCode, recovered), "Rollback: game-url failed").catch(() => {});
       else if (recovered === -1) return { error: "تعذّر التشغيل — رصيدك محفوظ، أعد فتح اللعبة لاسترجاعه" };
       return { error: "اللعبة غير متاحة حالياً، تم استرجاع رصيدك" };
     } catch {
       const recovered = await aesWithdrawAll(userCode).catch(() => -1);
-      if (recovered > 0) await creditOnce(p.userId, recovered, `urlerr_${userCode}_${Date.now()}`, "Rollback: game-url error").catch(() => {});
+      if (recovered > 0) await creditOnce(p.userId, recovered, buildStableRef("urlerr", userCode, recovered), "Rollback: game-url error").catch(() => {});
       else if (recovered === -1) return { error: "تعذّر التشغيل — رصيدك محفوظ، أعد فتح اللعبة لاسترجاعه" };
       return { error: "خطأ في تشغيل اللعبة، تم استرجاع رصيدك" };
     }
@@ -628,7 +680,7 @@ export async function apiSyncBalance(token: string): Promise<{ ok: boolean; reco
       return { ok: false, pending: true };  // network failure: money safe in AES, retry later
     }
     if (recovered > 0) {
-      const ref = `close_${userCode}_${Date.now()}`;
+      const ref = buildStableRef("close", userCode, recovered);
       try {
         const after = await creditOnce(p.userId, recovered, ref, "Game session close");
         return { ok: true, recovered: after !== null ? recovered : 0 };

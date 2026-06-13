@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // overwriting a freshly-credited balance after a win.
   const seqRef = useRef(0);
   const latestAppliedRef = useRef(0);
+  const hasRunInitialReclaim = useRef(false);
 
   const applyBalance = useCallback((newBalance: string | number, mySeq: number) => {
     if (mySeq < latestAppliedRef.current) return;     // stale read — discard
@@ -45,13 +46,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await apiMe(t);
       setUser(data as User);
       latestAppliedRef.current = ++seqRef.current;     // anchor the seq to login balance
-      // Safety net: reclaim any balance that may have been left stranded in the AES wallet
-      // (e.g. browser closed mid-game / failed close). Idempotent — never double-credits.
-      const mySeq = ++seqRef.current;
-      apiSyncBalance(t)
-        .then(() => apiBalance(t))
-        .then(b => applyBalance((b as { balance: string }).balance, mySeq))
-        .catch(() => {});
+      // Safety net: reclaim any balance stranded in the AES wallet.
+      // Run AT MOST ONCE per page load (not on every fetchMe) so we don't race
+      // with launch/close flows. The launch flow already does its own reclaim.
+      if (!hasRunInitialReclaim.current) {
+        hasRunInitialReclaim.current = true;
+        const mySeq = ++seqRef.current;
+        // 2s delay lets any in-flight launch/close finish first.
+        setTimeout(() => {
+          apiSyncBalance(t)
+            .then(() => apiBalance(t))
+            .then(b => applyBalance((b as { balance: string }).balance, mySeq))
+            .catch(() => {});
+        }, 2000);
+      }
     } catch {
       setToken(null);
       setUser(null);
