@@ -526,8 +526,21 @@ export async function apiLaunchGame(token: string, gameCode: string, providerId:
     }
 
     // STEP 2: Read fresh balance from Supabase (after leftover reclaim).
+    // Always open the game with WHATEVER balance the player currently has
+    // (including 0). The provider's own UI handles low-balance prompts.
     const bal = await getBalanceNow(p.userId);
-    if (bal <= 0) return { error: "رصيدك 0. تواصل مع وكيلك لإضافة رصيد." };
+
+    // If the player has 0, we still launch the game with a zero deposit so the
+    // provider's lobby renders normally. No "contact your agent" gate here.
+    if (bal <= 0) {
+      const r = await aesCall("/v4/game/game-url", {
+        user_code: userCode, provider_id: providerId, game_symbol: gameCode,
+        lang: 1, return_url: window.location.origin
+      });
+      const gameUrl = r?.data?.game_url || r?.data?.url;
+      if (r?.code === 0 && gameUrl) return { url: gameUrl };
+      return { error: r?.message || "تعذّر فتح اللعبة، حاول لاحقاً" };
+    }
 
     // STEP 3: Confirm AES wallet is truly empty before we move money into it.
     // (Prevents the "doubled balance" bug: depositing on top of leftover funds.)
