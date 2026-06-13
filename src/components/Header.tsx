@@ -51,9 +51,27 @@ export function Header() {
         }}
       >
         <Link href="/" className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ border: "1.5px solid #00D1FF", boxShadow: "0 0 12px rgba(0,209,255,0.4)" }}>
-            <span className="font-black text-sm leading-none" style={{ color: "#00D1FF" }}>TB</span>
+          <div className="relative">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)",
+                boxShadow: "0 0 20px rgba(0,209,255,0.45), inset 0 0 12px rgba(255,255,255,0.15)",
+              }}
+            >
+              <span
+                className="font-black text-sm leading-none relative z-10"
+                style={{ color: "#020408", textShadow: "0 1px 2px rgba(255,255,255,0.3)" }}
+              >
+                TB
+              </span>
+              <div className="absolute inset-0 tunbet-shimmer opacity-50" />
+            </div>
+            {/* gold accent dot */}
+            <div
+              className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
+              style={{ background: "#FFB800", boxShadow: "0 0 8px #FFB800" }}
+            />
           </div>
           <span className="font-black tracking-[0.18em] text-base text-white">TUNBET</span>
         </Link>
@@ -109,11 +127,18 @@ export function Header() {
               )}
             </div>
           ) : (
-            <button onClick={() => setShowAuth(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
-              style={{ background: "#00D1FF", color: "#020408" }}>
-              <User className="w-4 h-4" />
-              {t("loginBtn")}
+            <button
+              onClick={() => setShowAuth(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold relative overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)",
+                color: "#020408",
+                boxShadow: "0 0 24px rgba(0,209,255,0.35)",
+              }}
+            >
+              <User className="w-4 h-4" strokeWidth={2.5} />
+              <span className="relative z-10">{t("loginBtn")}</span>
+              <div className="absolute inset-0 tunbet-shimmer opacity-50" />
             </button>
           )}
         </div>

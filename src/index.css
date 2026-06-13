@@ -149,3 +149,15 @@
 /* Winner toast animation */
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Shimmer effect for logo + login button */
+@keyframes tunbet-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.tunbet-shimmer {
+  background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.10) 45%, rgba(255,184,0,0.30) 50%, rgba(255,255,255,0.10) 55%, transparent 65%);
+  background-size: 200% 100%;
+  animation: tunbet-shimmer 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
