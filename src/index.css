@@ -66,7 +66,7 @@
   --popover-foreground: 0 0% 100%;
   --popover-border: 0 0% 100% / 0.08;
 
-  --primary: 191 100% 50%; /* #00D1FF */
+  --primary: 191 100% 50%; /* #9B50FF */
   --primary-foreground: 220 60% 2%;
 
   --secondary: 0 0% 100% / 0.1;
@@ -111,18 +111,18 @@
 }
 
 .text-gradient {
-  background: linear-gradient(to right, #00D1FF, #00FF9D);
+  background: linear-gradient(to right, #9B50FF, #00FF9D);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .neon-shadow {
-  box-shadow: 0 0 20px rgba(0, 209, 255, 0.3);
+  box-shadow: 0 0 20px rgba(155,80,255, 0.3);
 }
 
 .neon-border {
-  border-color: rgba(0, 209, 255, 0.5);
-  box-shadow: 0 0 10px rgba(0, 209, 255, 0.2), inset 0 0 10px rgba(0, 209, 255, 0.1);
+  border-color: rgba(155,80,255, 0.5);
+  box-shadow: 0 0 10px rgba(155,80,255, 0.2), inset 0 0 10px rgba(155,80,255, 0.1);
 }
 
 .pulse-red {

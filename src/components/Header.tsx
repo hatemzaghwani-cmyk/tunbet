@@ -56,7 +56,7 @@ export function Header() {
               className="w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden"
               style={{
                 background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)",
-                boxShadow: "0 0 20px rgba(0,209,255,0.45), inset 0 0 12px rgba(255,255,255,0.15)",
+                boxShadow: "0 0 20px rgba(155,80,255,0.45), inset 0 0 12px rgba(255,255,255,0.15)",
               }}
             >
               <span
@@ -80,18 +80,18 @@ export function Header() {
           {user ? (
             <div className="relative" ref={menuRef}>
               <div className="flex items-center gap-1 rounded-xl"
-                style={{ background: "rgba(0,209,255,0.1)", border: "1px solid rgba(0,209,255,0.2)" }}>
+                style={{ background: "rgba(155,80,255,0.1)", border: "1px solid rgba(155,80,255,0.2)" }}>
                 <button onClick={manualRefresh} title="Refresh balance"
                   className="p-2 hover:bg-white/5 rounded-l-xl transition-colors">
-                  <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} style={{ color: "#00D1FF" }} />
+                  <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} style={{ color: "#9B50FF" }} />
                 </button>
                 <button onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center gap-2 px-2 py-2 rounded-r-xl">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                    style={{ background: "#00D1FF", color: "#020408" }}>
+                    style={{ background: "#9B50FF", color: "#020408" }}>
                     {user.username[0].toUpperCase()}
                   </div>
-                  <span className="text-xs font-semibold tabular-nums" style={{ color: "#00D1FF" }}>
+                  <span className="text-xs font-semibold tabular-nums" style={{ color: "#9B50FF" }}>
                     {parseFloat(user.balance).toFixed(2)} TND
                   </span>
                   <ChevronDown className={`w-3 h-3 text-white/40 transition-transform ${showUserMenu ? "rotate-180" : ""}`} />
@@ -99,10 +99,10 @@ export function Header() {
               </div>
               {showUserMenu && (
                 <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl py-1 z-50"
-                  style={{ background: "rgba(2,4,8,0.98)", border: "1px solid rgba(0,209,255,0.2)", backdropFilter: "blur(20px)" }}>
+                  style={{ background: "rgba(2,4,8,0.98)", border: "1px solid rgba(155,80,255,0.2)", backdropFilter: "blur(20px)" }}>
                   <div className="px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
                     <div className="text-[10px] text-white/40 uppercase tracking-wider">{user.username}</div>
-                    <div className="font-black text-base tabular-nums" style={{ color: "#00D1FF" }}>
+                    <div className="font-black text-base tabular-nums" style={{ color: "#9B50FF" }}>
                       {parseFloat(user.balance).toFixed(2)} TND
                     </div>
                   </div>
@@ -133,7 +133,7 @@ export function Header() {
               style={{
                 background: "linear-gradient(135deg, #00D1FF 0%, #9B50FF 100%)",
                 color: "#020408",
-                boxShadow: "0 0 24px rgba(0,209,255,0.35)",
+                boxShadow: "0 0 24px rgba(155,80,255,0.35)",
               }}
             >
               <User className="w-4 h-4" strokeWidth={2.5} />

@@ -29,12 +29,12 @@ function BannerSlider() {
       <img src={b.img} alt="" className="w-full h-full object-cover" style={{ transition: "opacity 0.5s" }} />
       <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(2,4,8,0.85) 0%, rgba(2,4,8,0.3) 100%)" }} />
       <div className="absolute inset-0 flex flex-col justify-center p-5">
-        <h2 className="font-black text-lg tracking-wider" style={{ color: "#00D1FF" }}>{b.text}</h2>
+        <h2 className="font-black text-lg tracking-wider" style={{ color: "#9B50FF" }}>{b.text}</h2>
         <p className="text-xs text-white/50 mt-1">{b.sub}</p>
       </div>
       <div className="absolute bottom-3 right-3 flex gap-1">
         {BANNERS.map((_, i) => (
-          <button key={i} onClick={() => setIdx(i)} className="rounded-full" style={{ width: 6, height: 6, background: i === idx ? "#00D1FF" : "rgba(255,255,255,0.2)", transition: "all 0.3s" }} />
+          <button key={i} onClick={() => setIdx(i)} className="rounded-full" style={{ width: 6, height: 6, background: i === idx ? "#9B50FF" : "rgba(255,255,255,0.2)", transition: "all 0.3s" }} />
         ))}
       </div>
     </div>
@@ -60,7 +60,7 @@ interface Provider {
 }
 
 const PROVIDER_COLORS: Record<number, string> = {
-  1: "#FF6B35", 2: "#00D1FF", 3: "#a855f7", 4: "#22c55e",
+  1: "#FF6B35", 2: "#9B50FF", 3: "#a855f7", 4: "#22c55e",
   5: "#f59e0b", 7: "#ec4899", 9: "#14b8a6", 12: "#8b5cf6",
   13: "#ef4444", 14: "#06b6d4", 15: "#84cc16", 16: "#f97316",
   20: "#6366f1", 23: "#e11d48",
@@ -366,12 +366,12 @@ export default function Lobby() {
       <div className="absolute inset-0" style={{ background: size === "wide" ? "linear-gradient(to right, rgba(2,4,8,0.9) 0%, rgba(2,4,8,0.3) 100%)" : "linear-gradient(to top, rgba(2,4,8,0.95) 0%, rgba(2,4,8,0.1) 55%, transparent 100%)" }} />
       {game.game_code.startsWith("oro:") && (
         <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[7px] font-black tracking-wider"
-          style={{ background: "rgba(0,209,255,0.92)", color: "#020408", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+          style={{ background: "rgba(155,80,255,0.92)", color: "#020408", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
           NEW ⭐
         </div>
       )}
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(0,209,255,0.9)" }}>
+        <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(155,80,255,0.9)" }}>
           {launchingGame === game.game_code
             ? <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "rgba(2,4,8,0.4)", borderTopColor: "#020408" }} />
             : user ? <span className="text-[#020408] font-black text-lg">▶</span> : <Lock className="w-5 h-5 text-[#020408]" />}
@@ -379,8 +379,8 @@ export default function Lobby() {
       </div>
       <div className={`absolute bottom-0 left-0 p-2.5 ${size === "wide" ? "w-1/2" : "w-full"}`}>
         <div className="flex items-center gap-1 mb-1">
-          <div className="w-1.5 h-1.5 rounded-full" style={{ background: PROVIDER_COLORS[game.provider_id] ?? "#00D1FF" }} />
-          <p className="text-[8px] font-mono truncate" style={{ color: PROVIDER_COLORS[game.provider_id] ?? "#00D1FF", opacity: 0.8 }}>
+          <div className="w-1.5 h-1.5 rounded-full" style={{ background: PROVIDER_COLORS[game.provider_id] ?? "#9B50FF" }} />
+          <p className="text-[8px] font-mono truncate" style={{ color: PROVIDER_COLORS[game.provider_id] ?? "#9B50FF", opacity: 0.8 }}>
             {getProviderName(game.provider_id, game)}
           </p>
         </div>
@@ -410,9 +410,9 @@ export default function Lobby() {
           )}
 
           {!user && (
-            <div className="p-3 rounded-xl text-sm text-center" style={{ background: "rgba(0,209,255,0.06)", border: "1px solid rgba(0,209,255,0.15)" }}>
+            <div className="p-3 rounded-xl text-sm text-center" style={{ background: "rgba(155,80,255,0.06)", border: "1px solid rgba(155,80,255,0.15)" }}>
               <span className="text-white/50">{t("loginRequired")} • </span>
-              <button onClick={() => setShowAuth(true)} style={{ color: "#00D1FF" }} className="font-bold">{t('login')}</button>
+              <button onClick={() => setShowAuth(true)} style={{ color: "#9B50FF" }} className="font-bold">{t('login')}</button>
             </div>
           )}
 
@@ -482,9 +482,9 @@ export default function Lobby() {
                       if (blockGames.length === 0) return null;
                       const meta = PROVIDER_META[pid] || {
                         label: allProviders.find(p => p.provider_id === pid)?.locale_name || `Provider ${pid}`,
-                        grad: "linear-gradient(135deg,#00D1FF,#0284c7)",
-                        ring: "rgba(0,209,255,0.35)",
-                        accent: PROVIDER_COLORS[pid] || "#00D1FF",
+                        grad: "linear-gradient(135deg,#9B50FF,#0284c7)",
+                        ring: "rgba(155,80,255,0.35)",
+                        accent: PROVIDER_COLORS[pid] || "#9B50FF",
                       };
                       const preview = blockGames.slice(0, 6); // 6 games = 2 rows x 3
 
@@ -533,9 +533,9 @@ export default function Lobby() {
                   <button onClick={() => setActiveProvider(null)}
                     className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl whitespace-nowrap text-xs font-bold flex-shrink-0"
                     style={{
-                      background: activeProvider === null ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)",
-                      border: activeProvider === null ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)",
-                      color: activeProvider === null ? "#00D1FF" : "rgba(255,255,255,0.4)"
+                      background: activeProvider === null ? "rgba(155,80,255,0.15)" : "rgba(255,255,255,0.04)",
+                      border: activeProvider === null ? "1px solid rgba(155,80,255,0.4)" : "1px solid rgba(255,255,255,0.06)",
+                      color: activeProvider === null ? "#9B50FF" : "rgba(255,255,255,0.4)"
                     }}>
                     <LayoutGrid className="w-3 h-3" /> {t("all")}
                   </button>
@@ -547,7 +547,7 @@ export default function Lobby() {
                     const count = games.filter(g => g.provider_id === p.provider_id).length;
                     if (count === 0) return null;
                     const active = activeProvider === p.provider_id;
-                    const color = PROVIDER_COLORS[p.provider_id] ?? "#00D1FF";
+                    const color = PROVIDER_COLORS[p.provider_id] ?? "#9B50FF";
                     return (
                       <button key={p.provider_id} onClick={() => setActiveProvider(active ? null : p.provider_id)}
                         className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl whitespace-nowrap text-xs font-bold flex-shrink-0"
@@ -587,7 +587,7 @@ export default function Lobby() {
                   {paged.length < filtered.length && (
                     <button onClick={() => setPage(p => p + 1)}
                       className="w-full py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2"
-                      style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)", color: "#00D1FF" }}>
+                      style={{ background: "rgba(155,80,255,0.08)", border: "1px solid rgba(155,80,255,0.2)", color: "#9B50FF" }}>
                       <Zap className="w-4 h-4" />
                       {t("loadMore")}
                     </button>
@@ -609,9 +609,9 @@ export default function Lobby() {
       {gameUrl && (
         <div className="fixed inset-0 bg-black flex flex-col" style={{ zIndex: 9999 }}>
           <div className="flex items-center justify-between p-2 flex-shrink-0 gap-2"
-            style={{ background: "#020408", borderBottom: "1px solid rgba(0,209,255,0.2)" }}>
+            style={{ background: "#020408", borderBottom: "1px solid rgba(155,80,255,0.2)" }}>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="font-black text-xs tracking-wider flex-shrink-0" style={{ color: "#00D1FF" }}>TUNBET</span>
+              <span className="font-black text-xs tracking-wider flex-shrink-0" style={{ color: "#9B50FF" }}>TUNBET</span>
               {activeGame && (
                 <span className="text-[10px] text-white/60 font-bold truncate">{activeGame.game_name}</span>
               )}
@@ -628,8 +628,8 @@ export default function Lobby() {
             {closingGame && (
               <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.85)", zIndex: 10 }}>
                 <div className="text-center space-y-3">
-                  <div className="w-10 h-10 mx-auto rounded-full animate-spin" style={{ borderWidth: 3, borderStyle: "solid", borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00D1FF" }} />
-                  <p className="text-sm font-bold" style={{ color: "#00D1FF" }}>{t("savingBalance")}</p>
+                  <div className="w-10 h-10 mx-auto rounded-full animate-spin" style={{ borderWidth: 3, borderStyle: "solid", borderColor: "rgba(155,80,255,0.3)", borderTopColor: "#9B50FF" }} />
+                  <p className="text-sm font-bold" style={{ color: "#9B50FF" }}>{t("savingBalance")}</p>
                 </div>
               </div>
             )}

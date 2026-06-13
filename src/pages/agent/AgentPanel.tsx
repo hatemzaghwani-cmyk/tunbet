@@ -153,7 +153,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold"
-            style={{ background: notification.type === "success" ? "rgba(0,209,255,0.15)" : "rgba(255,45,85,0.15)", border: `1px solid ${notification.type === "success" ? "rgba(0,209,255,0.4)" : "rgba(255,45,85,0.4)"}`, color: notification.type === "success" ? "#00D1FF" : "#FF2D55" }}
+            style={{ background: notification.type === "success" ? "rgba(155,80,255,0.15)" : "rgba(255,45,85,0.15)", border: `1px solid ${notification.type === "success" ? "rgba(155,80,255,0.4)" : "rgba(255,45,85,0.4)"}`, color: notification.type === "success" ? "#9B50FF" : "#FF2D55" }}
           >
             {notification.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
             {notification.msg}
@@ -170,7 +170,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
         <div className="flex items-center gap-4">
           <div className="text-right">
             <div className="text-white/40 text-xs">Your Credit</div>
-            <div className="font-black tabular-nums" style={{ color: "#00D1FF" }}>
+            <div className="font-black tabular-nums" style={{ color: "#9B50FF" }}>
               {parseFloat(agentBalance || "0").toFixed(2)} TND
             </div>
           </div>
@@ -187,7 +187,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className="py-3 px-4 text-sm font-medium border-b-2 transition-all"
-            style={{ borderColor: activeTab === tab.id ? "#00D1FF" : "transparent", color: activeTab === tab.id ? "#00D1FF" : "rgba(255,255,255,0.4)" }}
+            style={{ borderColor: activeTab === tab.id ? "#9B50FF" : "transparent", color: activeTab === tab.id ? "#9B50FF" : "rgba(255,255,255,0.4)" }}
           >
             {tab.label}
           </button>
@@ -211,7 +211,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
               <button
                 onClick={() => setShowCreate(true)}
                 className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold flex-shrink-0"
-                style={{ background: "#00D1FF", color: "#020408" }}
+                style={{ background: "#9B50FF", color: "#020408" }}
               >
                 <Plus className="w-4 h-4" /> Add Player
               </button>
@@ -229,7 +229,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <div className="text-xs text-white/40">Balance</div>
-                      <div className="font-bold" style={{ color: "#00D1FF" }}>{parseFloat(player.balance).toFixed(2)}</div>
+                      <div className="font-bold" style={{ color: "#9B50FF" }}>{parseFloat(player.balance).toFixed(2)}</div>
                     </div>
                     <div className="flex gap-1">
                       <button onClick={() => setShowBalance(player)} className="p-2 rounded-lg hover:bg-white/10" title="إيداع/سحب">
@@ -283,7 +283,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
                     <td className="px-4 py-3 font-bold" style={{ color: parseFloat(t.amount) >= 0 ? "#22c55e" : "#FF2D55" }}>
                       {parseFloat(t.amount) >= 0 ? "+" : ""}{Math.abs(parseFloat(t.amount)).toFixed(2)}
                     </td>
-                    <td className="px-4 py-3" style={{ color: "#00D1FF" }}>{parseFloat(t.balance_after).toFixed(2)}</td>
+                    <td className="px-4 py-3" style={{ color: "#9B50FF" }}>{parseFloat(t.balance_after).toFixed(2)}</td>
                     <td className="px-4 py-3 text-white/50">{t.description ?? "-"}</td>
                     <td className="px-4 py-3 text-white/30 text-xs">{new Date(t.created_at).toLocaleDateString()}</td>
                   </tr>
@@ -348,7 +348,7 @@ function CreatePlayerModal({ token, onClose, onDone }: { token: string; onClose:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.8)" }}>
-      <div className="w-full max-w-sm p-6 rounded-2xl" style={{ background: "#0a0e14", border: "1px solid rgba(0,209,255,0.2)" }}>
+      <div className="w-full max-w-sm p-6 rounded-2xl" style={{ background: "#0a0e14", border: "1px solid rgba(155,80,255,0.2)" }}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-bold">Create Player</h3>
           <button onClick={onClose}><X className="w-5 h-5 text-white/40" /></button>
@@ -358,7 +358,7 @@ function CreatePlayerModal({ token, onClose, onDone }: { token: string; onClose:
           <input type="password" placeholder="Password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
           <input type="email" placeholder="Email (optional)" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
           {error && <p className="text-sm" style={{ color: "#FF2D55" }}>{error}</p>}
-          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: "#00D1FF", color: "#020408" }}>
+          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: "#9B50FF", color: "#020408" }}>
             {loading ? "Creating..." : "Create Player"}
           </button>
         </form>
@@ -388,15 +388,15 @@ function ChangePasswordModal({ player, token, onClose, onDone }: { player: Playe
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.8)" }}>
-      <div className="w-full max-w-sm p-6 rounded-2xl" style={{ background: "#0a0e14", border: "1px solid rgba(0,209,255,0.2)" }}>
+      <div className="w-full max-w-sm p-6 rounded-2xl" style={{ background: "#0a0e14", border: "1px solid rgba(155,80,255,0.2)" }}>
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold">Change Password: <span style={{ color: "#00D1FF" }}>{player.username}</span></h3>
+          <h3 className="font-bold">Change Password: <span style={{ color: "#9B50FF" }}>{player.username}</span></h3>
           <button onClick={onClose}><X className="w-5 h-5 text-white/40" /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input type="password" placeholder="New password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
           {error && <p className="text-sm" style={{ color: "#FF2D55" }}>{error}</p>}
-          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: "#00D1FF", color: "#020408" }}>
+          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: "#9B50FF", color: "#020408" }}>
             {loading ? "Saving..." : "Change Password"}
           </button>
         </form>
@@ -432,14 +432,14 @@ function AgentBalanceModal({ player, token, onClose, onDone }: { player: Player;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.8)" }}>
-      <div className="w-full max-w-sm p-6 rounded-2xl" style={{ background: "#0a0e14", border: "1px solid rgba(0,209,255,0.2)" }}>
+      <div className="w-full max-w-sm p-6 rounded-2xl" style={{ background: "#0a0e14", border: "1px solid rgba(155,80,255,0.2)" }}>
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold">رصيد: <span style={{ color: "#00D1FF" }}>{player.username}</span></h3>
+          <h3 className="font-bold">رصيد: <span style={{ color: "#9B50FF" }}>{player.username}</span></h3>
           <button onClick={onClose}><X className="w-5 h-5 text-white/40" /></button>
         </div>
-        <div className="mb-4 p-3 rounded-xl text-center" style={{ background: "rgba(0,209,255,0.08)" }}>
+        <div className="mb-4 p-3 rounded-xl text-center" style={{ background: "rgba(155,80,255,0.08)" }}>
           <div className="text-white/40 text-xs">الرصيد الحالي</div>
-          <div className="text-2xl font-black" style={{ color: "#00D1FF" }}>{parseFloat(player.balance).toFixed(2)} TND</div>
+          <div className="text-2xl font-black" style={{ color: "#9B50FF" }}>{parseFloat(player.balance).toFixed(2)} TND</div>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-2 gap-2">

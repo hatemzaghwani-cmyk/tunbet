@@ -19,7 +19,7 @@ const queryClient = new QueryClient();
 function Spinner() {
   return (
     <div className="flex items-center justify-center h-64">
-      <div className="w-8 h-8 border-2 border-[#00D1FF] border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-[#9B50FF] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }

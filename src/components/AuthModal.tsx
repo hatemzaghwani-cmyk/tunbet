@@ -52,13 +52,13 @@ export function AuthModal({ onClose }: AuthModalProps) {
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
-          <div className="glass-card rounded-3xl p-6" style={{ background: "rgba(2,4,8,0.95)", border: "1px solid rgba(0,209,255,0.2)" }}>
+          <div className="glass-card rounded-3xl p-6" style={{ background: "rgba(2,4,8,0.95)", border: "1px solid rgba(155,80,255,0.2)" }}>
             <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
               <X className="w-5 h-5" />
             </button>
             <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: "rgba(0,209,255,0.15)", border: "1px solid rgba(0,209,255,0.3)" }}>
-                <span className="text-2xl font-black" style={{ color: "#00D1FF" }}>L</span>
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: "rgba(155,80,255,0.15)", border: "1px solid rgba(155,80,255,0.3)" }}>
+                <span className="text-2xl font-black" style={{ color: "#9B50FF" }}>L</span>
               </div>
               <h2 className="text-xl font-bold text-white">
                 {mode === "login" ? t("loginBtn") : t("register")}
@@ -75,7 +75,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
                   key={m}
                   onClick={() => { setMode(m); setError(""); }}
                   className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
-                  style={mode === m ? { background: "#00D1FF", color: "#020408" } : { color: "rgba(255,255,255,0.5)" }}
+                  style={mode === m ? { background: "#9B50FF", color: "#020408" } : { color: "rgba(255,255,255,0.5)" }}
                 >
                   {m === "login" ? t("loginBtn") : t("register")}
                 </button>
@@ -139,7 +139,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
                 type="submit"
                 disabled={loading}
                 className="w-full py-3 rounded-xl font-semibold text-sm transition-all mt-2"
-                style={{ background: "#00D1FF", color: "#020408" }}
+                style={{ background: "#9B50FF", color: "#020408" }}
                 data-testid="button-submit-auth"
               >
                 {loading ? "..." : mode === "login" ? t("loginBtn") : t("register")}

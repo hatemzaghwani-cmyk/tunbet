@@ -9,7 +9,7 @@ import { apiLaunchGame } from "@/lib/localApi";
 
 const VENDOR_META: Record<string, { color: string; label: string }> = {
   "casino-pragmatic": { color: "#FF6B35", label: "Pragmatic Live",  },
-  "casino-ezugi": { color: "#00D1FF", label: "Ezugi",  },
+  "casino-ezugi": { color: "#9B50FF", label: "Ezugi",  },
 };
 
 const CATEGORIES = [
@@ -124,15 +124,15 @@ export default function Live() {
             onClick={() => setVendor("all")}
             className="px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap flex-shrink-0"
             style={{
-              background: vendor === "all" ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)",
-              border: vendor === "all" ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)",
-              color: vendor === "all" ? "#00D1FF" : "rgba(255,255,255,0.5)",
+              background: vendor === "all" ? "rgba(155,80,255,0.15)" : "rgba(255,255,255,0.04)",
+              border: vendor === "all" ? "1px solid rgba(155,80,255,0.4)" : "1px solid rgba(255,255,255,0.06)",
+              color: vendor === "all" ? "#9B50FF" : "rgba(255,255,255,0.5)",
             }}
           >
             All Providers
           </button>
           {vendors.map(v => {
-            const meta = VENDOR_META[v] || { color: "#00D1FF", label: v,  };
+            const meta = VENDOR_META[v] || { color: "#9B50FF", label: v,  };
             const active = vendor === v;
             return (
               <button
@@ -184,7 +184,7 @@ export default function Live() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {filtered.map((game, i) => {
-              const meta = VENDOR_META[game.vendor] || { color: "#00D1FF", label: game.vendor,  };
+              const meta = VENDOR_META[game.vendor] || { color: "#9B50FF", label: game.vendor,  };
               const isLaunching = launching === game.code;
               return (
                 <motion.div
@@ -223,7 +223,7 @@ export default function Live() {
                   <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(2,4,8,0.95) 0%, rgba(2,4,8,0.3) 50%, transparent 100%)" }} />
                   {/* Play button */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(0,209,255,0.9)" }}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(155,80,255,0.9)" }}>
                       {isLaunching ? (
                         <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "rgba(2,4,8,0.4)", borderTopColor: "#020408" }} />
                       ) : user ? (
@@ -249,7 +249,7 @@ export default function Live() {
       {gameUrl && (
         <div className="fixed inset-0 bg-black flex flex-col" style={{ zIndex: 9999 }}>
           <div className="flex items-center justify-between p-2 flex-shrink-0 gap-2"
-            style={{ background: "#020408", borderBottom: "1px solid rgba(0,209,255,0.2)" }}>
+            style={{ background: "#020408", borderBottom: "1px solid rgba(155,80,255,0.2)" }}>
             <div className="flex items-center gap-2 min-w-0">
               <span className="font-black text-xs tracking-wider flex-shrink-0" style={{ color: "#FF2D55" }}>TUNBET LIVE</span>
               {activeGame && (

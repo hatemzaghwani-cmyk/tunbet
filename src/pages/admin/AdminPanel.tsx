@@ -82,9 +82,9 @@ function LoginScreen({ onLogin }: { onLogin: (t: string) => void }) {
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             className="w-20 h-20 rounded-3xl mx-auto mb-5 flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, rgba(0,209,255,0.2), rgba(0,209,255,0.05))", border: "2px solid rgba(0,209,255,0.3)", boxShadow: "0 0 40px rgba(0,209,255,0.15)" }}
+            style={{ background: "linear-gradient(135deg, rgba(155,80,255,0.2), rgba(155,80,255,0.05))", border: "2px solid rgba(155,80,255,0.3)", boxShadow: "0 0 40px rgba(155,80,255,0.15)" }}
           >
-            <Shield className="w-10 h-10" style={{ color: "#00D1FF" }} />
+            <Shield className="w-10 h-10" style={{ color: "#9B50FF" }} />
           </motion.div>
           <h1 className="text-2xl font-black text-white tracking-wider">TUNBET</h1>
           <p className="text-white/30 text-sm mt-1">لوحة التحكم</p>
@@ -139,7 +139,7 @@ function LoginScreen({ onLogin }: { onLogin: (t: string) => void }) {
             type="submit"
             disabled={loading}
             className="w-full py-4 rounded-2xl font-black text-sm tracking-wider"
-            style={{ background: "linear-gradient(135deg, #00D1FF, #0088aa)", color: "#020408", boxShadow: "0 4px 20px rgba(0,209,255,0.3)" }}
+            style={{ background: "linear-gradient(135deg, #9B50FF, #0088aa)", color: "#020408", boxShadow: "0 4px 20px rgba(155,80,255,0.3)" }}
           >
             {loading ? (
               <div className="w-5 h-5 mx-auto rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "rgba(2,4,8,0.3)", borderTopColor: "#020408" }} />
@@ -211,7 +211,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
         {note && (
           <motion.div initial={{ opacity: 0, y: -30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -30 }}
             className="fixed top-4 left-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold"
-            style={{ background: note.ok ? "rgba(0,209,255,0.15)" : "rgba(255,45,85,0.15)", border: `1px solid ${note.ok ? "rgba(0,209,255,0.3)" : "rgba(255,45,85,0.3)"}`, color: note.ok ? "#00D1FF" : "#FF2D55", backdropFilter: "blur(10px)" }}>
+            style={{ background: note.ok ? "rgba(155,80,255,0.15)" : "rgba(255,45,85,0.15)", border: `1px solid ${note.ok ? "rgba(155,80,255,0.3)" : "rgba(255,45,85,0.3)"}`, color: note.ok ? "#9B50FF" : "#FF2D55", backdropFilter: "blur(10px)" }}>
             {note.ok ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
             {note.msg}
           </motion.div>
@@ -221,8 +221,8 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(0,209,255,0.12)" }}>
-            <Shield className="w-5 h-5" style={{ color: "#00D1FF" }} />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(155,80,255,0.12)" }}>
+            <Shield className="w-5 h-5" style={{ color: "#9B50FF" }} />
           </div>
           <div>
             <div className="font-black text-sm tracking-widest">TUNBET</div>
@@ -248,7 +248,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
 
             <div className="grid grid-cols-2 gap-3">
               {[
-                { l: "اللاعبين", v: stats.playerCount, c: "#00D1FF", i: Users },
+                { l: "اللاعبين", v: stats.playerCount, c: "#9B50FF", i: Users },
                 { l: "الوكلاء", v: stats.agentCount, c: "#a855f7", i: UserCheck },
                 { l: "إجمالي الأرصدة", v: `TND ${parseFloat(stats.totalBalance).toFixed(0)}`, c: "#22c55e", i: DollarSign },
                 { l: "المعاملات", v: stats.txnCount, c: "#f59e0b", i: TrendingUp },
@@ -269,7 +269,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
             <div className="space-y-2 mt-2">
               <h3 className="text-xs font-bold text-white/30 tracking-widest">إجراءات سريعة</h3>
               {[
-                { label: "إضافة لاعب", icon: Plus, color: "#00D1FF", action: () => setModal({ type: "create", role: "player" }) },
+                { label: "إضافة لاعب", icon: Plus, color: "#9B50FF", action: () => setModal({ type: "create", role: "player" }) },
                 { label: "إضافة وكيل", icon: Plus, color: "#a855f7", action: () => setModal({ type: "create", role: "agent" }) },
               ].map(a => (
                 <button key={a.label} onClick={a.action} className="w-full flex items-center justify-between p-4 rounded-2xl"
@@ -292,7 +292,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-black">اللاعبين</h2>
-              <button onClick={() => setModal({ type: "create", role: "player" })} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold" style={{ background: "#00D1FF", color: "#020408" }}>
+              <button onClick={() => setModal({ type: "create", role: "player" })} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold" style={{ background: "#9B50FF", color: "#020408" }}>
                 <Plus className="w-3.5 h-3.5" /> إضافة
               </button>
             </div>
@@ -313,7 +313,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
               <div key={u.id} className="p-4 rounded-2xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black" style={{ background: "rgba(0,209,255,0.1)", color: "#00D1FF" }}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black" style={{ background: "rgba(155,80,255,0.1)", color: "#9B50FF" }}>
                       {u.username.charAt(0).toUpperCase()}
                     </div>
                     <div>
@@ -322,7 +322,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-black text-lg" style={{ color: "#00D1FF" }}>{parseFloat(u.balance).toFixed(2)} TND</div>
+                    <div className="font-black text-lg" style={{ color: "#9B50FF" }}>{parseFloat(u.balance).toFixed(2)} TND</div>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -455,9 +455,9 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
             return (
               <button key={t.id} onClick={() => switchTab(t.id)}
                 className="flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all"
-                style={{ background: active ? "rgba(0,209,255,0.1)" : "transparent" }}>
-                <t.icon className="w-5 h-5" style={{ color: active ? "#00D1FF" : "rgba(255,255,255,0.25)" }} />
-                <span className="text-[10px] font-semibold" style={{ color: active ? "#00D1FF" : "rgba(255,255,255,0.25)" }}>{t.label}</span>
+                style={{ background: active ? "rgba(155,80,255,0.1)" : "transparent" }}>
+                <t.icon className="w-5 h-5" style={{ color: active ? "#9B50FF" : "rgba(255,255,255,0.25)" }} />
+                <span className="text-[10px] font-semibold" style={{ color: active ? "#9B50FF" : "rgba(255,255,255,0.25)" }}>{t.label}</span>
               </button>
             );
           })}
@@ -530,18 +530,18 @@ function BalanceModal({ user, initialAction, onClose, onDone }: { user: any; ini
         exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="w-full max-w-lg rounded-t-3xl p-6 space-y-5"
-        style={{ background: "#0a0e14", border: "1px solid rgba(0,209,255,0.1)" }}
+        style={{ background: "#0a0e14", border: "1px solid rgba(155,80,255,0.1)" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center font-black" style={{ background: "rgba(0,209,255,0.1)", color: "#00D1FF" }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center font-black" style={{ background: "rgba(155,80,255,0.1)", color: "#9B50FF" }}>
               {user.username.charAt(0).toUpperCase()}
             </div>
             <div>
               <div className="font-bold">{user.username}</div>
-              <div className="text-xs text-white/30">الرصيد: <span style={{ color: "#00D1FF" }}>{parseFloat(user.balance).toFixed(2)} TND</span></div>
+              <div className="text-xs text-white/30">الرصيد: <span style={{ color: "#9B50FF" }}>{parseFloat(user.balance).toFixed(2)} TND</span></div>
             </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-xl" style={{ background: "rgba(255,255,255,0.05)" }}>
@@ -625,7 +625,7 @@ function CreateModal({ role, onClose, onDone }: { role: string; onClose: () => v
   };
 
   const isAgent = role === "agent";
-  const color = isAgent ? "#a855f7" : "#00D1FF";
+  const color = isAgent ? "#a855f7" : "#9B50FF";
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -634,7 +634,7 @@ function CreateModal({ role, onClose, onDone }: { role: string; onClose: () => v
       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="w-full max-w-lg rounded-t-3xl p-6 space-y-5"
-        style={{ background: "#0a0e14", border: "1px solid rgba(0,209,255,0.1)" }}
+        style={{ background: "#0a0e14", border: "1px solid rgba(155,80,255,0.1)" }}
         onClick={e => e.stopPropagation()}>
 
         <div className="flex items-center justify-between">
@@ -707,8 +707,8 @@ function AesLoginSection({ notify }: { notify: (msg: string, ok?: boolean) => vo
       </div>
 
       {status === "checking" && (
-        <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "rgba(0,209,255,0.05)" }}>
-          <RefreshCw className="w-4 h-4 animate-spin" style={{ color: "#00D1FF" }} />
+        <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "rgba(155,80,255,0.05)" }}>
+          <RefreshCw className="w-4 h-4 animate-spin" style={{ color: "#9B50FF" }} />
           <span className="text-sm text-white/50">جاري التحقق من الاتصال...</span>
         </div>
       )}
@@ -804,8 +804,8 @@ function BetsTab({ notify }: { notify: (msg: string, ok?: any) => void }) {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-black">رهانات رياضية</h2>
         <button onClick={load} className="p-2 rounded-lg"
-          style={{ background: "rgba(0,209,255,0.1)", border: "1px solid rgba(0,209,255,0.2)" }}>
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} style={{ color: "#00D1FF" }} />
+          style={{ background: "rgba(155,80,255,0.1)", border: "1px solid rgba(155,80,255,0.2)" }}>
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} style={{ color: "#9B50FF" }} />
         </button>
       </div>
 
@@ -815,7 +815,7 @@ function BetsTab({ notify }: { notify: (msg: string, ok?: any) => void }) {
           { key: "pending", label: "قيد الانتظار", color: "#f59e0b" },
           { key: "won", label: "رابحة", color: "#00C853" },
           { key: "lost", label: "خاسرة", color: "#FF2D55" },
-          { key: "all", label: "الإجمالي", color: "#00D1FF" },
+          { key: "all", label: "الإجمالي", color: "#9B50FF" },
         ] as const).map(s => (
           <button key={s.key} onClick={() => setFilter(s.key as any)}
             className="p-2 rounded-xl text-center"
