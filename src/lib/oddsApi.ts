@@ -152,8 +152,10 @@ function numericOrUndefined(v: any): number | undefined {
 function sortMatches(out: OddsMatch[]): OddsMatch[] {
   return out
     .filter(m => Object.keys(m.markets).length > 0)
-    // Strict logo policy: only show matches where BOTH teams have a real logo.
-    .filter(m => !!m.homeLogo && !!m.awayLogo)
+    // Backend/ESPN feed keeps the strict real-logo rule. Supabase is only an
+    // emergency cache and may not store logo columns, so allow it through and
+    // let the UI resolve team badges client-side instead of showing an empty book.
+    .filter(m => m.source === "supabase" || (!!m.homeLogo && !!m.awayLogo))
     .filter(m => m.status !== "finished")
     .sort((a, b) => {
       if (a.status === "live" && b.status !== "live") return -1;
