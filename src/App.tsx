@@ -11,6 +11,7 @@ const Lobby = lazy(() => import("@/pages/Lobby"));
 const Sports = lazy(() => import("@/pages/Sports"));
 const Live = lazy(() => import("@/pages/Live"));
 const Vault = lazy(() => import("@/pages/Vault"));
+const Zenyx = lazy(() => import("@/pages/Zenyx"));
 const AdminPanel = lazy(() => import("@/pages/admin/AdminPanel"));
 const AgentPanel = lazy(() => import("@/pages/agent/AgentPanel"));
 
@@ -31,6 +32,7 @@ function CasinoRouter() {
       <Route path="/sports" component={Sports} />
       <Route path="/live" component={Live} />
       <Route path="/vault" component={Vault} />
+      <Route path="/zenyx" component={Zenyx} />
       <Route component={NotFound} />
     </Switch>
   );
