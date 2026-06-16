@@ -360,6 +360,27 @@ export default function Lobby() {
             <div className="p-3 rounded-xl text-sm text-center" style={{ background: "rgba(255,45,85,0.1)", border: "1px solid rgba(255,45,85,0.3)", color: "#FF2D55" }}>{launchError}</div>
           )}
 
+          <button
+            onClick={() => { window.location.href = "/lion-slot"; }}
+            className="relative w-full overflow-hidden rounded-3xl p-4 text-left"
+            style={{ background: "linear-gradient(135deg, rgba(251,191,36,0.20), rgba(0,209,255,0.10), rgba(168,85,247,0.10))", border: "1px solid rgba(251,191,36,0.32)" }}
+          >
+            <div className="absolute -right-10 -top-10 w-36 h-36 rounded-full blur-3xl" style={{ background: "#fbbf24", opacity: 0.24 }} />
+            <div className="relative flex items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider" style={{ background: "rgba(251,191,36,0.18)", color: "#fbbf24" }}>REAL TND</span>
+                  <span className="text-[10px] text-white/45">Self-hosted · 20 paylines · Wild/Scatter</span>
+                </div>
+                <h2 className="text-lg font-black tracking-wider text-white">TunBet Lion Gold Slot</h2>
+                <p className="text-xs text-white/45 mt-0.5">Slot داخلي برصيد TND حقيقي — ليس Demo خارجي</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-2xl" style={{ background: "rgba(251,191,36,0.14)", border: "1px solid rgba(251,191,36,0.38)" }}>
+                🦁
+              </div>
+            </div>
+          </button>
+
           {!user && (
             <div className="p-3 rounded-xl text-sm text-center" style={{ background: "rgba(0,209,255,0.06)", border: "1px solid rgba(0,209,255,0.15)" }}>
               <span className="text-white/50">{t("loginRequired")} • </span>
