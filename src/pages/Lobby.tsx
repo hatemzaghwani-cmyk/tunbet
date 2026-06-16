@@ -300,7 +300,14 @@ export default function Lobby() {
     setClosingGame(false);
   };
 
-  const GameCard = ({ game, i, size = "normal" }: { game: AesGame; i: number; size?: "normal" | "large" | "wide" }) => (
+  const GameCard = ({ game, i, size = "normal" }: { game: AesGame; i: number; size?: "normal" | "large" | "wide" }) => {
+    // AES vertical artwork for 5 Lions Megaways is a fish-themed placeholder;
+    // force the original lion cover artwork in the lobby.
+    const imageSrc = game.game_code === "vswayslions"
+      ? game.game_image
+      : (size === "wide" ? game.game_image : (game.game_image_narrow || game.game_image));
+
+    return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -309,7 +316,7 @@ export default function Lobby() {
       style={{ aspectRatio: size === "wide" ? "2/1" : size === "large" ? "1/1" : "3/4", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
       onClick={() => launchGame(game)}
     >
-      <img src={size === "wide" ? game.game_image : (game.game_image_narrow || game.game_image)} alt={game.game_name}
+      <img src={imageSrc} alt={game.game_name}
         className="w-full h-full object-cover " loading="lazy" decoding="async"
         onError={e => { const t = e.target as HTMLImageElement; if (t.src !== game.game_image) t.src = game.game_image; else t.style.display = "none"; }} />
       <div className="absolute inset-0" style={{ background: size === "wide" ? "linear-gradient(to right, rgba(2,4,8,0.9) 0%, rgba(2,4,8,0.3) 100%)" : "linear-gradient(to top, rgba(2,4,8,0.95) 0%, rgba(2,4,8,0.1) 55%, transparent 100%)" }} />
@@ -330,7 +337,8 @@ export default function Lobby() {
         <h3 className={`font-bold leading-tight truncate text-white ${size === "wide" ? "text-sm" : "text-[11px]"}`}>{game.game_name}</h3>
       </div>
     </motion.div>
-  );
+    );
+  };
 
   return (
     <>
