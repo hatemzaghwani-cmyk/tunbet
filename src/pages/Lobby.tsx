@@ -6,8 +6,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { apiGames, apiGameProviders, apiLaunchGame, apiSyncBalance } from "@/lib/localApi";
-import { ORO_GAMES } from "@/lib/oroGames";
-import { useLocation } from "wouter";
 
 
 
@@ -78,47 +76,8 @@ const FIRST_GAME_CODE = 'vswayslions'; // 5 Lions Megaways
 // Pin these games at top after first
 const PINNED_CODES = ['vswayslions', 'vs20olympgate', 'bg25plinko'];
 
-// ── OroPlay games (Amatic, NoLimit City, Hacksaw, PGSoft, …) ──
-// Assign each OroPlay vendor a synthetic provider_id (1000+) so it never clashes with AES ids.
-// game_code is encoded as "oro:{vendorCode}:{gameCode}" so launchGame can route it to OroPlay.
-const ORO_PROVIDER_BASE = 1000;
-const _oroVendorIds: Record<string, number> = {};
-let _oroNextId = ORO_PROVIDER_BASE;
-function oroProviderId(vendorCode: string): number {
-  if (!(vendorCode in _oroVendorIds)) _oroVendorIds[vendorCode] = _oroNextId++;
-  return _oroVendorIds[vendorCode];
-}
-// Strict launch path: pure live external API routing
-const ORO_SKIP_VENDORS = new Set([
-  "slot-pragmatic", "slot-pgsoft", "slot-booongo", "slot-playson", "slot-habanero", "slot-cq9", "slot-jili", "slot-hacksaw", "slot-tada", "mini-spribe"
-]);
-
-const ORO_AES_GAMES: AesGame[] = ORO_GAMES
-  .filter(g => g.thumb && !ORO_SKIP_VENDORS.has(g.vendorCode))
-  .map(g => ({
-    provider_id: oroProviderId(g.vendorCode),
-    game_code: `oro:${g.vendorCode}:${g.gameCode}`,
-    game_name: g.name,
-    locale_name: g.name,
-    game_image: g.thumb,
-    game_image_narrow: g.thumb,
-    launch_enable: true,
-    category: "slot",
-  }));
-
-const ORO_PROVIDERS: Provider[] = Object.entries(
-  ORO_GAMES.filter(g => g.thumb && !ORO_SKIP_VENDORS.has(g.vendorCode))
-    .reduce((acc, g) => { acc[g.vendorCode] = g.vendorName; return acc; }, {} as Record<string, string>)
-).map(([vendorCode, vendorName]) => ({
-  provider_id: oroProviderId(vendorCode),
-  provider_name: vendorName,
-  locale_name: vendorName,
-  status: 1,
-}));
-
 export default function Lobby() {
   const { user, token, refreshBalance } = useAuth();
-  const [, navigate] = useLocation();
   const [activeProvider, setActiveProvider] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [allGames, setAllGames] = useState<AesGame[]>([]);
@@ -141,29 +100,15 @@ export default function Lobby() {
     apiGameProviders().then(pData => {
       const pd = pData as { code?: number; data?: Provider[] };
       const aesProv = (pd?.code === 0 && Array.isArray(pd.data)) ? pd.data.filter(p => p.status === 1) : [];
-      setProviders([...aesProv, ...ORO_PROVIDERS]);
+      setProviders(aesProv);
     }).catch(() => {});
 
     apiGames()
       .then(gData => {
         const gd = gData as { code?: number; data?: AesGame[] };
         const aes = (gd?.code === 0 && Array.isArray(gd.data)) ? gd.data : [];
-        
-        // Strict Deduplication: build a Set of existing AES game names
-        const aesNames = new Set<string>();
-        for (const g of aes) {
-          const clean = g.game_name.toLowerCase().replace(/[^a-z0-9]/g, '');
-          aesNames.add(clean);
-        }
-        
-        // Only add OroPlay games whose normalized name does not exist in AES
-        const uniqueOroGames = ORO_AES_GAMES.filter(og => {
-          const clean = og.game_name.toLowerCase().replace(/[^a-z0-9]/g, '');
-          return !aesNames.has(clean);
-        });
-
-        // Merge AES games with unique OroPlay catalogue
-        setAllGames([...aes, ...uniqueOroGames]);
+        // AES Gaming only.
+        setAllGames(aes);
       })
       .catch(() => {}).finally(() => setLoadingGames(false));
   }, []);
@@ -298,46 +243,17 @@ export default function Lobby() {
   // Top picks (first 8 from scored popular)
   const topPicks = useMemo(() => games.slice(0, 8), [games]);
 
-  // Launch an OroPlay game (seamless wallet — no balance transfer needed).
-  // game_code format: "oro:{vendorCode}:{gameCode}"
-  const launchOroGame = async (encoded: string, _game?: AesGame): Promise<{ url?: string; error?: string }> => {
-    if (!user) return { error: t("loginRequired") || "Unauthorized" };
-    const parts = encoded.split(":");
-    const vendorCode = parts[1];
-    const gameCode = parts.slice(2).join(":");
-    const apiBase = (typeof window !== "undefined" && (window as any).__TUNBET_SPORTSBOOK_API__) || "https://tunbet-sportsbook.onrender.com";
-
-    try {
-      const r = await fetch(`${apiBase}/api/oro/launch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userCode: `tb_${user.id}`, gameCode, vendorCode, language: "en" }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (d?.success || d?.url) {
-        const url = d.url || d.data?.url || d.gameUrl || d.launchUrl || d.data?.launchUrl;
-        if (url && /^https?:\/\//.test(url)) return { url };
-      }
-      if (d?.error || d?.message) return { error: d.error || d.message };
-    } catch {}
-
-    return { error: "السيرفر الخارجي للألعاب قيد التحديث حالياً، يرجى المحاولة لاحقاً" };
-  };
-
   const launchGame = async (game: AesGame) => {
     if (!user || !token) { setShowAuth(true); return; }
     // Strict client-side guards (server-side guard in apiLaunchGame is the source of truth)
     if (launchingGame) return;                  // prevent double-click on any card
     if (gameUrl) return;                         // can't launch while another game is open
     if (closingGame) return;                     // can't launch while closing previous
-    // No client-side balance gate — the AES/OroPlay backend handles low-balance UX itself.
+    // No client-side balance gate — the AES backend handles low-balance UX itself.
     // (Removed the agent-contact prompt by request.)
     setLaunchingGame(game.game_code); setLaunchError("");
     try {
-      // OroPlay games use a seamless wallet — launch via the OroPlay backend.
-      const result = game.game_code.startsWith("oro:")
-        ? await launchOroGame(game.game_code, game)
-        : await apiLaunchGame(token, game.game_code, game.provider_id);
+      const result = await apiLaunchGame(token, game.game_code, game.provider_id);
       if (result.url) {
         setGameUrl(result.url);
         setActiveGame(game);
@@ -397,12 +313,6 @@ export default function Lobby() {
         className="w-full h-full object-cover " loading="lazy" decoding="async"
         onError={e => { const t = e.target as HTMLImageElement; if (t.src !== game.game_image) t.src = game.game_image; else t.style.display = "none"; }} />
       <div className="absolute inset-0" style={{ background: size === "wide" ? "linear-gradient(to right, rgba(2,4,8,0.9) 0%, rgba(2,4,8,0.3) 100%)" : "linear-gradient(to top, rgba(2,4,8,0.95) 0%, rgba(2,4,8,0.1) 55%, transparent 100%)" }} />
-      {game.game_code.startsWith("oro:") && (
-        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[7px] font-black tracking-wider"
-          style={{ background: "rgba(0,209,255,0.92)", color: "#020408", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
-          NEW ⭐
-        </div>
-      )}
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
         <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(0,209,255,0.9)" }}>
           {launchingGame === game.game_code

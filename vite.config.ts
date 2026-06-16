@@ -35,7 +35,6 @@ export default defineConfig({
           // Lazy-loaded game catalogues — split so they don't bloat the entry chunk
           "games-aes": ["@/lib/aesGamesList", "@/lib/aesProvidersList"],
           "games-live": ["@/lib/liveGames"],
-          "games-oro": ["@/lib/oroGames"],
         },
       },
     },
