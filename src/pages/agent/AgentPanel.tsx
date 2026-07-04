@@ -210,7 +210,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
       <div className="flex border-b px-6" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
         {[
           { id: "players" as const, label: "My Players" },
-          { id: "agents" as const, label: "وكلائي الفرعيين" },
+          { id: "agents" as const, label: "Sub-Agents" },
           { id: "bets" as const, label: "Player Bets" },
           { id: "transactions" as const, label: "Transactions" }
         ].map(tab => (
@@ -315,13 +315,13 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
             <div className="mb-1 flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-white/40"
               style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.15)" }}>
               <Shield className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#a855f7" }} />
-              <span>الوكيل الفرعي يبدأ برصيد 0.00 د.ت — اشحن له رصيدًا من رصيدك الخاص ليتمكن من شحن لاعبيه.</span>
+              <span>A new sub-agent starts with a 0.00 TND balance — fund it from your own credit so it can top up its players.</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                 <input
-                  placeholder="بحث عن وكيل فرعي..."
+                  placeholder="Search sub-agents..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 rounded-xl text-white text-sm outline-none"
@@ -333,7 +333,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
                 className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold flex-shrink-0"
                 style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)", color: "#fff" }}
               >
-                <Plus className="w-4 h-4" /> إضافة وكيل فرعي
+                <Plus className="w-4 h-4" /> Add Sub-Agent
               </button>
               <button onClick={loadData} className="p-3 rounded-xl hover:bg-white/5">
                 <RefreshCw className="w-4 h-4 text-white/40" />
@@ -360,26 +360,26 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
                         className="px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
                         style={{ background: "rgba(34,197,94,0.18)", border: "1px solid rgba(34,197,94,0.35)", color: "#22c55e" }}
                       >
-                        شحن +
+                        Fund +
                       </button>
                       <button
                         onClick={() => setShowAgentBalance({ agent, action: "withdraw" })}
                         className="px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
                         style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)", color: "#ef4444" }}
                       >
-                        سحب −
+                        Withdraw −
                       </button>
 
                       <div className="w-px h-6 bg-white/10 mx-1" />
 
                       <button
                         onClick={async () => {
-                          if (!confirm(`حذف الوكيل الفرعي ${agent.username}؟ سيتم استرجاع رصيده المتبقي (${parseFloat(agent.balance).toFixed(2)} TND) إلى رصيدك.`)) return;
+                          if (!confirm(`Delete sub-agent ${agent.username}? Their remaining balance (${parseFloat(agent.balance).toFixed(2)} TND) will be refunded back to your credit.`)) return;
                           try {
                             await localApi.apiAgentDeleteSubAgent(token!, agent.id);
                             loadData();
-                            notify("تم حذف الوكيل الفرعي واسترجاع رصيده");
-                          } catch (e: any) { notify(e.message || "فشل الحذف", "error"); }
+                            notify("Sub-agent deleted and balance refunded");
+                          } catch (e: any) { notify(e.message || "Delete failed", "error"); }
                         }}
                         className="p-2 rounded-lg hover:bg-white/10" title="Delete"
                       >
@@ -392,7 +392,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
               {filteredSubAgents.length === 0 && (
                 <div className="text-center py-16 text-white/30">
                   <Shield className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>لا يوجد وكلاء فرعيون بعد. اضغط "إضافة وكيل فرعي" لإنشاء واحد.</p>
+                  <p>No sub-agents yet. Click "Add Sub-Agent" to create one.</p>
                 </div>
               )}
             </div>
@@ -513,12 +513,12 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
       )}
 
       {showAgentBalance && (
-        <AgentBalanceModal
-          player={showAgentBalance.agent}
+        <SubAgentBalanceModal
+          agent={showAgentBalance.agent}
           initialAction={showAgentBalance.action}
           token={token!}
           onClose={() => setShowAgentBalance(null)}
-          onDone={async () => { await loadData(); setShowAgentBalance(null); notify("تم تحديث رصيد الوكيل الفرعي"); }}
+          onDone={async () => { await loadData(); setShowAgentBalance(null); notify("Sub-agent balance updated"); }}
         />
       )}
 
@@ -526,7 +526,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
         <CreateSubAgentModal
           token={token!}
           onClose={() => setShowCreateAgent(false)}
-          onDone={async () => { await loadData(); setShowCreateAgent(false); notify("تم إنشاء الوكيل الفرعي (رصيده 0.00 د.ت — اشحن له الآن)"); }}
+          onDone={async () => { await loadData(); setShowCreateAgent(false); notify("Sub-agent created (balance 0.00 TND — fund it now)"); }}
         />
       )}
 
@@ -599,7 +599,7 @@ function CreateSubAgentModal({ token, onClose, onDone }: { token: string; onClos
       await localApi.apiAgentCreateSubAgent(token, { username, password, email: email || undefined });
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "فشل الإنشاء");
+      setError(err instanceof Error ? err.message : "Failed to create");
     } finally {
       setLoading(false);
     }
@@ -609,17 +609,75 @@ function CreateSubAgentModal({ token, onClose, onDone }: { token: string; onClos
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.8)" }}>
       <div className="w-full max-w-sm p-6 rounded-2xl" style={{ background: "#0a0e14", border: "1px solid rgba(168,85,247,0.3)" }}>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-bold flex items-center gap-2"><Shield className="w-4 h-4" style={{ color: "#a855f7" }} />إضافة وكيل فرعي</h3>
+          <h3 className="font-bold flex items-center gap-2"><Shield className="w-4 h-4" style={{ color: "#a855f7" }} />Add Sub-Agent</h3>
           <button onClick={onClose}><X className="w-5 h-5 text-white/40" /></button>
         </div>
-        <p className="text-xs text-white/35 mb-4">سيبدأ الوكيل الجديد برصيد 0.00 د.ت. اشحن له لاحقًا من رصيدك الخاص عبر زر "شحن +".</p>
+        <p className="text-xs text-white/35 mb-4">The new sub-agent will start with a 0.00 TND balance. Fund it later from your own credit using the "Fund +" button.</p>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <input type="text" placeholder="اسم المستخدم" required value={username} onChange={e => setUsername(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
-          <input type="password" placeholder="كلمة السر" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
-          <input type="email" placeholder="البريد الإلكتروني (اختياري)" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+          <input type="text" placeholder="Username" required value={username} onChange={e => setUsername(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+          <input type="password" placeholder="Password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+          <input type="email" placeholder="Email (optional)" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
           {error && <p className="text-sm" style={{ color: "#FF2D55" }}>{error}</p>}
           <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)", color: "#fff" }}>
-            {loading ? "جاري الإنشاء..." : "إنشاء الوكيل الفرعي"}
+            {loading ? "Creating..." : "Create Sub-Agent"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function SubAgentBalanceModal({ agent, initialAction = "add", token, onClose, onDone }: { agent: SubAgent; initialAction?: "add" | "withdraw"; token: string; onClose: () => void; onDone: () => void }) {
+  const [action, setAction] = useState<"add" | "withdraw">(initialAction);
+  const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) { setError("Enter a valid amount"); return; }
+    setLoading(true);
+    setError("");
+    try {
+      // Use the strict, race-safe API function (centralized in supabaseApi.ts)
+      await localApi.apiAgentSubAgentBalance(token, agent.id, action, amt);
+      onDone();
+    } catch (err: any) {
+      setError(err.message || "Error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.8)" }}>
+      <div className="w-full max-w-sm p-6 rounded-2xl" style={{ background: "#0a0e14", border: "1px solid rgba(168,85,247,0.3)" }}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-bold">Balance: <span style={{ color: "#a855f7" }}>{agent.username}</span></h3>
+          <button onClick={onClose}><X className="w-5 h-5 text-white/40" /></button>
+        </div>
+        <div className="mb-4 p-3 rounded-xl text-center" style={{ background: "rgba(168,85,247,0.08)" }}>
+          <div className="text-white/40 text-xs">Current Balance</div>
+          <div className="text-2xl font-black" style={{ color: "#a855f7" }}>{parseFloat(agent.balance).toFixed(2)} TND</div>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            {(["add", "withdraw"] as const).map(a => (
+              <button key={a} type="button" onClick={() => setAction(a)} className="py-2 rounded-xl text-sm font-semibold"
+                style={{ background: action === a ? (a === "add" ? "#22c55e" : "#FF2D55") : "rgba(255,255,255,0.05)", color: action === a ? "#fff" : "rgba(255,255,255,0.5)" }}>
+                {a === "add" ? "Fund +" : "Withdraw −"}
+              </button>
+            ))}
+          </div>
+          <input type="number" placeholder="Amount" min="0.01" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none text-center text-xl font-bold"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: action === "add" ? "#22c55e" : "#FF2D55" }} />
+          {error && <p className="text-sm text-center" style={{ color: "#FF2D55" }}>{error}</p>}
+          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm disabled:opacity-50"
+            style={{ background: action === "add" ? "#22c55e" : "#FF2D55", color: "#fff" }}>
+            {loading ? "Processing..." : action === "add" ? `Fund ${amount || "0"} TND` : `Withdraw ${amount || "0"} TND`}
           </button>
         </form>
       </div>
