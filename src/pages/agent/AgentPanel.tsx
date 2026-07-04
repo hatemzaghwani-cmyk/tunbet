@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, DollarSign, LogOut, Plus, Trash2, Key, RefreshCw, Search, CheckCircle, AlertCircle, X, Shield, Eye, EyeOff } from "lucide-react";
+import { Users, Wallet, LogOut, Plus, Trash2, Key, RefreshCw, Search, CheckCircle, AlertCircle, X, Shield, Eye, EyeOff } from "lucide-react";
 import * as localApi from "@/lib/localApi";
 
 interface Player {
@@ -11,6 +11,16 @@ interface Player {
   is_active: boolean;
   created_at: string;
 }
+
+interface SubAgent {
+  id: number;
+  username: string;
+  email?: string;
+  balance: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 
 interface Transaction {
   id: number;
@@ -82,7 +92,7 @@ function AgentLogin({ onLogin }: { onLogin: (t: string, u: any) => void }) {
             style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.2), rgba(168,85,247,0.05))", border: "2px solid rgba(168,85,247,0.3)" }}>
             <Shield className="w-10 h-10" style={{ color: "#a855f7" }} />
           </div>
-          <h1 className="text-2xl font-black text-white tracking-wider">TUNBET</h1>
+          <h1 className="text-2xl font-black text-white tracking-wider">OROBET</h1>
           <p className="text-white/30 text-sm mt-1">لوحة الوكيل</p>
         </div>
         <form onSubmit={submit} className="space-y-4">
@@ -112,13 +122,17 @@ function AgentLogin({ onLogin }: { onLogin: (t: string, u: any) => void }) {
 
 function AgentDashboard({ user, token, logout }: { user: any; token: string; logout: () => void }) {
   const [players, setPlayers] = useState<Player[]>([]);
+  const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [bets, setBets] = useState<any[]>([]);
   const [agentBalance, setAgentBalance] = useState<string>(user?.balance ?? "0");
-  const [activeTab, setActiveTab] = useState<"players" | "transactions">("players");
+  const [activeTab, setActiveTab] = useState<"players" | "agents" | "transactions" | "bets">("players");
   const [search, setSearch] = useState("");
   const [notification, setNotification] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [showBalance, setShowBalance] = useState<Player | null>(null);
+  const [showCreateAgent, setShowCreateAgent] = useState(false);
+  const [showBalance, setShowBalance] = useState<{ player: Player; action: "add" | "withdraw" } | null>(null);
+  const [showAgentBalance, setShowAgentBalance] = useState<{ agent: SubAgent; action: "add" | "withdraw" } | null>(null);
   const [showPassword, setShowPassword] = useState<Player | null>(null);
 
   const notify = (msg: string, type: "success" | "error" = "success") => {
@@ -129,20 +143,32 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
   const loadData = useCallback(async () => {
     if (!token) return;
     try {
-      const [p, t, me] = await Promise.all([
+      const [p, t, me, b, sa] = await Promise.all([
         localApi.apiAgentPlayers(token),
         localApi.apiAgentTransactions(token),
         localApi.apiAgentMe(token),
+        localApi.apiAgentBets(token),
+        localApi.apiAgentSubAgents(token),
       ]);
       setPlayers(p as Player[]);
       setTransactions(t as Transaction[]);
       setAgentBalance((me as { balance: string }).balance);
+      setBets(b as any[]);
+      setSubAgents(sa as SubAgent[]);
     } catch {}
   }, [token]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  // Load data on mount and auto-refresh player list and balances every 10 seconds!
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(() => {
+      loadData();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [loadData]);
 
   const filteredPlayers = players.filter(p => p.username.toLowerCase().includes(search.toLowerCase()));
+  const filteredSubAgents = subAgents.filter(a => a.username.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="min-h-screen text-white" style={{ background: "#020408", fontFamily: "'Outfit', sans-serif" }}>
@@ -164,7 +190,7 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
         <div>
-          <div className="font-black tracking-widest text-sm">TUNBET</div>
+          <div className="font-black tracking-widest text-sm">OROBET</div>
           <div className="text-white/40 text-xs">Agent Panel — {user?.username ?? ""}</div>
         </div>
         <div className="flex items-center gap-4">
@@ -182,10 +208,15 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
 
       {/* Tabs */}
       <div className="flex border-b px-6" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-        {[{ id: "players" as const, label: "My Players" }, { id: "transactions" as const, label: "Transactions" }].map(tab => (
+        {[
+          { id: "players" as const, label: "My Players" },
+          { id: "agents" as const, label: "وكلائي الفرعيين" },
+          { id: "bets" as const, label: "Player Bets" },
+          { id: "transactions" as const, label: "Transactions" }
+        ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => { setActiveTab(tab.id); setSearch(""); }}
             className="py-3 px-4 text-sm font-medium border-b-2 transition-all"
             style={{ borderColor: activeTab === tab.id ? "#00D1FF" : "transparent", color: activeTab === tab.id ? "#00D1FF" : "rgba(255,255,255,0.4)" }}
           >
@@ -231,10 +262,24 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
                       <div className="text-xs text-white/40">Balance</div>
                       <div className="font-bold" style={{ color: "#00D1FF" }}>{parseFloat(player.balance).toFixed(2)}</div>
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => setShowBalance(player)} className="p-2 rounded-lg hover:bg-white/10" title="إيداع/سحب">
-                        <DollarSign className="w-4 h-4" style={{ color: "#22c55e" }} />
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setShowBalance({ player, action: "add" })}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                        style={{ background: "rgba(34,197,94,0.18)", border: "1px solid rgba(34,197,94,0.35)", color: "#22c55e" }}
+                      >
+                        شحن +
                       </button>
+                      <button
+                        onClick={() => setShowBalance({ player, action: "withdraw" })}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                        style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)", color: "#ef4444" }}
+                      >
+                        سحب −
+                      </button>
+
+                      <div className="w-px h-6 bg-white/10 mx-1" />
+
                       <button onClick={() => setShowPassword(player)} className="p-2 rounded-lg hover:bg-white/10" title="Change password">
                         <Key className="w-4 h-4" style={{ color: "#f59e0b" }} />
                       </button>
@@ -261,6 +306,159 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
                   <p>No players yet. Click "Add Player" to create one.</p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "agents" && (
+          <div className="space-y-4">
+            <div className="mb-1 flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-white/40"
+              style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.15)" }}>
+              <Shield className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#a855f7" }} />
+              <span>الوكيل الفرعي يبدأ برصيد 0.00 د.ت — اشحن له رصيدًا من رصيدك الخاص ليتمكن من شحن لاعبيه.</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <input
+                  placeholder="بحث عن وكيل فرعي..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl text-white text-sm outline-none"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                />
+              </div>
+              <button
+                onClick={() => setShowCreateAgent(true)}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)", color: "#fff" }}
+              >
+                <Plus className="w-4 h-4" /> إضافة وكيل فرعي
+              </button>
+              <button onClick={loadData} className="p-3 rounded-xl hover:bg-white/5">
+                <RefreshCw className="w-4 h-4 text-white/40" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {filteredSubAgents.map(agent => (
+                <div key={agent.id} className="flex items-center justify-between p-4 rounded-2xl" style={{ background: "rgba(168,85,247,0.05)", border: "1px solid rgba(168,85,247,0.15)" }}>
+                  <div>
+                    <div className="font-semibold flex items-center gap-2">
+                      <Shield className="w-3.5 h-3.5" style={{ color: "#a855f7" }} />
+                      {agent.username}
+                    </div>
+                    <div className="text-xs text-white/40">{agent.email ?? "No email"} · Joined {new Date(agent.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="text-xs text-white/40">Balance</div>
+                      <div className="font-bold" style={{ color: "#a855f7" }}>{parseFloat(agent.balance).toFixed(2)}</div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setShowAgentBalance({ agent, action: "add" })}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                        style={{ background: "rgba(34,197,94,0.18)", border: "1px solid rgba(34,197,94,0.35)", color: "#22c55e" }}
+                      >
+                        شحن +
+                      </button>
+                      <button
+                        onClick={() => setShowAgentBalance({ agent, action: "withdraw" })}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                        style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)", color: "#ef4444" }}
+                      >
+                        سحب −
+                      </button>
+
+                      <div className="w-px h-6 bg-white/10 mx-1" />
+
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`حذف الوكيل الفرعي ${agent.username}؟ سيتم استرجاع رصيده المتبقي (${parseFloat(agent.balance).toFixed(2)} TND) إلى رصيدك.`)) return;
+                          try {
+                            await localApi.apiAgentDeleteSubAgent(token!, agent.id);
+                            loadData();
+                            notify("تم حذف الوكيل الفرعي واسترجاع رصيده");
+                          } catch (e: any) { notify(e.message || "فشل الحذف", "error"); }
+                        }}
+                        className="p-2 rounded-lg hover:bg-white/10" title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" style={{ color: "#FF2D55" }} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {filteredSubAgents.length === 0 && (
+                <div className="text-center py-16 text-white/30">
+                  <Shield className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>لا يوجد وكلاء فرعيون بعد. اضغط "إضافة وكيل فرعي" لإنشاء واحد.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "bets" && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <input
+                  placeholder="Search player bets by Username..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl text-white text-sm outline-none"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                />
+              </div>
+              <button onClick={loadData} className="p-3 rounded-xl hover:bg-white/5">
+                <RefreshCw className="w-4 h-4 text-white/40" />
+              </button>
+            </div>
+            <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      {["Player ID", "Match", "Selection", "Odds", "Stake", "Potential Win", "Status", "Date"].map(h => (
+                        <th key={h} className="text-left px-4 py-3 text-white/40 font-medium text-xs">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bets
+                      .filter(b => !search || String(b.user_id).includes(search) || (players.find(p => p.id === b.user_id)?.username || '').toLowerCase().includes(search.toLowerCase()))
+                      .map((b, i) => {
+                        const pName = players.find(p => p.id === b.user_id)?.username || `User #${b.user_id}`;
+                        return (
+                          <tr key={b.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "rgba(255,255,255,0.01)" : "transparent" }}>
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-white">{pName}</div>
+                              <div className="text-[10px] text-white/30">ID: {b.user_id}</div>
+                            </td>
+                            <td className="px-4 py-3 text-white/80 font-bold">{b.event_name}</td>
+                            <td className="px-4 py-3 text-white/60 text-xs">{b.selection_name}</td>
+                            <td className="px-4 py-3 font-mono text-xs">{parseFloat(b.odds).toFixed(2)}</td>
+                            <td className="px-4 py-3 font-semibold text-white">{parseFloat(b.stake).toFixed(2)} TND</td>
+                            <td className="px-4 py-3 font-semibold" style={{ color: "#00D1FF" }}>{parseFloat(b.potential_win).toFixed(2)} TND</td>
+                            <td className="px-4 py-3">
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase"
+                                style={{
+                                  background: b.status === "won" ? "rgba(34,197,94,0.15)" : b.status === "lost" ? "rgba(239,68,68,0.15)" : "rgba(245,158,11,0.15)",
+                                  color: b.status === "won" ? "#22c55e" : b.status === "lost" ? "#ef4444" : "#f59e0b"
+                                }}>
+                                {b.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-white/30 text-xs">{new Date(b.created_at).toLocaleDateString()}</td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+              {bets.length === 0 && <div className="text-center py-16 text-white/30">No player bets found</div>}
             </div>
           </div>
         )}
@@ -298,7 +496,8 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
 
       {showBalance && (
         <AgentBalanceModal
-          player={showBalance}
+          player={showBalance.player}
+          initialAction={showBalance.action}
           token={token!}
           onClose={() => setShowBalance(null)}
           onDone={async () => { await loadData(); setShowBalance(null); notify("تم تحديث الرصيد"); }}
@@ -310,6 +509,24 @@ function AgentDashboard({ user, token, logout }: { user: any; token: string; log
           token={token!}
           onClose={() => setShowCreate(false)}
           onDone={async () => { await loadData(); setShowCreate(false); notify("Player created"); }}
+        />
+      )}
+
+      {showAgentBalance && (
+        <AgentBalanceModal
+          player={showAgentBalance.agent}
+          initialAction={showAgentBalance.action}
+          token={token!}
+          onClose={() => setShowAgentBalance(null)}
+          onDone={async () => { await loadData(); setShowAgentBalance(null); notify("تم تحديث رصيد الوكيل الفرعي"); }}
+        />
+      )}
+
+      {showCreateAgent && (
+        <CreateSubAgentModal
+          token={token!}
+          onClose={() => setShowCreateAgent(false)}
+          onDone={async () => { await loadData(); setShowCreateAgent(false); notify("تم إنشاء الوكيل الفرعي (رصيده 0.00 د.ت — اشحن له الآن)"); }}
         />
       )}
 
@@ -367,6 +584,49 @@ function CreatePlayerModal({ token, onClose, onDone }: { token: string; onClose:
   );
 }
 
+function CreateSubAgentModal({ token, onClose, onDone }: { token: string; onClose: () => void; onDone: () => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      await localApi.apiAgentCreateSubAgent(token, { username, password, email: email || undefined });
+      onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "فشل الإنشاء");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.8)" }}>
+      <div className="w-full max-w-sm p-6 rounded-2xl" style={{ background: "#0a0e14", border: "1px solid rgba(168,85,247,0.3)" }}>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-bold flex items-center gap-2"><Shield className="w-4 h-4" style={{ color: "#a855f7" }} />إضافة وكيل فرعي</h3>
+          <button onClick={onClose}><X className="w-5 h-5 text-white/40" /></button>
+        </div>
+        <p className="text-xs text-white/35 mb-4">سيبدأ الوكيل الجديد برصيد 0.00 د.ت. اشحن له لاحقًا من رصيدك الخاص عبر زر "شحن +".</p>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input type="text" placeholder="اسم المستخدم" required value={username} onChange={e => setUsername(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+          <input type="password" placeholder="كلمة السر" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+          <input type="email" placeholder="البريد الإلكتروني (اختياري)" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+          {error && <p className="text-sm" style={{ color: "#FF2D55" }}>{error}</p>}
+          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)", color: "#fff" }}>
+            {loading ? "جاري الإنشاء..." : "إنشاء الوكيل الفرعي"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function ChangePasswordModal({ player, token, onClose, onDone }: { player: Player; token: string; onClose: () => void; onDone: () => void }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -406,8 +666,8 @@ function ChangePasswordModal({ player, token, onClose, onDone }: { player: Playe
 }
 
 
-function AgentBalanceModal({ player, token, onClose, onDone }: { player: Player; token: string; onClose: () => void; onDone: () => void }) {
-  const [action, setAction] = useState<"add" | "withdraw">("add");
+function AgentBalanceModal({ player, initialAction = "add", token, onClose, onDone }: { player: Player; initialAction?: "add" | "withdraw"; token: string; onClose: () => void; onDone: () => void }) {
+  const [action, setAction] = useState<"add" | "withdraw">(initialAction);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
